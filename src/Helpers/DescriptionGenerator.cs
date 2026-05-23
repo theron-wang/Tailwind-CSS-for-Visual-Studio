@@ -142,7 +142,7 @@ internal sealed class DescriptionGenerator : IDisposable
                     {
                         if (!_colorDescriptionMapper.TryGetValue(value, out var hex))
                         {
-                            hex = ColorHelpers.ConvertToHex(value);
+                            hex = ColorHelpers.ConvertToHexIfPossible(value);
                             _colorDescriptionMapper[color] = hex;
                         }
 
@@ -481,6 +481,20 @@ internal sealed class DescriptionGenerator : IDisposable
                 else
                 {
                     return description.Replace("{1}", potentialBreakpointOrContainer);
+                }
+            }
+
+            if (potentialBreakpointOrContainer.StartsWith("[") && potentialBreakpointOrContainer.EndsWith("]"))
+            {
+                var arbitraryVariant = potentialBreakpointOrContainer.Substring(1, potentialBreakpointOrContainer.Length - 2);
+
+                if (trim)
+                {
+                    return arbitraryVariant.Replace('_', ' ');
+                }
+                else
+                {
+                    return arbitraryVariant.Replace('_', ' ') + " { {0} }";
                 }
             }
 

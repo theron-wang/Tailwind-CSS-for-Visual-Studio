@@ -40,7 +40,9 @@ internal static class ColorHelpers
     /// Converts rgb, oklch to hex
     /// Input be in the format rgb(# # #) or oklch(# # #)
     /// </summary>
-    public static string? ConvertToHex(string color)
+    /// <param name="color">The color string to convert</param>
+    /// <returns>The converted hex color string, or null if conversion is not possible (i.e., out of gamut)</returns>
+    public static string? ConvertToHexIfPossible(string color)
     {
         if (color.StartsWith("#"))
         {
@@ -91,7 +93,7 @@ internal static class ColorHelpers
             var unicolour = new Unicolour(ColourSpace.Oklch, values[0], values[1], values[2]);
 
             var rgb = unicolour.Rgb;
-            return rgb.Clipped.Byte255.Hex;
+            return rgb.Byte255.Hex == "-" ? null : rgb.Byte255.Hex;
         }
 
         if (color.StartsWith("hsl"))
@@ -109,7 +111,7 @@ internal static class ColorHelpers
 
             var unicolour = new Unicolour(ColourSpace.Hsl, (values[0], values[1], values[2]));
 
-            return unicolour.Rgb.Clipped.Byte255.Hex;
+            return unicolour.Rgb.Byte255.Hex == "-" ? null : unicolour.Rgb.Byte255.Hex;
         }
 
         return null;
@@ -118,8 +120,9 @@ internal static class ColorHelpers
     /// <summary>
     /// Converts hex, oklch to rgb
     /// Input be in the format #hex or oklch(# # #)
+    /// For colors outside the gamut, this will return the closest possible color within the gamut, which may not be the intended color
     /// </summary>
-    public static int[]? ConvertToRgb(string color)
+    public static int[]? ForceConvertToRgb(string color)
     {
         if (color.StartsWith("#"))
         {

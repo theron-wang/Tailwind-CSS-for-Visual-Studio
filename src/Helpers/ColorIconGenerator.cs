@@ -74,7 +74,7 @@ internal class ColorIconGenerator
 
         byte r, g, b;
 
-        if (ColorHelpers.ConvertToRgb(value) is int[] converted && converted.Length == 3)
+        if (ColorHelpers.ForceConvertToRgb(value) is int[] converted && converted.Length == 3)
         {
             r = (byte)converted[0];
             g = (byte)converted[1];

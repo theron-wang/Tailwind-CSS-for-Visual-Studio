@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.13.9 (May 22nd, 2026)
+
+- Add arbitrary variants into quick info tooltips (i.e., `[&_td]` becomes `& td` in the tooltip) ([#142](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/issues/142))
+- Remove hex equivalents in descriptions for colors that are outside the RGB gamut
+
 ## 1.13.8 (May 21st, 2026)
 
 - Fix incorrect color descriptions for oklch colors out of the normal RGB space ([#142](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/issues/142))

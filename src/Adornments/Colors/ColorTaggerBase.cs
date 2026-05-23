@@ -304,7 +304,7 @@ internal abstract class ColorTaggerBase : ITagger<IntraTextAdornmentTag>, IDispo
                 return null;
             }
 
-            if (ColorHelpers.ConvertToRgb(value) is int[] converted && converted.Length == 3)
+            if (ColorHelpers.ForceConvertToRgb(value) is int[] converted && converted.Length == 3)
             {
                 return [(byte)converted[0], (byte)converted[1], (byte)converted[2], (byte)Math.Round(opacity / 100d * 255)];
             }
