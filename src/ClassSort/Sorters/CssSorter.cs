@@ -2,12 +2,13 @@
 using System.ComponentModel.Composition;
 
 namespace TailwindCSSIntellisense.ClassSort.Sorters;
+
 [Export(typeof(Sorter))]
 internal class CssSorter : Sorter
 {
     public override string[] Handled { get; } = [".css", ".tcss"];
 
-    protected override IEnumerable<string> GetSegments(string filePath, string content)
+    protected override async IAsyncEnumerable<string> GetSegmentsAsync(string filePath, string content)
     {
         int indexOfApply = content.IndexOf("@apply");
 
@@ -37,7 +38,7 @@ internal class CssSorter : Sorter
 
             // return @apply
             yield return "@apply ";
-            yield return SortSegment(content.Substring(indexOfApply + 6, lastIndex - (indexOfApply + 6)), filePath);
+            yield return await SortSegmentAsync(content.Substring(indexOfApply + 6, lastIndex - (indexOfApply + 6)), filePath);
             indexOfApply = content.IndexOf("@apply", indexOfApply + 1);
         }
 

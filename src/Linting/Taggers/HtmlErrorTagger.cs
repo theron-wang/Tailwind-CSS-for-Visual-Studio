@@ -5,6 +5,7 @@ using Microsoft.VisualStudio.Utilities;
 using System;
 using System.ComponentModel.Composition;
 using TailwindCSSIntellisense.Completions;
+using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Linting.Validators;
 
 namespace TailwindCSSIntellisense.Linting.Taggers;
@@ -21,6 +22,8 @@ internal class HtmlErrorTaggerProvider : ITaggerProvider
     public LinterUtilities LinterUtilities { get; set; } = null!;
     [Import]
     public ProjectConfigurationManager ProjectConfigurationManager { get; set; } = null!;
+    [Import]
+    public CompletionConfiguration CompletionConfiguration { get; set; } = null!;
 
     public ITagger<T>? CreateTagger<T>(ITextBuffer buffer) where T : ITag
     {
@@ -31,14 +34,14 @@ internal class HtmlErrorTaggerProvider : ITaggerProvider
             return null;
         }
 
-        return buffer.Properties.GetOrCreateSingletonProperty(() => new HtmlErrorTagger(buffer, LinterUtilities, ProjectConfigurationManager)) as ITagger<T>;
+        return buffer.Properties.GetOrCreateSingletonProperty(() => new HtmlErrorTagger(buffer, LinterUtilities, ProjectConfigurationManager, CompletionConfiguration)) as ITagger<T>;
     }
 
     internal sealed class HtmlErrorTagger : ErrorTaggerBase, IDisposable
     {
-        public HtmlErrorTagger(ITextBuffer buffer, LinterUtilities linterUtils, ProjectConfigurationManager completionUtilities) : base(buffer, linterUtils)
+        public HtmlErrorTagger(ITextBuffer buffer, LinterUtilities linterUtils, ProjectConfigurationManager completionUtilities, CompletionConfiguration completionConfiguration) : base(buffer, linterUtils)
         {
-            _errorChecker = HtmlValidator.Create(buffer, linterUtils, completionUtilities);
+            _errorChecker = HtmlValidator.Create(buffer, linterUtils, completionUtilities, completionConfiguration);
             _errorChecker.Validated += UpdateErrors;
         }
 

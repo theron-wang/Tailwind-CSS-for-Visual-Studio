@@ -25,6 +25,7 @@ internal sealed class SetAsOutputFile : BaseCommand<SetAsOutputFile>
     internal SolutionExplorerSelectionService SolutionExplorerSelection { get; set; } = null!;
     internal SettingsProvider SettingsProvider { get; set; } = null!;
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "No other choice + settings likely loaded by the time this command is queried")]
     protected override void BeforeQueryStatus(EventArgs e)
     {
         var filePath = SolutionExplorerSelection.CurrentSelectedItemFullPath;
@@ -72,6 +73,7 @@ internal sealed class SetAsOutputFile : BaseCommand<SetAsOutputFile>
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "No other choice + settings likely loaded by the time this command is queried")]
     protected override void Execute(object sender, EventArgs e)
     {
         var command = (OleMenuCommand)sender;

@@ -12,6 +12,6 @@ internal class CssErrorListListener : ErrorListListener
 {
     protected override Validator GetValidator(ITextView view)
     {
-        return CssValidator.Create(view.TextBuffer, _linterUtilities, _projectConfigurationManager);
+        return CssValidator.Create(view.TextBuffer, _linterUtilities, _projectConfigurationManager, _completionConfiguration);
     }
 }

@@ -3,16 +3,20 @@ using Microsoft.VisualStudio.Text;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using TailwindCSSIntellisense.Completions;
+using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Options;
 
 namespace TailwindCSSIntellisense.Linting.Validators;
+
 internal abstract class Validator : IDisposable
 {
     protected readonly ITextBuffer _buffer;
     protected readonly LinterUtilities _linterUtils;
     protected readonly ProjectConfigurationManager _projectConfigurationManager;
-    protected ProjectCompletionValues _projectCompletionValues;
+    protected readonly CompletionConfiguration _completionConfiguration;
+    protected ProjectCompletionValues? _projectCompletionValues;
 
     protected readonly HashSet<SnapshotSpan> _checkedSpans = [];
 
@@ -29,17 +33,19 @@ internal abstract class Validator : IDisposable
 
     public Action<ITextBuffer>? BufferValidated;
 
-    public Validator(ITextBuffer buffer, LinterUtilities linterUtils, ProjectConfigurationManager projectConfigurationManager)
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync", Justification = "FileAndForget is ok")]
+    public Validator(ITextBuffer buffer, LinterUtilities linterUtils, ProjectConfigurationManager projectConfigurationManager, CompletionConfiguration completionConfiguration)
     {
         _buffer = buffer;
         _linterUtils = linterUtils;
         _projectConfigurationManager = projectConfigurationManager;
-        _projectCompletionValues = projectConfigurationManager.GetCompletionConfigurationByFilePath(_buffer.GetFileName());
+        _completionConfiguration = completionConfiguration;
         _buffer.ChangedHighPriority += OnBufferChange;
         Linter.Saved += LinterOptionsChanged;
-        _projectConfigurationManager.Configuration.ConfigurationUpdated += ConfigurationUpdated;
+        _completionConfiguration.ConfigurationUpdated += ConfigurationUpdatedAsync;
 
-        StartUpdate();
+        // Set _projectConfigurationValues without blocking AND call StartUpdate
+        ThreadHelper.JoinableTaskFactory.RunAsync(ConfigurationUpdatedAsync).FileAndForget(nameof(TailwindCSSIntellisense) + "/ClassCompletionGenerator/Initialize");
     }
 
     private void OnBufferChange(object sender, TextContentChangedEventArgs e)
@@ -50,7 +56,7 @@ internal abstract class Validator : IDisposable
             ThreadHelper.JoinableTaskFactory.StartOnIdle(() =>
             {
                 NormalUpdate(e);
-            }).FireAndForget();
+            }).FileAndForget(nameof(TailwindCSSIntellisense) + "/Validator/OnBufferChange");
         }
     }
 
@@ -58,7 +64,7 @@ internal abstract class Validator : IDisposable
     {
         if (_linterUtils.LinterEnabled())
         {
-            ThreadHelper.JoinableTaskFactory.StartOnIdle(ForceUpdate).FireAndForget();
+            ThreadHelper.JoinableTaskFactory.StartOnIdle(ForceUpdate).FileAndForget(nameof(TailwindCSSIntellisense) + "/Validator/StartUpdate");
         }
     }
 
@@ -134,7 +140,7 @@ internal abstract class Validator : IDisposable
     {
         _buffer.ChangedHighPriority -= OnBufferChange;
         Linter.Saved -= LinterOptionsChanged;
-        _projectConfigurationManager.Configuration.ConfigurationUpdated -= ConfigurationUpdated;
+        _completionConfiguration.ConfigurationUpdated -= ConfigurationUpdatedAsync;
     }
 
     private void LinterOptionsChanged(Linter linter)
@@ -142,9 +148,9 @@ internal abstract class Validator : IDisposable
         StartUpdate();
     }
 
-    private void ConfigurationUpdated()
+    private async Task ConfigurationUpdatedAsync()
     {
-        _projectCompletionValues = _projectConfigurationManager.GetCompletionConfigurationByFilePath(_buffer.GetFileName());
+        _projectCompletionValues = await _projectConfigurationManager.GetCompletionConfigurationByFilePathAsync(_buffer.GetFileNameSafe());
         StartUpdate();
     }
 

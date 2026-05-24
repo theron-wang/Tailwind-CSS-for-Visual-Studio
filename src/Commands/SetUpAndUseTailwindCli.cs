@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using TailwindCSSIntellisense.Node;
+using TailwindCSSIntellisense.Options;
 using TailwindCSSIntellisense.Settings;
 
 namespace TailwindCSSIntellisense;
@@ -23,9 +24,10 @@ internal sealed class SetUpAndUseTailwindCli : BaseCommand<SetUpAndUseTailwindCl
     internal TailwindSetUpProcess TailwindSetUpProcess { get; set; } = null!;
     internal SettingsProvider SettingsProvider { get; set; } = null!;
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "General settings load fast")]
     protected override void BeforeQueryStatus(EventArgs e)
     {
-        var settings = ThreadHelper.JoinableTaskFactory.Run(SettingsProvider.GetSettingsAsync);
+        var settings = ThreadHelper.JoinableTaskFactory.Run(General.GetLiveInstanceAsync);
 
         Command.Visible = File.Exists(settings.TailwindCliPath);
         Command.Enabled = !TailwindSetUpProcess.IsSettingUp;

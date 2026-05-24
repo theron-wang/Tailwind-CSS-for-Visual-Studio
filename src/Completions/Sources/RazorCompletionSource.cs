@@ -3,7 +3,6 @@ using Microsoft.VisualStudio.Imaging.Interop;
 using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
-using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text;
 using System;
 using System.Collections.Generic;
@@ -18,12 +17,11 @@ namespace TailwindCSSIntellisense.Completions.Sources;
 /// </summary>
 internal class RazorCompletionSource : ClassCompletionGenerator, ICompletionSource
 {
-    private bool _initializeSuccess = true;
     private readonly IAsyncCompletionBroker _asyncCompletionBroker;
     private readonly ICompletionBroker _completionBroker;
 
-    public RazorCompletionSource(ITextBuffer textBuffer, ProjectConfigurationManager completionUtils, ColorIconGenerator colorIconGenerator, DescriptionGenerator descriptionGenerator, SettingsProvider settingsProvider, IAsyncCompletionBroker asyncCompletionBroker, ICompletionBroker completionBroker, CompletionConfiguration completionConfiguration)
-        : base(textBuffer, completionUtils, colorIconGenerator, descriptionGenerator, settingsProvider, completionConfiguration)
+    public RazorCompletionSource(ITextBuffer textBuffer, ProjectConfigurationManager completionUtils, ColorIconGenerator colorIconGenerator, DescriptionGenerator descriptionGenerator, SettingsProvider settingsProvider, IAsyncCompletionBroker asyncCompletionBroker, ICompletionBroker completionBroker, CompletionConfiguration completionConfiguration, ProjectConfigurationInitializer projectConfigurationInitializer)
+        : base(textBuffer, completionUtils, colorIconGenerator, descriptionGenerator, settingsProvider, completionConfiguration, projectConfigurationInitializer)
     {
         _asyncCompletionBroker = asyncCompletionBroker;
         _completionBroker = completionBroker;
@@ -38,23 +36,16 @@ internal class RazorCompletionSource : ClassCompletionGenerator, ICompletionSour
     /// <param name="completionSets">Provided by Visual Studio</param>
     void ICompletionSource.AugmentCompletionSession(ICompletionSession session, IList<CompletionSet> completionSets)
     {
-        var settings = _settingsProvider.GetSettings();
-
-        _showAutocomplete ??= settings.EnableTailwindCss;
-
-        if (_showAutocomplete == false || settings.ConfigurationFiles.Count == 0)
+        if (_settings is null)
         {
             return;
         }
 
-        if (!_completionUtils.Initialized || _initializeSuccess == false)
-        {
-            _initializeSuccess = ThreadHelper.JoinableTaskFactory.Run(_completionUtils.InitializeAsync);
+        _showAutocomplete ??= _settings.EnableTailwindCss;
 
-            if (_initializeSuccess == false)
-            {
-                return;
-            }
+        if (_showAutocomplete == false || _settings.ConfigurationFiles.Count == 0)
+        {
+            return;
         }
 
         if (RazorParser.IsCursorInClassScope(session.TextView, out var classSpan) == false || classSpan is null)

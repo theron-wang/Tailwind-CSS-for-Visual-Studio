@@ -29,9 +29,11 @@ internal class HtmlCompletionSourceProvider : ICompletionSourceProvider
     internal ColorIconGenerator ColorIconGenerator { get; set; } = null!;
     [Import]
     public CompletionConfiguration CompletionConfiguration { get; set; } = null!;
+    [Import]
+    public ProjectConfigurationInitializer ProjectConfigurationInitializer { get; set; } = null!;
 
     public ICompletionSource TryCreateCompletionSource(ITextBuffer textBuffer)
     {
-        return new HtmlCompletionSource(textBuffer, CompletionUtils, ColorIconGenerator, DescriptionGenerator, SettingsProvider, CompletionConfiguration);
+        return new HtmlCompletionSource(textBuffer, CompletionUtils, ColorIconGenerator, DescriptionGenerator, SettingsProvider, CompletionConfiguration, ProjectConfigurationInitializer);
     }
 }

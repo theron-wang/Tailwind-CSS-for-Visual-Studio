@@ -63,6 +63,7 @@ internal sealed class CssCommandFilter : IOleCommandTarget
         return (char)(ushort)Marshal.GetObjectForNativeVariant(pvaIn);
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD010:Invoke single-threaded types on Main thread", Justification = "No reported errors in production, so we'll ignore this for now")]
     public int Exec(ref Guid pguidCmdGroup, uint nCmdID, uint nCmdexecopt, IntPtr pvaIn, IntPtr pvaOut)
     {
         if (VsShellUtilities.IsInAutomationFunction(_provider.ServiceProvider))
@@ -336,6 +337,7 @@ internal sealed class CssCommandFilter : IOleCommandTarget
         return true;
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD010:Invoke single-threaded types on Main thread", Justification = "No reported errors in production, so we'll ignore this for now")]
     public int QueryStatus(ref Guid pguidCmdGroup, uint cCmds, OLECMD[] prgCmds, IntPtr pCmdText)
     {
         return _next.QueryStatus(pguidCmdGroup, cCmds, prgCmds, pCmdText);

@@ -8,11 +8,12 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Options;
+using TailwindCSSIntellisense.Settings;
 
 namespace TailwindCSSIntellisense.Adornments.Directives;
 
@@ -25,13 +26,15 @@ namespace TailwindCSSIntellisense.Adornments.Directives;
 internal sealed class DirectiveCssTaggerProvider : IViewTaggerProvider
 {
     [Import]
-    internal ProjectConfigurationManager ProjectConfigurationManager { get; set; } = null!;
+    internal DirectoryVersionFinder DirectoryVersionFinder { get; set; } = null!;
     [Import]
     internal ITextStructureNavigatorSelectorService TextStructureNavigatorSelector { get; set; } = null!;
+    [Import]
+    internal SettingsProvider SettingsProvider { get; set; } = null!;
 
     public ITagger<T> CreateTagger<T>(ITextView textView, ITextBuffer buffer) where T : ITag
     {
-        return (buffer.Properties.GetOrCreateSingletonProperty(() => new CssDirectiveTagger(buffer, TextStructureNavigatorSelector, ProjectConfigurationManager)) as ITagger<T>)!;
+        return (buffer.Properties.GetOrCreateSingletonProperty(() => new CssDirectiveTagger(buffer, TextStructureNavigatorSelector, DirectoryVersionFinder, SettingsProvider)) as ITagger<T>)!;
     }
 
     /// <summary>
@@ -42,22 +45,39 @@ internal sealed class DirectiveCssTaggerProvider : IViewTaggerProvider
     private class CssDirectiveTagger : ITagger<IntraTextAdornmentTag>, IDisposable
     {
         private readonly ITextBuffer _buffer;
-        private readonly ProjectCompletionValues _projectConfigurationManager;
+        private readonly string _file;
+        private readonly DirectoryVersionFinder _directoryVersionFinder;
         private readonly ITextStructureNavigator _textStructureNavigator;
-        private readonly ImageSource _tailwindLogo;
+        private readonly SettingsProvider _settingsProvider;
+
         private bool _isProcessing;
         private General? _generalOptions;
+        private TailwindSettings? _tailwindSettings;
 
-        internal CssDirectiveTagger(ITextBuffer buffer, ITextStructureNavigatorSelectorService textStructureNavigatorSelector, ProjectConfigurationManager completionUtilities)
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync", Justification = "FileAndForget is ok")]
+        internal CssDirectiveTagger(ITextBuffer buffer, ITextStructureNavigatorSelectorService textStructureNavigatorSelector, DirectoryVersionFinder directoryVersionFinder, SettingsProvider settingsProvider)
         {
             _buffer = buffer;
-            _projectConfigurationManager = completionUtilities.GetCompletionConfigurationByFilePath(_buffer.GetFileName());
-            _tailwindLogo = completionUtilities.TailwindLogo;
+            _file = buffer.GetFileNameSafe();
+            _directoryVersionFinder = directoryVersionFinder;
+            _settingsProvider = settingsProvider;
 
             _textStructureNavigator = textStructureNavigatorSelector.GetTextStructureNavigator(buffer);
 
             _buffer.Changed += OnBufferChanged;
             General.Saved += GeneralSettingsChanged;
+            _settingsProvider.OnSettingsChanged += SettingsChangedAsync;
+
+            ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+            {
+                _tailwindSettings = await _settingsProvider.GetSettingsAsync();
+            }).FileAndForget(nameof(TailwindCSSIntellisense) + "/CssDirectiveTagger/InitializeSettings");
+        }
+
+        private Task SettingsChangedAsync(TailwindSettings settings)
+        {
+            _tailwindSettings = settings;
+            return Task.CompletedTask;
         }
 
         private void OnBufferChanged(object sender, TextContentChangedEventArgs e)
@@ -92,13 +112,23 @@ internal sealed class DirectiveCssTaggerProvider : IViewTaggerProvider
             _buffer.Changed -= OnBufferChanged;
             General.Saved -= GeneralSettingsChanged;
         }
+
         /// <summary>
         /// Gets relevant @ directives.
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "Not expensive")]
         protected IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span)
         {
+            if (_tailwindSettings is null)
+            {
+                yield break;
+            }
+
             int position = span.Start.Position;
             int end = span.End.Position;
+
+            // Use the cache for _tailwindSettings here instead of fetching new since it _could_ be expensive
+            var version = ThreadHelper.JoinableTaskFactory.Run(async () => await _directoryVersionFinder.GetTailwindVersionAsync(_file, _tailwindSettings));
 
             while (position < end)
             {
@@ -112,7 +142,7 @@ internal sealed class DirectiveCssTaggerProvider : IViewTaggerProvider
                     {
                         yield return extent.Span;
                     }
-                    else if (_projectConfigurationManager.Version == TailwindVersion.V3 && (text == "@tailwind" || text == "@config"))
+                    else if (version == TailwindVersion.V3 && (text == "@tailwind" || text == "@config"))
                     {
                         yield return extent.Span;
                     }
@@ -136,6 +166,7 @@ internal sealed class DirectiveCssTaggerProvider : IViewTaggerProvider
             TagsChanged?.Invoke(this, new SnapshotSpanEventArgs(new SnapshotSpan(_buffer.CurrentSnapshot, 0, _buffer.CurrentSnapshot.Length)));
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "Not expensive")]
         private bool Enabled()
         {
             _generalOptions ??= ThreadHelper.JoinableTaskFactory.Run(General.GetLiveInstanceAsync);
@@ -164,7 +195,7 @@ internal sealed class DirectiveCssTaggerProvider : IViewTaggerProvider
         {
             foreach (var scope in GetScopes(span))
             {
-                var tag = new IntraTextAdornmentTag(new Image() { Source = _tailwindLogo, Margin = new Thickness(4, 0, 0, 0) }, null, PositionAffinity.Successor);
+                var tag = new IntraTextAdornmentTag(new Image() { Source = ProjectConfigurationManager.TailwindLogo, Margin = new Thickness(4, 0, 0, 0) }, null, PositionAffinity.Successor);
 
                 yield return new TagSpan<IntraTextAdornmentTag>(new SnapshotSpan(scope.Snapshot, scope.End, 0), tag);
             }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
 using System.Linq;
+using System.Threading.Tasks;
 using TailwindCSSIntellisense.Completions;
 
 namespace TailwindCSSIntellisense.Configuration;
@@ -12,9 +13,9 @@ public sealed partial class CompletionConfiguration
     /// <summary>
     /// Reconfigures colors, spacing, and screen as well as any non-theme properties (prefix, blocklist, etc.)
     /// </summary>
-    private void LoadGlobalConfiguration(ProjectCompletionValues project, TailwindConfiguration config)
+    private async Task LoadGlobalConfigurationAsync(ProjectCompletionValues project, TailwindConfiguration config)
     {
-        var original = ProjectConfigurationManager.GetUnsetCompletionConfiguration(project.Version);
+        var original = await ProjectConfigurationInitializer.GetUnsetCompletionConfigurationAsync(project.Version);
 
         project.SpacingMapper = original.SpacingMapper.ToDictionary(pair => pair.Key, pair => pair.Value);
         project.Breakpoints = original.Breakpoints.ToDictionary(p => p.Key, p => p.Value);
@@ -104,9 +105,9 @@ public sealed partial class CompletionConfiguration
     /// for those in enabled core plugins. If config.DisabledCorePlugins is not null and empty,
     /// all classes will exist except for those explicitly disabled.
     /// </summary>
-    private void HandleCorePlugins(ProjectCompletionValues project, TailwindConfiguration config)
+    private async Task HandleCorePluginsAsync(ProjectCompletionValues project, TailwindConfiguration config)
     {
-        var original = ProjectConfigurationManager.GetUnsetCompletionConfiguration(project.Version);
+        var original = await ProjectConfigurationInitializer.GetUnsetCompletionConfigurationAsync(project.Version);
         var enabledClasses = new List<TailwindClass>();
         if (config.EnabledCorePlugins is not null)
         {
@@ -239,16 +240,16 @@ public sealed partial class CompletionConfiguration
     /// Reconfigures all classes based on the specified configuration (configures theme.____)
     /// </summary>
     /// <param name="config">The configuration object</param>
-    private void LoadIndividualConfigurationOverride(ProjectCompletionValues project, TailwindConfiguration config)
+    private async Task LoadIndividualConfigurationOverrideAsync(ProjectCompletionValues project, TailwindConfiguration config)
     {
         if (config is null)
         {
             return;
         }
 
-        HandleCorePlugins(project, config);
+        await HandleCorePluginsAsync(project, config);
 
-        var original = ProjectConfigurationManager.GetUnsetCompletionConfiguration(project.Version);
+        var original = await ProjectConfigurationInitializer.GetUnsetCompletionConfigurationAsync(project.Version);
 
         var applicable = project.ConfigurationValueToClassStems.Keys.Where(k => config.OverridenValues?.ContainsKey(k) == true);
         project.Variants = [.. original.Variants];
@@ -681,7 +682,7 @@ public sealed partial class CompletionConfiguration
     /// Loads IntelliSense for plugins, @custom-variant and @utility
     /// </summary>
     /// <param name="config">The configuration object</param>
-    private void LoadPlugins(ProjectCompletionValues project, TailwindConfiguration config)
+    private async Task LoadPluginsAsync(ProjectCompletionValues project, TailwindConfiguration config)
     {
         if (project.Version >= TailwindVersion.V4)
         {
@@ -690,7 +691,7 @@ public sealed partial class CompletionConfiguration
             if (config.PluginVariantDescriptions is not null)
             {
                 project.VariantsToDescriptions =
-                    ProjectConfigurationManager.GetUnsetCompletionConfiguration(project.Version).VariantsToDescriptions
+                    (await ProjectConfigurationInitializer.GetUnsetCompletionConfigurationAsync(project.Version)).VariantsToDescriptions
                     .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
                 foreach (var pair in config.PluginVariantDescriptions)

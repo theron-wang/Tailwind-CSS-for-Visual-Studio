@@ -23,6 +23,9 @@ internal class BulkInsertObservableCollection<T> : BulkObservableCollection<T>
     /// Functionally equivalent to <see cref="List{T}.InsertRange(int, IEnumerable{T})"/> where the first parameter is 0
     /// </summary>
     /// <param name="items">The list of items to prepend</param>
+    /// 
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "Not expensive")]
     public void AddRangeToBeginning(IEnumerable<T> items)
     {
         if (items == null || !items.Any())

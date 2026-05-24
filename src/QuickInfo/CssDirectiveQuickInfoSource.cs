@@ -7,20 +7,25 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using TailwindCSSIntellisense.Completions;
+using TailwindCSSIntellisense.Settings;
 
 namespace TailwindCSSIntellisense.QuickInfo;
 
 internal class CssDirectiveQuickInfoSource : IAsyncQuickInfoSource
 {
     protected ITextBuffer _textBuffer;
-    private readonly ProjectCompletionValues _projectConfigurationManager;
+    private readonly string _file;
+    private readonly DirectoryVersionFinder _directoryVersionFinder;
+    private readonly SettingsProvider _settingsProvider;
     private readonly ITextStructureNavigator _textStructureNavigator;
 
 
-    public CssDirectiveQuickInfoSource(ITextBuffer textBuffer, ProjectConfigurationManager completionUtilities, ITextStructureNavigatorSelectorService textStructureNavigatorSelectorService)
+    public CssDirectiveQuickInfoSource(ITextBuffer textBuffer, DirectoryVersionFinder directoryVersionFinder, SettingsProvider settingsProvider, ITextStructureNavigatorSelectorService textStructureNavigatorSelectorService)
     {
         _textBuffer = textBuffer;
-        _projectConfigurationManager = completionUtilities.GetCompletionConfigurationByFilePath(_textBuffer.GetFileName());
+        _file = textBuffer.GetFileNameSafe();
+        _directoryVersionFinder = directoryVersionFinder;
+        _settingsProvider = settingsProvider;
         _textStructureNavigator = textStructureNavigatorSelectorService.GetTextStructureNavigator(_textBuffer);
     }
 
@@ -28,18 +33,18 @@ internal class CssDirectiveQuickInfoSource : IAsyncQuickInfoSource
     {
     }
 
-    public Task<QuickInfoItem?> GetQuickInfoItemAsync(IAsyncQuickInfoSession session, CancellationToken cancellationToken)
+    public async Task<QuickInfoItem?> GetQuickInfoItemAsync(IAsyncQuickInfoSession session, CancellationToken cancellationToken)
     {
         if (session.Content is null || session.Content.Any() || session.State == QuickInfoSessionState.Visible || session.State == QuickInfoSessionState.Dismissed)
         {
-            return Task.FromResult<QuickInfoItem?>(null);
+            return null;
         }
 
         var triggerPoint = session.GetTriggerPoint(_textBuffer.CurrentSnapshot);
 
         if (triggerPoint is null)
         {
-            return Task.FromResult<QuickInfoItem?>(null);
+            return null;
         }
 
         var extent = _textStructureNavigator.GetExtentOfWord(triggerPoint.Value);
@@ -51,7 +56,7 @@ internal class CssDirectiveQuickInfoSource : IAsyncQuickInfoSource
             if (text == "@apply")
             {
             }
-            else if (_projectConfigurationManager.Version == TailwindVersion.V3 && (text == "@tailwind" || text == "@config"))
+            else if (await _directoryVersionFinder.GetTailwindVersionAsync(_file, await _settingsProvider.GetSettingsAsync()) == TailwindVersion.V3 && (text == "@tailwind" || text == "@config"))
             {
             }
             else if (text == "@theme" || text == "@source" || text == "@utility" || text == "@custom-variant" || text == "@config" || text == "@plugin" || text == "@variant" || text.StartsWith("@slot"))
@@ -59,7 +64,7 @@ internal class CssDirectiveQuickInfoSource : IAsyncQuickInfoSource
             }
             else
             {
-                return Task.FromResult<QuickInfoItem?>(null);
+                return null;
             }
 
             var element = new ContainerElement(
@@ -73,9 +78,9 @@ internal class CssDirectiveQuickInfoSource : IAsyncQuickInfoSource
 
             var span = _textBuffer.CurrentSnapshot.CreateTrackingSpan(extent.Span, SpanTrackingMode.EdgeInclusive);
 
-            return Task.FromResult<QuickInfoItem?>(new QuickInfoItem(span, element));
+            return new QuickInfoItem(span, element);
         }
 
-        return Task.FromResult<QuickInfoItem?>(null);
+        return null;
     }
 }

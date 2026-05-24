@@ -4,12 +4,13 @@ using System.Linq;
 using System.Text;
 
 namespace TailwindCSSIntellisense.ClassSort.Sorters;
+
 [Export(typeof(Sorter))]
 internal class RazorSorter : Sorter
 {
     public override string[] Handled { get; } = [".razor", ".cshtml"];
 
-    protected override IEnumerable<string> GetSegments(string filePath, string content)
+    protected override async IAsyncEnumerable<string> GetSegmentsAsync(string filePath, string content)
     {
         int lastIndex = 0;
         int indexOfClass;
@@ -73,11 +74,12 @@ internal class RazorSorter : Sorter
                 }
             }
 
-            var sorted = SortRazorSegment(tokens, razorIndices, filePath);
+            var sorted = SortRazorSegmentAsync(tokens, razorIndices, filePath);
 
             var text = new StringBuilder();
 
-            foreach ((var i, var token) in sorted.Select((v, i) => (i, v)))
+            int i = 0;
+            await foreach (var token in sorted)
             {
                 text.Append(token);
                 if (newLines.ContainsKey(i))
@@ -88,6 +90,7 @@ internal class RazorSorter : Sorter
                 {
                     text.Append(' ');
                 }
+                i++;
             }
 
             yield return text.ToString().Trim();
@@ -97,7 +100,7 @@ internal class RazorSorter : Sorter
         yield return content.Substring(lastIndex);
     }
 
-    private IEnumerable<string> SortRazorSegment(List<string> classes, HashSet<int> razorIndices, string file)
+    private async IAsyncEnumerable<string> SortRazorSegmentAsync(List<string> classes, HashSet<int> razorIndices, string file)
     {
         Dictionary<string, string> unescapedToEscaped = [];
 
@@ -106,11 +109,11 @@ internal class RazorSorter : Sorter
             unescapedToEscaped[c.Replace("@@", "@").Replace("@(\"@\")", "@")] = c;
         }
 
-        var sorted = Sort(classes
+        var sorted = (await SortAsync(classes
                 .Select((v, i) => (v: v.Replace("@@", "@").Replace("@(\"@\")", "@"), i))
                 .Where(v => !razorIndices.Contains(v.i))
                 .Select(v => v.v), file
-            ).Select(c =>
+            )).Select(c =>
             {
                 if (unescapedToEscaped.ContainsKey(c))
                 {

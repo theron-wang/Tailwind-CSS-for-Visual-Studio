@@ -28,6 +28,8 @@ internal sealed class SetUpFileMenu : BaseCommand<SetUpFileMenu>
     internal SettingsProvider SettingsProvider { get; set; } = null!;
     internal DirectoryVersionFinder DirectoryVersionFinder { get; set; } = null!;
 
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "No other choice + settings likely loaded by the time this command is queried")]
     protected override void BeforeQueryStatus(EventArgs e)
     {
         var settings = ThreadHelper.JoinableTaskFactory.Run(SettingsProvider.GetSettingsAsync);

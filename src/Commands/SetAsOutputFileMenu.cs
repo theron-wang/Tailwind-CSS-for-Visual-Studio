@@ -19,6 +19,8 @@ internal sealed class SetAsOutputFileMenu : BaseCommand<SetAsOutputFileMenu>
     internal SolutionExplorerSelectionService SolutionExplorerSelection { get; set; } = null!;
     internal SettingsProvider SettingsProvider { get; set; } = null!;
 
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "No other choice + settings likely loaded by the time this command is queried")]
     protected override void BeforeQueryStatus(EventArgs e)
     {
         var filePath = SolutionExplorerSelection.CurrentSelectedItemFullPath;

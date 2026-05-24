@@ -5,6 +5,7 @@ using System.ComponentModel.Composition;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using TailwindCSSIntellisense.Completions;
 
 namespace TailwindCSSIntellisense.ClassSort.Sorters;
@@ -18,11 +19,11 @@ internal abstract class Sorter
 
     public abstract string[] Handled { get; }
 
-    public string Sort(string filePath, string input)
+    public async Task<string> SortAsync(string filePath, string input)
     {
         var output = new StringBuilder();
 
-        foreach (var segment in GetSegments(filePath, input))
+        await foreach (var segment in GetSegmentsAsync(filePath, input))
         {
             output.Append(segment);
         }
@@ -30,15 +31,13 @@ internal abstract class Sorter
         return output.ToString();
     }
 
-    protected abstract IEnumerable<string> GetSegments(string filePath, string input);
+    protected abstract IAsyncEnumerable<string> GetSegmentsAsync(string filePath, string input);
 
-    protected string SortSegment(string classText, string filePath)
+    protected async Task<string> SortSegmentAsync(string classText, string filePath)
     {
-        var classes = classText.Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
+        var classes = classText.Split(Array.Empty<char>(), StringSplitOptions.RemoveEmptyEntries);
 
-        var sorted = Sort(classes, filePath);
-
-        bool shouldMoveImportant = this is CssSorter && sorted.Contains("!important");
+        var sorted = await SortAsync(classes, filePath);
 
         var newlines = classText.Select((c, i) => (c, i))
             .Where(p => p.c == '\n')
@@ -64,10 +63,12 @@ internal abstract class Sorter
         int index = 0;
         int nextNewLineIndex = 0;
 
+        var shouldMoveImportant = false;
         foreach (var sortedClass in sorted)
         {
-            if (shouldMoveImportant && sortedClass == "!important")
+            if (this is CssSorter && sortedClass == "!important")
             {
+                shouldMoveImportant = true;
                 continue;
             }
 
@@ -95,12 +96,12 @@ internal abstract class Sorter
         return sortedSegment.ToString().Trim();
     }
 
-    protected IEnumerable<string> Sort(IEnumerable<string> classes, string filePath)
+    protected async Task<IOrderedEnumerable<string>> SortAsync(IEnumerable<string> classes, string filePath)
     {
-        var projectCompletionValues = ProjectConfigurationManager.GetCompletionConfigurationByFilePath(filePath);
+        var projectCompletionValues = await ProjectConfigurationManager.GetCompletionConfigurationByFilePathAsync(filePath);
 
-        var classOrder = ClassSortUtilities.GetClassOrder(projectCompletionValues);
-        var variantOrder = ClassSortUtilities.GetVariantOrder(projectCompletionValues);
+        var classOrder = await ClassSortUtilities.GetClassOrderAsync(projectCompletionValues);
+        var variantOrder = await ClassSortUtilities.GetVariantOrderAsync(projectCompletionValues);
 
         var result = classes
             .OrderBy(className =>

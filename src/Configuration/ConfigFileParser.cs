@@ -224,7 +224,7 @@ internal static class ConfigFileParser
                         // @import "some-plugin";
                         if (import != "tailwindcss" && !directiveParameter.StartsWith("url"))
                         {
-                            var importPath = PathHelpers.GetAbsolutePath(Path.GetDirectoryName(path), import.EndsWith(".css") ? import : import + ".css");
+                            var importPath = PathHelpers.GetAbsolutePath(Path.GetDirectoryName(path)!, import.EndsWith(".css") ? import : import + ".css");
 
                             if (File.Exists(importPath))
                             {
@@ -233,7 +233,7 @@ internal static class ConfigFileParser
                             else
                             {
                                 // Look in node_modules
-                                var importPathFromPackage = await NpmHelpers.GetCssPluginMainFileAsync(Path.GetDirectoryName(path), import);
+                                var importPathFromPackage = await NpmHelpers.GetCssPluginMainFileAsync(Path.GetDirectoryName(path)!, import);
                                 // Use importPath in case the package CSS file cannot be found, so an exception will be thrown later down the line
                                 imports.Add($"@import{(string.IsNullOrEmpty(importPathFromPackage) ? importPath : importPathFromPackage)}");
                             }
@@ -258,13 +258,13 @@ internal static class ConfigFileParser
 
                                 var source = directiveParameter.Substring(firstQuote + 1, secondQuote - firstQuote - 1).Trim();
 
-                                source = PathHelpers.GetAbsolutePath(Path.GetDirectoryName(path), source)!;
+                                source = PathHelpers.GetAbsolutePath(Path.GetDirectoryName(path)!, source)!;
                                 content.Add(source);
                             }
                             else
                             {
                                 // If unset, the source path is the directory of the configuration file
-                                content.Add(Path.GetDirectoryName(path));
+                                content.Add(Path.GetDirectoryName(path)!);
                             }
 
                             if (directiveParameter.IndexOf("prefix(", secondQuote) is int prefixIndex && prefixIndex != -1)
@@ -285,7 +285,7 @@ internal static class ConfigFileParser
                     {
                         var import = directiveParameter.Replace("\"", "").Replace("'", "").TrimEnd(';').Trim();
 
-                        import = PathHelpers.GetAbsolutePath(Path.GetDirectoryName(path), import);
+                        import = PathHelpers.GetAbsolutePath(Path.GetDirectoryName(path)!, import);
                         imports.Add($"@config{import}");
                         continue;
                     }
@@ -293,7 +293,7 @@ internal static class ConfigFileParser
                     {
                         var plugin = directiveParameter.Replace("\"", "").Replace("'", "").TrimEnd(';').Trim();
 
-                        var pluginAbsPath = PathHelpers.GetAbsolutePath(Path.GetDirectoryName(path), plugin);
+                        var pluginAbsPath = PathHelpers.GetAbsolutePath(Path.GetDirectoryName(path)!, plugin);
 
                         // If this path exists, then it is not a package name. If not, then we must resolve the package
                         if (!File.Exists(pluginAbsPath))
@@ -366,7 +366,7 @@ internal static class ConfigFileParser
                         else
                         {
                             // @source "../src/components/legacy";
-                            var source = PathHelpers.GetAbsolutePath(Path.GetDirectoryName(path), inQuotes)!;
+                            var source = PathHelpers.GetAbsolutePath(Path.GetDirectoryName(path)!, inQuotes)!;
 
                             if (not)
                             {
@@ -389,7 +389,7 @@ internal static class ConfigFileParser
                     {
                         var plugin = directiveParameter.Replace("\"", "").Replace("'", "").TrimEnd(';').Trim();
 
-                        var pluginAbsPath = PathHelpers.GetAbsolutePath(Path.GetDirectoryName(path), plugin);
+                        var pluginAbsPath = PathHelpers.GetAbsolutePath(Path.GetDirectoryName(path)!, plugin);
 
                         // If this path exists, then it is not a package name. If not, then we must resolve the package
                         if (!File.Exists(pluginAbsPath))
@@ -981,9 +981,9 @@ internal static class ConfigFileParser
         // Search for the node_modules folder in the project; start from the configuration file and
         // go up the directory tree (stopping at the project root) until the node_modules folder is found.
 
-        var currentDirectory = Path.GetDirectoryName(configPath).ToLower();
+        var currentDirectory = Path.GetDirectoryName(configPath)!.ToLower();
 
-        var endDirectory = Path.GetDirectoryName(project.FullPath).ToLower();
+        var endDirectory = Path.GetDirectoryName(project.FullPath)!.ToLower();
 
         while (currentDirectory.StartsWith(endDirectory))
         {
@@ -994,7 +994,7 @@ internal static class ConfigFileParser
                 return nodeModulesPath;
             }
 
-            currentDirectory = Path.GetDirectoryName(currentDirectory).ToLower();
+            currentDirectory = Path.GetDirectoryName(currentDirectory)!.ToLower();
         }
 
         return null;
@@ -1035,7 +1035,7 @@ internal static class ConfigFileParser
         var localNodePath = await GetNodeModulesFromConfigFilePathAsync(configFileLocation);
         await SetupNodeProcessAsync(processInfo, localNodePath);
 
-        using var process = Process.Start(processInfo);
+        using var process = Process.Start(processInfo)!;
         await process.WaitForExitAsync();
 
         var path = (await process.StandardOutput.ReadToEndAsync()).Trim();

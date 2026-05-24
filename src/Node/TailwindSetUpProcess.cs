@@ -94,6 +94,8 @@ internal sealed class TailwindSetUpProcess
         return null;
     }
 
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "Not expensive")]
     private void ErrorDataReceived(object sender, DataReceivedEventArgs e)
     {
         ThreadHelper.JoinableTaskFactory.Run(async () =>

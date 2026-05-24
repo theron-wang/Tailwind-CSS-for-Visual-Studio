@@ -7,47 +7,47 @@ namespace TailwindCSSIntellisense.Tests.IntegrationTests;
 public class SortingIntegrationTests
 {
     [Fact]
-    public void SortSegment_OrdersClassesByVariantAndClassOrder()
+    public async Task SortSegment_OrdersClassesByVariantAndClassOrder()
     {
         var sorter = CreateTestSorter();
 
-        var sorted = sorter.SortSegmentPublic("hover:font-bold text-red-500 p-4", "index.html");
+        var sorted = await sorter.SortSegmentPublic("hover:font-bold text-red-500 p-4", "index.html");
 
         Assert.Equal("p-4 text-red-500 hover:font-bold", sorted);
     }
 
     [Fact]
-    public void Sort_UpdatesOnlyClassSegmentAndPreservesMarkup()
+    public async Task Sort_UpdatesOnlyClassSegmentAndPreservesMarkup()
     {
         var sorter = CreateTestSorter();
         const string input = "<div class=\"text-red-500 p-4\">hello</div>";
 
-        var sorted = sorter.SortContent("index.html", input);
+        var sorted = await sorter.SortContent("index.html", input);
 
         Assert.Equal("<div class=\"p-4 text-red-500\">hello</div>", sorted);
     }
 
     [Fact]
-    public void GetNextIndexOfClass_PicksNearestQuoteVariant()
+    public async Task GetNextIndexOfClass_PicksNearestQuoteVariant()
     {
         var sorter = CreateTestSorter();
         const string content = "<div class='a b' data-x=\"y\" class=\"c d\"></div>";
 
-        var first = sorter.GetNextIndex(content, 0);
-        var second = sorter.GetNextIndex(content, first.index + 1);
+        var (index, terminator) = sorter.GetNextIndex(content, 0);
+        var (secondIndex, secondTerminator) = sorter.GetNextIndex(content, index + 1);
 
-        Assert.Equal('\'', first.terminator);
-        Assert.Equal('"', second.terminator);
-        Assert.True(second.index > first.index);
+        Assert.Equal('\'', terminator);
+        Assert.Equal('"', secondTerminator);
+        Assert.True(secondIndex > index);
     }
 
     [Fact]
-    public void RazorSorter_KeepsRazorExpressionAndSortsNonRazorClasses()
+    public async Task RazorSorter_KeepsRazorExpressionAndSortsNonRazorClasses()
     {
         var razorSorter = CreateRazorSorter();
         const string input = "<div class=\"text-red-500 @(isActive ? 'font-bold' : 'font-light') p-4\"></div>";
 
-        var sorted = razorSorter.Sort("page.razor", input);
+        var sorted = await razorSorter.SortAsync("page.razor", input);
 
         Assert.Contains("@(isActive ? 'font-bold' : 'font-light')", sorted);
         Assert.Contains("class=\"p-4 ", sorted);
@@ -55,12 +55,12 @@ public class SortingIntegrationTests
     }
 
     [Fact]
-    public void RazorSorter_KeepsEscapedAtSignsAndMultilineIndentation()
+    public async Task RazorSorter_KeepsEscapedAtSignsAndMultilineIndentation()
     {
         var razorSorter = CreateRazorSorter();
         const string input = "<div class=\"text-red-500 @@container\n    p-4\"></div>";
 
-        var sorted = razorSorter.Sort("page.razor", input);
+        var sorted = await razorSorter.SortAsync("page.razor", input);
 
         Assert.Contains("@@container", sorted);
         Assert.Contains("\n    @@container", sorted);
@@ -68,7 +68,7 @@ public class SortingIntegrationTests
     }
 
     [Fact]
-    public void Sorter_UsesVersionSpecificOrderMappings()
+    public async Task Sorter_UsesVersionSpecificOrderMappings()
     {
         var v3Values = new ProjectCompletionValues
         {
@@ -106,8 +106,8 @@ public class SortingIntegrationTests
             ClassSortUtilities = classSortUtilities
         };
 
-        Assert.Equal("p-4 text-red-500", sorter.SortSegmentPublic("text-red-500 p-4", "v3.html"));
-        Assert.Equal("text-red-500 p-4", sorter.SortSegmentPublic("text-red-500 p-4", "v4.html"));
+        Assert.Equal("p-4 text-red-500", await sorter.SortSegmentPublic("text-red-500 p-4", "v3.html"));
+        Assert.Equal("text-red-500 p-4", await sorter.SortSegmentPublic("text-red-500 p-4", "v4.html"));
     }
 
     private static TestSorter CreateTestSorter()
@@ -184,14 +184,14 @@ public class SortingIntegrationTests
     {
         public override string[] Handled => [".html"];
 
-        public string SortSegmentPublic(string classText, string filePath)
+        public Task<string> SortSegmentPublic(string classText, string filePath)
         {
-            return SortSegment(classText, filePath);
+            return SortSegmentAsync(classText, filePath);
         }
 
-        public string SortContent(string filePath, string input)
+        public Task<string> SortContent(string filePath, string input)
         {
-            return Sort(filePath, input);
+            return SortAsync(filePath, input);
         }
 
         public (int index, char terminator) GetNextIndex(string input, int startIndex)
@@ -199,7 +199,7 @@ public class SortingIntegrationTests
             return GetNextIndexOfClass(input, startIndex);
         }
 
-        protected override IEnumerable<string> GetSegments(string filePath, string input)
+        protected override async IAsyncEnumerable<string> GetSegmentsAsync(string filePath, string input)
         {
             const string marker = "class=\"";
             var classStart = input.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
@@ -218,7 +218,7 @@ public class SortingIntegrationTests
             }
 
             yield return input[..classValueStart];
-            yield return SortSegment(input[classValueStart..classValueEnd], filePath);
+            yield return await SortSegmentAsync(input[classValueStart..classValueEnd], filePath);
             yield return input[classValueEnd..];
         }
     }

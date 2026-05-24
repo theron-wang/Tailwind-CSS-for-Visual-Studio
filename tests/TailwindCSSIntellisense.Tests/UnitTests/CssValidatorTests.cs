@@ -1,6 +1,7 @@
-using System.Reflection;
 using Microsoft.VisualStudio.Text;
+using System.Reflection;
 using TailwindCSSIntellisense.Completions;
+using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Linting;
 using TailwindCSSIntellisense.Linting.Validators;
 
@@ -46,7 +47,8 @@ public class CssValidatorTests
         [
             new FakeTextBuffer("@tailwind utilities;"),
             new LinterUtilities(),
-            projectManager
+            projectManager,
+            new CompletionConfiguration()
         ]);
     }
 

@@ -12,12 +12,14 @@ using TailwindCSSIntellisense.Settings;
 
 namespace TailwindCSSIntellisense.Helpers;
 
+/// <summary>
+/// It is unsafe to import SettingsProvider in this class. First, importing it here will cause a circular dependency;
+/// second, it will cause infinite recursion if you try to get settings in any of these methods. 
+/// </summary>
 [Export]
 [PartCreationPolicy(CreationPolicy.Shared)]
 internal class DirectoryVersionFinder : IDisposable
 {
-    // It is unsafe to import SettingsProvider in this class. First, importing it here will cause a circular dependency;
-    // second, it will cause infinite recursion if you try to get settings in any of these methods.
     public DirectoryVersionFinder()
     {
         VS.Events.SolutionEvents.OnAfterOpenFolder += InvalidateCache;
@@ -117,6 +119,8 @@ internal class DirectoryVersionFinder : IDisposable
     /// <summary>
     /// Gets the tailwind version for the directory of the given file. Caches the result, until a new project is opened.
     /// </summary>
+    /// <param name="file">The file for which to get the tailwind version.</param>
+    /// <param name="settings">The Tailwind settings (see summary for this class for justification)</param>
     public async Task<TailwindVersion> GetTailwindVersionAsync(string file, TailwindSettings settings)
     {
         var directory = Path.GetDirectoryName(file).ToLower();
@@ -192,8 +196,8 @@ internal class DirectoryVersionFinder : IDisposable
             }
         }
 
-        _cache[directory] = TailwindVersion.V4_3;
-        return TailwindVersion.V4_3;
+        _cache[directory] = TailwindVersion.LATEST;
+        return TailwindVersion.LATEST;
     }
 
     public void ClearCacheForDirectory(string directory, bool recursive = true)

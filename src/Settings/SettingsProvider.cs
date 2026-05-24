@@ -30,7 +30,6 @@ public sealed class SettingsProvider : IDisposable
             VS.Events.SolutionEvents.OnAfterOpenFolder += InvalidateCacheAndSettingsChanged;
             VS.Events.SolutionEvents.OnAfterOpenProject += InvalidateCacheAndSettingsChanged;
             VS.Events.DocumentEvents.Saved += OnFileSaved;
-            ClassRegexHelper.GetTailwindSettings = GetSettingsAsync;
         });
     }
 
@@ -60,14 +59,6 @@ public sealed class SettingsProvider : IDisposable
     public void RefreshSettings()
     {
         _cachedSettings = null;
-    }
-
-    /// <summary>
-    /// Not recommended to use this method. Use <see cref="GetSettingsAsync"/> instead.
-    /// </summary>
-    public TailwindSettings GetSettings()
-    {
-        return ThreadHelper.JoinableTaskFactory.Run(GetSettingsAsync);
     }
 
     /// <summary>
@@ -259,15 +250,30 @@ public sealed class SettingsProvider : IDisposable
                 CustomRegexes = projectSettings.CustomRegexes
             };
 
-            await ProjectConfigurationManager.OnSettingsChangedAsync(returnSettings);
+#pragma warning disable VSSDK007 // ThreadHelper.JoinableTaskFactory.RunAsync
+            // Yes, this is horrible, but we need to call this as a fire and forget in case some caller of GetSettingsAsync must 
+            // be synchronous.
+            ThreadHelper.JoinableTaskFactory.RunAsync(() => ProjectConfigurationManager.OnSettingsChangedAsync(returnSettings))
+                .FileAndForget(nameof(TailwindCSSIntellisense) + "/");
+#pragma warning restore VSSDK007 // ThreadHelper.JoinableTaskFactory.RunAsync
 
             _cachedSettings = returnSettings;
         }
 
         if (changed)
         {
-            await OverrideSettingsAsync(returnSettings);
+#pragma warning disable VSSDK007 // ThreadHelper.JoinableTaskFactory.RunAsync
+            // Yes, this is horrible, but we need to call this as a fire and forget in case some caller of GetSettingsAsync must 
+            // be synchronous.
+            ThreadHelper.JoinableTaskFactory.RunAsync(() => OverrideSettingsAsync(returnSettings))
+                .FileAndForget(nameof(TailwindCSSIntellisense) + "/");
+#pragma warning restore VSSDK007 // ThreadHelper.JoinableTaskFactory.RunAsync
         }
+
+        // At this point, we've guaranteed that the settings have been generated at least once, so
+        // we can proceed with setting ClassRegexHelper#GetTailwindSettings (since that is called only
+        // in a synchronous context)
+        ClassRegexHelper.GetTailwindSettings ??= GetSettingsAsync;
 
         return returnSettings;
     }
@@ -511,7 +517,10 @@ public sealed class SettingsProvider : IDisposable
 
     private void GeneralSettingsChanged(General settings)
     {
+#pragma warning disable VSTHRD102 // Implement internal logic asynchronously
+        // Must be sync here, but this method will be called very infrequently so not a big deal
         var origSettings = ThreadHelper.JoinableTaskFactory.Run(GetSettingsAsync);
+#pragma warning restore VSTHRD102 // Implement internal logic asynchronously
 
         if (settings.UseTailwindCss != origSettings.EnableTailwindCss ||
             settings.TailwindOutputFileName != origSettings.DefaultOutputCssName ||
@@ -535,7 +544,10 @@ public sealed class SettingsProvider : IDisposable
 
             if (OnSettingsChanged is not null)
             {
-                ThreadHelper.JoinableTaskFactory.Run(async () => await OnSettingsChanged(origSettings));
+#pragma warning disable VSSDK007 // ThreadHelper.JoinableTaskFactory.RunAsync
+                // FileAndForget ok
+                ThreadHelper.JoinableTaskFactory.RunAsync(() => OnSettingsChanged(origSettings)).FileAndForget(nameof(TailwindCSSIntellisense) + "/SettingsProvider/GeneralSettingsChanged");
+#pragma warning restore VSSDK007 // ThreadHelper.JoinableTaskFactory.RunAsync
             }
         }
 
@@ -544,12 +556,13 @@ public sealed class SettingsProvider : IDisposable
 
     private void InvalidateCacheAndSettingsChanged(string file)
     {
-        ThreadHelper.JoinableTaskFactory.Run(InvalidateCacheAndSettingsChangedImplAsync);
+        InvalidateCacheAndSettingsChanged(project: null);
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync", Justification = "Caller must be synchronous but OnSettingsChanged could be expensive")]
     private void InvalidateCacheAndSettingsChanged(Project? project)
     {
-        ThreadHelper.JoinableTaskFactory.Run(InvalidateCacheAndSettingsChangedImplAsync);
+        ThreadHelper.JoinableTaskFactory.RunAsync(InvalidateCacheAndSettingsChangedImplAsync).FileAndForget(nameof(TailwindCSSIntellisense) + "/SettingsProvider/InvalidateCacheAndSettingsChanged");
     }
 
     private async Task InvalidateCacheAndSettingsChangedImplAsync()

@@ -58,6 +58,7 @@ public sealed class ConfigurationFileReloader : IDisposable
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync", Justification = "RunAsync with FileAndForget is ok")]
     private void OnFileSave(string file)
     {
         List<ConfigurationFile> configFiles = [];
@@ -76,7 +77,7 @@ public sealed class ConfigurationFileReloader : IDisposable
 
         foreach (var config in configFiles)
         {
-            ThreadHelper.JoinableTaskFactory.RunAsync(() => CompletionConfiguration.ReloadCustomAttributesAsync(config, _settings)).FireAndForget();
+            ThreadHelper.JoinableTaskFactory.RunAsync(() => CompletionConfiguration.ReloadCustomAttributesAsync(config, _settings)).FileAndForget(nameof(TailwindCSSIntellisense) + "/ConfigurationFileReloader/OnFileSave");
         }
     }
 

@@ -10,9 +10,11 @@ using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Linq;
 using TailwindCSSIntellisense.Completions;
+using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Linting.Validators;
 
 namespace TailwindCSSIntellisense.Linting.ErrorList;
+
 internal abstract class ErrorListListener : ITextViewCreationListener, IDisposable
 {
     protected abstract Validator GetValidator(ITextView view);
@@ -21,6 +23,8 @@ internal abstract class ErrorListListener : ITextViewCreationListener, IDisposab
     protected LinterUtilities _linterUtilities = null!;
     [Import]
     protected ProjectConfigurationManager _projectConfigurationManager = null!;
+    [Import]
+    protected CompletionConfiguration _completionConfiguration = null!;
 
     private readonly Dictionary<ITextBuffer, ErrorListContext> _contexts = [];
 
@@ -59,6 +63,7 @@ internal abstract class ErrorListListener : ITextViewCreationListener, IDisposab
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "Not expensive")]
     private void UpdateErrorList(ITextBuffer buffer)
     {
         if (_contexts.TryGetValue(buffer, out var context))

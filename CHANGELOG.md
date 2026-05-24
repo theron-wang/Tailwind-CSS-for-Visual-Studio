@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.13.10 (May 24th, 2026)
+
+- Fix a bug where class lists with single quotes in arbitrary classes (i.e., `before:content-['']`) would cause an error
+- Fix performance issues on startup
+
 ## 1.13.9 (May 22nd, 2026)
 
 - Add arbitrary variants into quick info tooltips (i.e., `[&_td]` becomes `& td` in the tooltip) ([#142](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/issues/142))

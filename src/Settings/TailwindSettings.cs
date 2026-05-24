@@ -16,6 +16,9 @@ public class TailwindSettings
     public string? PackageConfigurationFile { get; set; }
     public bool UseCli { get; set; }
     public string? TailwindCliPath { get; set; }
+    /// <summary>
+    /// Whether Tailwind is set to enable/disable in global settings
+    /// </summary>
     public bool EnableTailwindCss { get; set; }
     public BuildProcessOptions BuildType { get; set; }
     public SortClassesOptions SortClassesType { get; set; }

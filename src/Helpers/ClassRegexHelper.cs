@@ -38,6 +38,7 @@ internal class ClassRegexHelper
     private static TailwindSettings? _settingsCache;
     public static Func<Task<TailwindSettings>>? GetTailwindSettings;
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "GetTailwindSettings is only non-null when some sort of settings is already cached")]
     private static void UpdateTailwindSettingsIfNeeded()
     {
         if (GetTailwindSettings is not null)

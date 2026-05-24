@@ -2,12 +2,13 @@
 using System.ComponentModel.Composition;
 
 namespace TailwindCSSIntellisense.ClassSort.Sorters;
+
 [Export(typeof(Sorter))]
 internal class HtmlSorter : Sorter
 {
     public override string[] Handled { get; } = [".html", ".aspx", ".ascx"];
 
-    protected override IEnumerable<string> GetSegments(string filePath, string content)
+    protected override async IAsyncEnumerable<string> GetSegmentsAsync(string filePath, string content)
     {
         int lastIndex = 0;
         int indexOfClass;
@@ -46,7 +47,7 @@ internal class HtmlSorter : Sorter
             var classContent = ClassRegexHelper.GetClassTextGroup(match).Value;
             yield return total.Substring(0, total.IndexOf(classContent));
 
-            yield return SortSegment(classContent, filePath);
+            yield return await SortSegmentAsync(classContent, filePath);
             yield return total.Substring(total.IndexOf(classContent) + classContent.Length);
         }
 

@@ -9,8 +9,10 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Linq;
+using System.Threading.Tasks;
 using TailwindCSSIntellisense.ClassSort;
 using TailwindCSSIntellisense.Completions;
+using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Options;
 
 namespace TailwindCSSIntellisense.Linting;
@@ -22,20 +24,23 @@ internal sealed class LinterUtilities : IDisposable
     private readonly ProjectConfigurationManager _projectConfigurationManager;
     private readonly DescriptionGenerator _descriptionGenerator;
     private readonly ClassSortUtilities _classSortUtilities;
+    private readonly CompletionConfiguration _completionConfiguration;
     private readonly Dictionary<ProjectCompletionValues, Dictionary<string, string>> _cacheCssAttributes = [];
 
     private Linter? _linterOptions;
     private General? _generalOptions;
+    private readonly Dictionary<ProjectCompletionValues, Dictionary<string, int>> _classOrderCache = [];
 
     [ImportingConstructor]
-    public LinterUtilities(ProjectConfigurationManager completionUtilities, DescriptionGenerator descriptionGenerator, ClassSortUtilities classSortUtilities)
+    public LinterUtilities(ProjectConfigurationManager completionUtilities, DescriptionGenerator descriptionGenerator, ClassSortUtilities classSortUtilities, CompletionConfiguration completionConfiguration)
     {
         _projectConfigurationManager = completionUtilities;
         _descriptionGenerator = descriptionGenerator;
         _classSortUtilities = classSortUtilities;
+        _completionConfiguration = completionConfiguration;
         Linter.Saved += LinterSettingsChanged;
         General.Saved += GeneralSettingsChanged;
-        _projectConfigurationManager.Configuration.ConfigurationUpdated += ConfigurationUpdated;
+        _completionConfiguration.ConfigurationUpdated += ConfigurationUpdatedAsync;
     }
 
     /// <summary>
@@ -45,8 +50,7 @@ internal sealed class LinterUtilities : IDisposable
     /// <returns>A list of Tuples containing the class name and error message</returns>
     public IEnumerable<Tuple<string, string>> CheckForClassDuplicates(IEnumerable<string> classes, ProjectCompletionValues projectCompletionValues)
     {
-        var classOrder = _classSortUtilities.GetClassOrder(projectCompletionValues);
-        if (classOrder.Count == 0)
+        if (!_classOrderCache.TryGetValue(projectCompletionValues, out var classOrder))
         {
             yield break;
         }
@@ -135,6 +139,7 @@ internal sealed class LinterUtilities : IDisposable
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "Not expensive")]
     public bool LinterEnabled()
     {
         _linterOptions ??= ThreadHelper.JoinableTaskFactory.Run(Linter.GetLiveInstanceAsync);
@@ -153,11 +158,19 @@ internal sealed class LinterUtilities : IDisposable
         _generalOptions = general;
     }
 
-    private void ConfigurationUpdated()
+    private async Task ConfigurationUpdatedAsync()
     {
+        _classOrderCache.Clear();
+
+        foreach (var proj in await _projectConfigurationManager.GetAllProjectCompletionValuesAsync())
+        {
+            _classOrderCache[proj] = await _classSortUtilities.GetClassOrderAsync(proj);
+        }
+
         _cacheCssAttributes.Clear();
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "Not expensive")]
     public ErrorSeverity GetErrorSeverity(ErrorType type)
     {
         _linterOptions ??= ThreadHelper.JoinableTaskFactory.Run(Linter.GetLiveInstanceAsync);
@@ -206,6 +219,6 @@ internal sealed class LinterUtilities : IDisposable
     public void Dispose()
     {
         Linter.Saved -= LinterSettingsChanged;
-        _projectConfigurationManager.Configuration.ConfigurationUpdated -= ConfigurationUpdated;
+        _projectConfigurationManager.Configuration.ConfigurationUpdated -= ConfigurationUpdatedAsync;
     }
 }

@@ -217,19 +217,19 @@ namespace TailwindCSSIntellisense.Completions
             DefaultProject = values;
         }
 
-        public ProjectCompletionValues GetCompletionConfigurationByFilePath(string? filePath)
+        public Task<ProjectCompletionValues> GetCompletionConfigurationByFilePathAsync(string? filePath)
         {
             if (!string.IsNullOrWhiteSpace(filePath) && _byFilePath.TryGetValue(filePath, out var value))
             {
-                return value;
+                return Task.FromResult(value);
             }
 
             if (DefaultProject is not null)
             {
-                return DefaultProject;
+                return Task.FromResult(DefaultProject);
             }
 
-            return new ProjectCompletionValues { Version = TailwindVersion.V3 };
+            return Task.FromResult(new ProjectCompletionValues { Version = TailwindVersion.V3 });
         }
 
         internal sealed class ConfigurationState
@@ -254,7 +254,7 @@ namespace TailwindCSSIntellisense.ClassSort
             _variantOrders = variantOrders;
         }
 
-        public Dictionary<string, int> GetClassOrder(ProjectCompletionValues project)
+        public async Task<Dictionary<string, int>> GetClassOrderAsync(ProjectCompletionValues project)
         {
             if (_classOrders.TryGetValue(project.Version, out var classOrder))
             {
@@ -264,7 +264,7 @@ namespace TailwindCSSIntellisense.ClassSort
             return _classOrders.Values.FirstOrDefault() ?? [];
         }
 
-        public Dictionary<string, int> GetVariantOrder(ProjectCompletionValues project)
+        public async Task<Dictionary<string, int>> GetVariantOrderAsync(ProjectCompletionValues project)
         {
             if (_variantOrders.TryGetValue(project.Version, out var variantOrder))
             {
@@ -311,15 +311,17 @@ namespace TailwindCSSIntellisense.Linting.Validators
         protected readonly ITextBuffer _buffer;
         protected readonly LinterUtilities _linterUtils;
         protected readonly ProjectConfigurationManager _projectConfigurationManager;
+        private readonly CompletionConfiguration _completionConfiguration;
         protected ProjectCompletionValues _projectCompletionValues;
         protected readonly HashSet<SnapshotSpan> _checkedSpans = [];
 
-        protected Validator(ITextBuffer buffer, LinterUtilities linterUtils, ProjectConfigurationManager projectConfigurationManager)
+        protected Validator(ITextBuffer buffer, LinterUtilities linterUtils, ProjectConfigurationManager projectConfigurationManager, CompletionConfiguration completionConfiguration)
         {
             _buffer = buffer;
             _linterUtils = linterUtils;
             _projectConfigurationManager = projectConfigurationManager;
-            _projectCompletionValues = projectConfigurationManager.GetCompletionConfigurationByFilePath(null);
+            _completionConfiguration = completionConfiguration;
+            _projectCompletionValues = projectConfigurationManager.GetCompletionConfigurationByFilePathAsync(null).Result;
         }
 
         public abstract IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span);
@@ -341,7 +343,7 @@ namespace TailwindCSSIntellisense.ClassSort.Sorters
     {
         public override string[] Handled { get; } = [".css"];
 
-        protected override IEnumerable<string> GetSegments(string filePath, string input)
+        protected async override IAsyncEnumerable<string> GetSegmentsAsync(string filePath, string input)
         {
             yield return input;
         }
@@ -369,5 +371,13 @@ namespace TailwindCSSIntellisense.Settings
             public bool Override { get; set; } = false;
             public List<string> Values { get; set; } = [];
         }
+    }
+}
+
+namespace TailwindCSSIntellisense.Configuration
+{
+    public class CompletionConfiguration
+    {
+
     }
 }
