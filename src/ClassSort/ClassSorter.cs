@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using TailwindCSSIntellisense.ClassSort.Sorters;
 using TailwindCSSIntellisense.Configuration;
@@ -31,28 +32,41 @@ internal sealed class ClassSorter : IDisposable
     public bool Sorting { get; private set; }
 
     private TailwindSettings _tailwindSettings = null!;
+    private SemaphoreSlim _initLock = new(1, 1);
+    private Task? _initTask;
 
     private readonly HashSet<string> _sorted = [];
 
-    private bool _initialized = false;
-
     public async Task InitializeAsync()
     {
-        if (!_initialized)
+        Task task;
+
+        await _initLock.WaitAsync();
+        try
         {
-            _tailwindSettings = await SettingsProvider.GetSettingsAsync();
-
-            VS.Events.DocumentEvents.Saved += DocumentSaved;
-            VS.Events.BuildEvents.SolutionBuildStarted += OnBuild;
-            SettingsProvider.OnSettingsChanged += OnSettingsChangedAsync;
-            CompletionConfiguration.ConfigurationUpdated += ConfigurationChangedAsync;
-
-            _initialized = true;
+            _initTask ??= InitializeImplAsync();
+            task = _initTask;
+        }
+        finally
+        {
+            _initLock.Release();
         }
     }
 
+    private async Task InitializeImplAsync()
+    {
+        _tailwindSettings = await SettingsProvider.GetSettingsAsync();
+
+        VS.Events.DocumentEvents.Saved += DocumentSaved;
+        VS.Events.BuildEvents.SolutionBuildStarted += OnBuild;
+        SettingsProvider.OnSettingsChanged += OnSettingsChangedAsync;
+        CompletionConfiguration.ConfigurationUpdated += ConfigurationChangedAsync;
+    }
+
+
     public async Task SortAllAsync()
     {
+        await InitializeAsync();
         Sorting = true;
         try
         {
@@ -128,6 +142,9 @@ internal sealed class ClassSorter : IDisposable
         {
             return;
         }
+
+        await InitializeAsync();
+
         if (_tailwindSettings.EnableTailwindCss && _tailwindSettings.SortClassesType != SortClassesOptions.None)
         {
             string fileContent;

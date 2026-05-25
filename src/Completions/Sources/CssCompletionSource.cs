@@ -15,10 +15,14 @@ namespace TailwindCSSIntellisense.Completions.Sources;
 /// <summary>
 /// Completion provider for all CSS files to provide Intellisense support for TailwindCSS classes, functions, and directives
 /// </summary>
-internal class CssCompletionSource(ITextBuffer textBuffer, ProjectConfigurationManager completionUtils, ColorIconGenerator colorIconGenerator, DescriptionGenerator descriptionGenerator, SettingsProvider settingsProvider, CompletionConfiguration completionConfiguration, ProjectConfigurationInitializer projectConfigurationInitializer) :
-    ClassCompletionGenerator(textBuffer, completionUtils, colorIconGenerator, descriptionGenerator, settingsProvider, completionConfiguration, projectConfigurationInitializer), ICompletionSource
+internal class CssCompletionSource : ClassCompletionGenerator, ICompletionSource
 {
     private UnsetProjectCompletionValues? _unsetProjectCompletionValues;
+
+    public CssCompletionSource(ITextBuffer textBuffer, ProjectConfigurationManager completionUtils, ColorIconGenerator colorIconGenerator, DescriptionGenerator descriptionGenerator, SettingsProvider settingsProvider, CompletionConfiguration completionConfiguration, ProjectConfigurationInitializer projectCompletionInit) : base(textBuffer, completionUtils, colorIconGenerator, descriptionGenerator, settingsProvider, completionConfiguration, projectCompletionInit)
+    {
+        Initialize();
+    }
 
     /// <summary>
     /// Provides relevant TailwindCSS completions

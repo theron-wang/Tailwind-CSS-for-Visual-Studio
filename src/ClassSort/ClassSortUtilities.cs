@@ -82,23 +82,59 @@ internal sealed class ClassSortUtilities
 
     public async Task<Dictionary<string, int>> GetClassOrderAsync(TailwindVersion version)
     {
-        if (_classOrders.TryGetValue(version, out var classOrder))
+        await _classOrderLock.WaitAsync();
+
+        try
         {
-            return classOrder;
+            if (_classOrders.TryGetValue(version, out var classOrder))
+            {
+                return classOrder;
+            }
+        }
+        finally
+        {
+            _classOrderLock.Release();
         }
 
         await InitializeClassOrderAsync(version);
-        return _classOrders[version];
+
+        await _classOrderLock.WaitAsync();
+        try
+        {
+            return _classOrders[version];
+        }
+        finally
+        {
+            _classOrderLock.Release();
+        }
     }
 
     public async Task<Dictionary<string, int>> GetVariantOrderAsync(TailwindVersion version)
     {
-        if (_variantOrders.TryGetValue(version, out var variantOrder))
+        await _variantOrderLock.WaitAsync();
+
+        try
         {
-            return variantOrder;
+            if (_variantOrders.TryGetValue(version, out var variantOrder))
+            {
+                return variantOrder;
+            }
+        }
+        finally
+        {
+            _variantOrderLock.Release();
         }
 
         await InitializeVariantOrderAsync(version);
-        return _variantOrders[version];
+
+        await _variantOrderLock.WaitAsync();
+        try
+        {
+            return _variantOrders[version];
+        }
+        finally
+        {
+            _variantOrderLock.Release();
+        }
     }
 }

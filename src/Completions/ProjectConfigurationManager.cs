@@ -6,6 +6,7 @@ using System.ComponentModel.Composition;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -45,12 +46,28 @@ public sealed class ProjectConfigurationManager
     private readonly Dictionary<string, ProjectCompletionValues> _filePathToProjectConfigurationCache = [];
 
     /// <summary>
+    /// Guards all reads and writes of _projectCompletionConfiguration,
+    /// _defaultProjectCompletionConfiguration, and _filePathToProjectConfigurationCache.
+    /// SemaphoreSlim(1,1) is used instead of lock because the critical sections contain awaits.
+    /// </summary>
+    private readonly SemaphoreSlim _configLock = new SemaphoreSlim(1, 1);
+
+    /// <summary>
     /// Returns the ProjectCompletionValues for the given configuration file path.
     /// </summary>
     public async Task<ProjectCompletionValues?> GetCompletionConfigurationByConfigFilePathAsync(string configFile)
     {
         await ProjectConfigurationInitializer.InitializeAsync();
-        return _projectCompletionConfiguration.TryGetValue(configFile.ToLower(), out var value) ? value : null;
+
+        await _configLock.WaitAsync();
+        try
+        {
+            return _projectCompletionConfiguration.TryGetValue(configFile.ToLower(), out var value) ? value : null;
+        }
+        finally
+        {
+            _configLock.Release();
+        }
     }
 
     /// <summary>
@@ -60,37 +77,77 @@ public sealed class ProjectConfigurationManager
     {
         await ProjectConfigurationInitializer.InitializeAsync();
 
-        if (filePath is null)
+        await _configLock.WaitAsync();
+        try
         {
-            if (_defaultProjectCompletionConfiguration is not null)
+            if (string.IsNullOrWhiteSpace(filePath))
             {
-                return _defaultProjectCompletionConfiguration;
+                if (_defaultProjectCompletionConfiguration is not null)
+                {
+                    return _defaultProjectCompletionConfiguration;
+                }
+            }
+            else if (_filePathToProjectConfigurationCache.TryGetValue(filePath!.ToLower(), out var cached))
+            {
+                return cached;
+            }
+        }
+        finally
+        {
+            _configLock.Release();
+        }
+
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            // Default to v4 — no state access needed here
+            return await ProjectConfigurationInitializer.GetUnsetCompletionConfigurationAsync(TailwindVersion.LATEST);
+        }
+
+        // Compute the result outside the lock (may await); snapshot the dictionary first.
+        Dictionary<string, ProjectCompletionValues> snapshot;
+        await _configLock.WaitAsync();
+        try
+        {
+            snapshot = new Dictionary<string, ProjectCompletionValues>(_projectCompletionConfiguration);
+        }
+        finally
+        {
+            _configLock.Release();
+        }
+
+        ProjectCompletionValues config = await GetCompletionConfigurationByFilePathImplAsync(filePath!, snapshot);
+
+        await _configLock.WaitAsync();
+        try
+        {
+            // Re-check cache in case a concurrent call already populated it.
+            if (!_filePathToProjectConfigurationCache.TryGetValue(filePath!.ToLower(), out var existing))
+            {
+                _filePathToProjectConfigurationCache[filePath.ToLower()] = config;
             }
             else
             {
-                // Default to v4
-                return await ProjectConfigurationInitializer.GetUnsetCompletionConfigurationAsync(TailwindVersion.LATEST);
+                config = existing;
             }
         }
-
-        if (_filePathToProjectConfigurationCache.TryGetValue(filePath.ToLower(), out var cached))
+        finally
         {
-            return cached;
+            _configLock.Release();
         }
 
-        ProjectCompletionValues config = await GetCompletionConfigurationByFilePathImplAsync(filePath);
-        _filePathToProjectConfigurationCache[filePath.ToLower()] = config;
         return config;
     }
 
-    private async Task<ProjectCompletionValues> GetCompletionConfigurationByFilePathImplAsync(string filePath)
+    private async Task<ProjectCompletionValues> GetCompletionConfigurationByFilePathImplAsync(
+        string filePath,
+        Dictionary<string, ProjectCompletionValues> projectCompletionConfiguration)
     {
         ProjectCompletionValues? closest = null;
         var minDist = int.MaxValue;
 
         var inputFileDirectories = Path.GetDirectoryName(filePath).ToLower().Split(Path.DirectorySeparatorChar);
 
-        foreach (var k in _projectCompletionConfiguration.Values)
+        foreach (var k in projectCompletionConfiguration.Values)
         {
             if (!k.ApplicablePaths.Any())
             {
@@ -143,7 +200,7 @@ public sealed class ProjectConfigurationManager
             return closest;
         }
 
-        foreach (var k in _projectCompletionConfiguration.Values)
+        foreach (var k in projectCompletionConfiguration.Values)
         {
             if (k.FilePath.Equals(filePath, StringComparison.InvariantCultureIgnoreCase))
             {
@@ -174,16 +231,22 @@ public sealed class ProjectConfigurationManager
 
     public async Task<IEnumerable<ProjectCompletionValues>> GetAllProjectCompletionValuesAsync()
     {
-        return _projectCompletionConfiguration.Values;
+        await _configLock.WaitAsync();
+        try
+        {
+            // Return a snapshot so callers enumerate a stable copy.
+            return _projectCompletionConfiguration.Values.ToList();
+        }
+        finally
+        {
+            _configLock.Release();
+        }
     }
 
     public async Task OnSettingsChangedAsync(TailwindSettings settings)
     {
-        _defaultProjectCompletionConfiguration = null;
-        _filePathToProjectConfigurationCache.Clear();
-
-        // V4 uses BuildFiles as ConfigurationFiles. Since existing code already uses ConfigurationFiles, it's easier to just
-        // populate it here rather than rewrite everything to account for BuildFiles.
+        // Perform all async I/O (version detection, config file updates) before
+        // acquiring the lock so we hold it only while mutating shared state.
         foreach (var buildFile in settings.BuildFiles)
         {
             if (settings.ConfigurationFiles.All(cf => !cf.Path.Equals(buildFile.Input, StringComparison.InvariantCultureIgnoreCase)))
@@ -197,9 +260,27 @@ public sealed class ProjectConfigurationManager
             }
         }
 
+        // Pre-compute new configs outside the lock (these involve awaits).
+        var newConfigs = new Dictionary<string, ProjectCompletionValues>(StringComparer.OrdinalIgnoreCase);
+
         foreach (var file in settings.ConfigurationFiles)
         {
-            if (!_projectCompletionConfiguration.TryGetValue(file.Path.ToLower(), out var projectConfig))
+            var key = file.Path.ToLower();
+
+            // Check existing config under the lock briefly.
+            ProjectCompletionValues? existingConfig;
+            await _configLock.WaitAsync();
+            try
+            {
+                _projectCompletionConfiguration.TryGetValue(key, out existingConfig);
+            }
+            finally
+            {
+                _configLock.Release();
+            }
+
+            ProjectCompletionValues projectConfig;
+            if (existingConfig is null)
             {
                 if (!settings.UseCli || string.IsNullOrWhiteSpace(settings.TailwindCliPath))
                 {
@@ -208,33 +289,56 @@ public sealed class ProjectConfigurationManager
                 }
 
                 var version = await DirectoryVersionFinder.GetTailwindVersionAsync(file.Path, settings);
-
                 projectConfig = (await ProjectConfigurationInitializer.GetUnsetCompletionConfigurationAsync(version)).Copy();
-                _projectCompletionConfiguration[file.Path.ToLower()] = projectConfig;
             }
-
-            projectConfig.FilePath = file.Path.ToLower();
-        }
-
-        var toRemove = _projectCompletionConfiguration.Keys.Except(settings.ConfigurationFiles.Select(f => f.Path.ToLower())).ToList();
-
-        foreach (var file in toRemove)
-        {
-            _projectCompletionConfiguration.Remove(file);
-        }
-
-        if (settings.ConfigurationFiles.Count > 0)
-        {
-            foreach (var config in settings.ConfigurationFiles)
+            else
             {
-                if (_projectCompletionConfiguration[config.Path.ToLower()].ApplicablePaths.Count > 0)
-                {
-                    _defaultProjectCompletionConfiguration = _projectCompletionConfiguration[settings.ConfigurationFiles.First().Path.ToLower()];
-                    break;
-                }
+                projectConfig = existingConfig;
             }
 
-            _defaultProjectCompletionConfiguration ??= _projectCompletionConfiguration[settings.ConfigurationFiles.First().Path.ToLower()];
+            projectConfig.FilePath = key;
+            newConfigs[key] = projectConfig;
+        }
+
+        // Now atomically swap in all new state under the lock.
+        await _configLock.WaitAsync();
+        try
+        {
+            _defaultProjectCompletionConfiguration = null;
+            _filePathToProjectConfigurationCache.Clear();
+
+            var toRemove = _projectCompletionConfiguration.Keys
+                .Except(newConfigs.Keys, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            foreach (var key in toRemove)
+            {
+                _projectCompletionConfiguration.Remove(key);
+            }
+
+            foreach (var kvp in newConfigs)
+            {
+                _projectCompletionConfiguration[kvp.Key] = kvp.Value;
+            }
+
+            if (settings.ConfigurationFiles.Count > 0)
+            {
+                foreach (var config in settings.ConfigurationFiles)
+                {
+                    var key = config.Path.ToLower();
+                    if (_projectCompletionConfiguration.TryGetValue(key, out var pcv) && pcv.ApplicablePaths.Count > 0)
+                    {
+                        _defaultProjectCompletionConfiguration = _projectCompletionConfiguration[settings.ConfigurationFiles.First().Path.ToLower()];
+                        break;
+                    }
+                }
+
+                _defaultProjectCompletionConfiguration ??= _projectCompletionConfiguration[settings.ConfigurationFiles.First().Path.ToLower()];
+            }
+        }
+        finally
+        {
+            _configLock.Release();
         }
 
         await Configuration.ReloadCustomAttributesAsync(settings);

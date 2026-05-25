@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Configuration;
@@ -40,6 +41,7 @@ internal sealed class TailwindBuildProcess : IDisposable
     private bool _subscribed;
 
     private bool _startingBuilds;
+    private readonly SemaphoreSlim _buildGate = new(1, 1);
 
     // http://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/issues/120
     // If we encounter a security error from powershell in running npx, use -ExecutionPolicy Unrestricted
@@ -197,48 +199,48 @@ internal sealed class TailwindBuildProcess : IDisposable
     /// </summary>
     internal async Task BuildAllAsync(BuildBehavior buildBehavior)
     {
-        if (_settings.ConfigurationFiles.Count == 0 || _inputFileToBuildInfo == null || _inputFileToBuildInfo.Count == 0 || _settings.BuildType == BuildProcessOptions.None)
-        {
-            return;
-        }
-
-        _startingBuilds = true;
-
+        await _buildGate.WaitAsync();
         try
         {
-            foreach (var pair in _inputFileToBuildInfo)
+            if (_settings.ConfigurationFiles.Count == 0 || _inputFileToBuildInfo == null || _inputFileToBuildInfo.Count == 0 || _settings.BuildType == BuildProcessOptions.None)
             {
-                await BuildOneAsync(pair.Key, pair.Value.Output, buildBehavior switch
+                return;
+            }
+
+            _startingBuilds = true;
+
+            try
+            {
+                foreach (var pair in _inputFileToBuildInfo)
                 {
-                    BuildBehavior.Minified => true,
-                    BuildBehavior.Unminified => false,
-                    BuildBehavior.Default or _ => pair.Value.Behavior switch
+                    await BuildOneAsync(pair.Key, pair.Value.Output, buildBehavior switch
                     {
                         BuildBehavior.Minified => true,
                         BuildBehavior.Unminified => false,
-                        BuildBehavior.Default or _ => _settings.AutomaticallyMinify
-                    },
-                });
+                        BuildBehavior.Default or _ => pair.Value.Behavior switch
+                        {
+                            BuildBehavior.Minified => true,
+                            BuildBehavior.Unminified => false,
+                            BuildBehavior.Default or _ => _settings.AutomaticallyMinify
+                        },
+                    });
+                }
+            }
+            finally
+            {
+                _startingBuilds = false;
             }
         }
         finally
         {
-            _startingBuilds = false;
+            _buildGate.Release();
         }
     }
 
     private async Task BuildOneAsync(string input, string output, bool minify = false)
     {
-        ProjectCompletionValues? config;
-        try
-        {
-            // V4
-            config = await ProjectConfigurationManager.GetCompletionConfigurationByConfigFilePathAsync(input);
-        }
-        catch
-        {
-            config = await ProjectConfigurationManager.GetCompletionConfigurationByFilePathAsync(input);
-        }
+        var config = await ProjectConfigurationManager.GetCompletionConfigurationByConfigFilePathAsync(input);
+        config ??= await ProjectConfigurationManager.GetCompletionConfigurationByFilePathAsync(input);
 
         if (config is null)
         {

@@ -30,22 +30,63 @@ public sealed class ProjectConfigurationInitializer
 
     private readonly SemaphoreSlim _initializeLock = new(1, 1);
     private readonly SemaphoreSlim _unsetConfigsLock = new(1, 1);
-    private Task? _initializationTask;
+    private Task<bool>? _initializationTask;
 
     public async Task InitializeAsync()
     {
-        await _initializeLock.WaitAsync();
+        Task<bool> task;
 
+        await _initializeLock.WaitAsync();
         try
         {
             _initializationTask ??= InitializeImplAsync();
+            task = _initializationTask;
         }
         finally
         {
             _initializeLock.Release();
         }
 
-        await _initializationTask;
+        bool success;
+        try
+        {
+            success = await task;
+        }
+        catch
+        {
+            // allow retry on next call
+            await _initializeLock.WaitAsync();
+            try
+            {
+                if (_initializationTask == task)
+                {
+                    _initializationTask = null;
+                }
+            }
+            finally
+            {
+                _initializeLock.Release();
+            }
+
+            throw;
+        }
+
+        if (!success)
+        {
+            // allow retry on next call
+            await _initializeLock.WaitAsync();
+            try
+            {
+                if (_initializationTask == task)
+                {
+                    _initializationTask = null;
+                }
+            }
+            finally
+            {
+                _initializeLock.Release();
+            }
+        }
     }
 
     private async Task<bool> InitializeImplAsync()

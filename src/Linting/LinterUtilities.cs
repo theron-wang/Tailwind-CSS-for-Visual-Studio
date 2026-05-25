@@ -174,11 +174,14 @@ internal sealed class LinterUtilities : IDisposable
 
     private async Task ConfigurationUpdatedAsync()
     {
-        var versionsToFind = (await _projectConfigurationManager.GetAllProjectCompletionValuesAsync())
-            .Select(p => p.Version)
-            .Distinct()
-            .Where(v => !_classOrderCache.ContainsKey(v));
+        var projectCompletionValues = await _projectConfigurationManager.GetAllProjectCompletionValuesAsync();
 
+        List<TailwindVersion> versionsToFind;
+
+        lock (_cacheLock)
+        {
+            versionsToFind = [.. projectCompletionValues.Select(p => p.Version).Where(v => !_classOrderCache.ContainsKey(v))];
+        }
 
         var toAdd = new Dictionary<TailwindVersion, Dictionary<string, int>>();
         foreach (var version in versionsToFind)
@@ -245,6 +248,7 @@ internal sealed class LinterUtilities : IDisposable
     public void Dispose()
     {
         Linter.Saved -= LinterSettingsChanged;
+        General.Saved -= GeneralSettingsChanged;
         _completionConfiguration.ConfigurationUpdated -= ConfigurationUpdatedAsync;
     }
 }

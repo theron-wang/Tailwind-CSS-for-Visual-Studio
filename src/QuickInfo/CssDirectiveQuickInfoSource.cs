@@ -54,7 +54,7 @@ internal class CssDirectiveQuickInfoSource : IAsyncQuickInfoSource
             if (text == "@apply")
             {
             }
-            else if (await _directoryVersionFinder.GetTailwindVersionAsync(_textBuffer.GetFileNameSafe(), await _settingsProvider.GetSettingsAsync()) == TailwindVersion.V3 && (text == "@tailwind" || text == "@config"))
+            else if ((text == "@tailwind" || text == "@config") && await _directoryVersionFinder.GetTailwindVersionAsync(_textBuffer.GetFileNameSafe(), await _settingsProvider.GetSettingsAsync()) == TailwindVersion.V3)
             {
             }
             else if (text == "@theme" || text == "@source" || text == "@utility" || text == "@custom-variant" || text == "@config" || text == "@plugin" || text == "@variant" || text.StartsWith("@slot"))

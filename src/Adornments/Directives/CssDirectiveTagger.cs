@@ -70,8 +70,7 @@ internal sealed class DirectiveCssTaggerProvider : IViewTaggerProvider
 
             ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
-                _tailwindSettings = await _settingsProvider.GetSettingsAsync();
-                await SettingsChangedAsync(_tailwindSettings);
+                await SettingsChangedAsync(await _settingsProvider.GetSettingsAsync());
             }).FileAndForget(nameof(TailwindCSSIntellisense) + "/CssDirectiveTagger/InitializeSettings");
         }
 
@@ -168,7 +167,7 @@ internal sealed class DirectiveCssTaggerProvider : IViewTaggerProvider
             _tailwindSettings = settings;
 
             // Settings changed can happen a lot; only reload if it's the first time from null to non-null
-            if (first && _tailwindSettings != null)
+            if (first)
             {
                 TagsChanged?.Invoke(this, new SnapshotSpanEventArgs(new SnapshotSpan(_buffer.CurrentSnapshot, 0, _buffer.CurrentSnapshot.Length)));
             }

@@ -24,7 +24,6 @@ internal abstract class ClassCompletionGenerator : IDisposable
     protected bool? _showAutocomplete;
     protected TailwindSettings? _settings;
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync", Justification = "FileAndForget is ok")]
     protected ClassCompletionGenerator(ITextBuffer textBuffer, ProjectConfigurationManager completionUtils, ColorIconGenerator colorIconGenerator, DescriptionGenerator descriptionGenerator, SettingsProvider settingsProvider, CompletionConfiguration completionConfiguration, ProjectConfigurationInitializer projectCompletionInit)
     {
         _textBuffer = textBuffer;
@@ -36,7 +35,14 @@ internal abstract class ClassCompletionGenerator : IDisposable
         _settingsProvider.OnSettingsChanged += SettingsChangedAsync;
         _completionConfiguration.ConfigurationUpdated += ReloadProjectCompletionValuesAsync;
         _projectCompletionInit = projectCompletionInit;
+    }
 
+    /// <summary>
+    /// Must call in child class constructors.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync", Justification = "FileAndForget is ok")]
+    protected void Initialize()
+    {
         // Set _projectConfigurationValues without blocking
         ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
         {

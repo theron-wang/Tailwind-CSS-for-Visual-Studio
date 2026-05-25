@@ -128,6 +128,7 @@ public sealed class TailwindCSSIntellisensePackage : AsyncPackage, IDisposable
         {
             await VS.StatusBar.ShowMessageAsync("Tailwind CSS: An error occurred while loading in this project");
             await ex.LogAsync();
+            throw;
         }
         finally
         {

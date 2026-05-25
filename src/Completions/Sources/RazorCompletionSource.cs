@@ -27,6 +27,7 @@ internal class RazorCompletionSource : ClassCompletionGenerator, ICompletionSour
         _completionBroker = completionBroker;
 
         _asyncCompletionBroker.CompletionTriggered += OnAsyncCompletionSessionStarted;
+        Initialize();
     }
 
     /// <summary>

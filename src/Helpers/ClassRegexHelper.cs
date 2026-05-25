@@ -223,7 +223,7 @@ internal class ClassRegexHelper
 
                 while (_razorQuotePairRegex.Match(expandedSearchText, lastQuoteMatchIndex, Math.Max(0, classContent.Index + classContent.Length - lastQuoteMatchIndex)) is Match quoteMatch && quoteMatch.Success)
                 {
-                    lastQuoteMatchIndex = quoteMatch.Index + classContent.Length;
+                    lastQuoteMatchIndex = quoteMatch.Index + quoteMatch.Length;
 
                     var localIndex = quoteMatch.Index - GetClassTextGroup(match).Index;
 
@@ -333,7 +333,7 @@ internal class ClassRegexHelper
 
                     while (_razorQuotePairRegex.Match(text, lastQuoteMatchIndex, Math.Min(text.Length - lastQuoteMatchIndex, match.Length)) is Match quoteMatch && quoteMatch.Success)
                     {
-                        lastQuoteMatchIndex = quoteMatch.Index + classText.Length;
+                        lastQuoteMatchIndex = quoteMatch.Index + quoteMatch.Length;
 
                         var localIndex = quoteMatch.Index - GetClassTextGroup(match).Index;
 

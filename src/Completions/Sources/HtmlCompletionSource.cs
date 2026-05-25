@@ -15,9 +15,13 @@ namespace TailwindCSSIntellisense.Completions.Sources;
 /// <summary>
 /// Completion provider for all HTML content files to provide Intellisense support for TailwindCSS classes
 /// </summary>
-internal class HtmlCompletionSource(ITextBuffer textBuffer, ProjectConfigurationManager completionUtils, ColorIconGenerator colorIconGenerator, DescriptionGenerator descriptionGenerator, SettingsProvider settingsProvider, CompletionConfiguration completionConfiguration, ProjectConfigurationInitializer projectConfigurationInitializer) :
-    ClassCompletionGenerator(textBuffer, completionUtils, colorIconGenerator, descriptionGenerator, settingsProvider, completionConfiguration, projectConfigurationInitializer), ICompletionSource
+internal class HtmlCompletionSource : ClassCompletionGenerator, ICompletionSource
 {
+    public HtmlCompletionSource(ITextBuffer textBuffer, ProjectConfigurationManager completionUtils, ColorIconGenerator colorIconGenerator, DescriptionGenerator descriptionGenerator, SettingsProvider settingsProvider, CompletionConfiguration completionConfiguration, ProjectConfigurationInitializer projectCompletionInit) : base(textBuffer, completionUtils, colorIconGenerator, descriptionGenerator, settingsProvider, completionConfiguration, projectCompletionInit)
+    {
+        Initialize();
+    }
+
     /// <summary>
     /// Overrides the original completion set to include TailwindCSS classes
     /// </summary>

@@ -48,7 +48,7 @@ public sealed partial class CompletionConfiguration
     {
         var failed = false;
 
-        foreach (var configurationFile in settings.ConfigurationFiles)
+        foreach (var configurationFile in settings.ConfigurationFiles.ToList())
         {
             var success = await ReloadCustomAttributesImplAsync(configurationFile, settings);
 
