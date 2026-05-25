@@ -19,11 +19,6 @@ internal sealed class ClassSortUtilities
 
     private async Task InitializeClassOrderAsync(TailwindVersion version)
     {
-        if (_classOrders.ContainsKey(version))
-        {
-            return;
-        }
-
         await _classOrderLock.WaitAsync();
         try
         {
@@ -50,11 +45,6 @@ internal sealed class ClassSortUtilities
 
     private async Task InitializeVariantOrderAsync(TailwindVersion version)
     {
-        if (_variantOrders.ContainsKey(version))
-        {
-            return;
-        }
-
         await _variantOrderLock.WaitAsync();
         try
         {

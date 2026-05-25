@@ -278,9 +278,10 @@ public sealed class ProjectConfigurationManager
             {
                 _configLock.Release();
             }
+            var version = await DirectoryVersionFinder.GetTailwindVersionAsync(file.Path, settings);
 
             ProjectCompletionValues projectConfig;
-            if (existingConfig is null)
+            if (existingConfig is null || existingConfig.Version != version)
             {
                 if (!settings.UseCli || string.IsNullOrWhiteSpace(settings.TailwindCliPath))
                 {
@@ -288,7 +289,6 @@ public sealed class ProjectConfigurationManager
                     DirectoryVersionFinder.ClearCacheForDirectory(Path.GetDirectoryName(file.Path));
                 }
 
-                var version = await DirectoryVersionFinder.GetTailwindVersionAsync(file.Path, settings);
                 projectConfig = (await ProjectConfigurationInitializer.GetUnsetCompletionConfigurationAsync(version)).Copy();
             }
             else
@@ -328,7 +328,7 @@ public sealed class ProjectConfigurationManager
                     var key = config.Path.ToLower();
                     if (_projectCompletionConfiguration.TryGetValue(key, out var pcv) && pcv.ApplicablePaths.Count > 0)
                     {
-                        _defaultProjectCompletionConfiguration = _projectCompletionConfiguration[settings.ConfigurationFiles.First().Path.ToLower()];
+                        _defaultProjectCompletionConfiguration = pcv;
                         break;
                     }
                 }

@@ -439,6 +439,18 @@ internal sealed class TailwindBuildProcess : IDisposable
             #endregion
         }
     }
+    private async Task BuildOneWithGateAsync(string input, string output, bool minify)
+    {
+        await _buildGate.WaitAsync();
+        try
+        {
+            await BuildOneAsync(input, output, minify);
+        }
+        finally
+        {
+            _buildGate.Release();
+        }
+    }
 
     /// <summary>
     /// Ends the build process
@@ -609,7 +621,7 @@ internal sealed class TailwindBuildProcess : IDisposable
                 EndProcess(process);
                 ThreadHelper.JoinableTaskFactory.Run(async () =>
                 {
-                    await BuildOneAsync(pair.Key, pair.Value.Output, minify);
+                    await BuildOneWithGateAsync(pair.Key, pair.Value.Output, minify);
                 });
             }
         }
@@ -657,7 +669,7 @@ internal sealed class TailwindBuildProcess : IDisposable
                     EndProcess(process);
                     ThreadHelper.JoinableTaskFactory.Run(async () =>
                     {
-                        await BuildOneAsync(pair.Key, pair.Value.Output, minify);
+                        await BuildOneWithGateAsync(pair.Key, pair.Value.Output, minify);
                     });
                 }
             }

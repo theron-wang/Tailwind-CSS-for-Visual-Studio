@@ -427,7 +427,13 @@ public sealed class SettingsProvider : IDisposable
 
         if (OnSettingsChanged != null)
         {
-            await OnSettingsChanged(settings);
+            // Cannot call OnSettingsChanged.Invoke() because that only calls the last subscriber
+            var tasks = OnSettingsChanged
+                .GetInvocationList()
+                .Cast<Func<TailwindSettings, Task>>()
+                .Select(d => d(settings));
+
+            await Task.WhenAll(tasks);
         }
     }
 
@@ -548,7 +554,13 @@ public sealed class SettingsProvider : IDisposable
 
             if (OnSettingsChanged is not null)
             {
-                await OnSettingsChanged(origSettings);
+                // Cannot call OnSettingsChanged.Invoke() because that only calls the last subscriber
+                var tasks = OnSettingsChanged
+                    .GetInvocationList()
+                    .Cast<Func<TailwindSettings, Task>>()
+                    .Select(d => d(origSettings));
+
+                await Task.WhenAll(tasks);
             }
         }
 
@@ -585,7 +597,15 @@ public sealed class SettingsProvider : IDisposable
                 return;
             }
 
-            await OnSettingsChanged(await GetSettingsAsync());
+            var settings = await GetSettingsAsync();
+
+            // Cannot call OnSettingsChanged.Invoke() because that only calls the last subscriber
+            var tasks = OnSettingsChanged
+                .GetInvocationList()
+                .Cast<Func<TailwindSettings, Task>>()
+                .Select(d => d(settings));
+
+            await Task.WhenAll(tasks);
         }
         finally
         {

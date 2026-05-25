@@ -4,6 +4,7 @@ using Microsoft.VisualStudio.Text;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Settings;
@@ -23,6 +24,8 @@ internal abstract class ClassCompletionGenerator : IDisposable
 
     protected bool? _showAutocomplete;
     protected TailwindSettings? _settings;
+
+    private readonly SemaphoreSlim _reloadLock = new(1, 1);
 
     protected ClassCompletionGenerator(ITextBuffer textBuffer, ProjectConfigurationManager completionUtils, ColorIconGenerator colorIconGenerator, DescriptionGenerator descriptionGenerator, SettingsProvider settingsProvider, CompletionConfiguration completionConfiguration, ProjectConfigurationInitializer projectCompletionInit)
     {
@@ -598,7 +601,15 @@ internal abstract class ClassCompletionGenerator : IDisposable
 
     private async Task ReloadProjectCompletionValuesAsync()
     {
-        _projectCompletionValues = await _projectCompletionManager.GetCompletionConfigurationByFilePathAsync(_textBuffer.GetFileNameSafe());
-        await OnConfigurationUpdatedAsync();
+        await _reloadLock.WaitAsync();
+        try
+        {
+            _projectCompletionValues = await _projectCompletionManager.GetCompletionConfigurationByFilePathAsync(_textBuffer.GetFileNameSafe());
+            await OnConfigurationUpdatedAsync();
+        }
+        finally
+        {
+            _reloadLock.Release();
+        }
     }
 }

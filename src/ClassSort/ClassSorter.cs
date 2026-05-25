@@ -51,6 +51,8 @@ internal sealed class ClassSorter : IDisposable
         {
             _initLock.Release();
         }
+
+        await task;
     }
 
     private async Task InitializeImplAsync()

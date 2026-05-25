@@ -60,7 +60,13 @@ public sealed partial class CompletionConfiguration
 
         if (ConfigurationUpdated is not null)
         {
-            await ConfigurationUpdated();
+            // Cannot call ConfigurationUpdated.Invoke() because that only calls the last subscriber
+            var tasks = ConfigurationUpdated
+                .GetInvocationList()
+                .Cast<Func<Task>>()
+                .Select(d => d());
+
+            await Task.WhenAll(tasks);
         }
 
         if (!failed && settings.ConfigurationFiles.Count > 0)
@@ -78,7 +84,13 @@ public sealed partial class CompletionConfiguration
 
         if (ConfigurationUpdated is not null)
         {
-            await ConfigurationUpdated();
+            // Cannot call ConfigurationUpdated.Invoke() because that only calls the last subscriber
+            var tasks = ConfigurationUpdated
+                .GetInvocationList()
+                .Cast<Func<Task>>()
+                .Select(d => d());
+
+            await Task.WhenAll(tasks);
         }
 
         if (success)

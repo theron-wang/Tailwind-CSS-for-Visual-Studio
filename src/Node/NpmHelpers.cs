@@ -20,10 +20,13 @@ internal static class NpmHelpers
 
         using Process process = Process.Start(processStartInfo) ?? throw new InvalidOperationException("Failed to start npm process.");
 
-        var error = await process.StandardError.ReadToEndAsync();
-        var output = await process.StandardOutput.ReadToEndAsync();
+        var errorTask = process.StandardError.ReadToEndAsync();
+        var outputTask = process.StandardOutput.ReadToEndAsync();
 
-        await process.WaitForExitAsync();
+        await Task.WhenAll(errorTask, outputTask, process.WaitForExitAsync());
+        var error = await errorTask;
+        var output = await outputTask;
+
         if (process.ExitCode != 0)
         {
             throw new InvalidOperationException($"npm root -g failed (exit {process.ExitCode}): {error.Trim()}");
@@ -47,10 +50,13 @@ internal static class NpmHelpers
 
         using Process process = Process.Start(processStartInfo) ?? throw new InvalidOperationException("Failed to start npm process.");
 
-        var error = await process.StandardError.ReadToEndAsync();
-        var output = await process.StandardOutput.ReadToEndAsync();
+        var errorTask = process.StandardError.ReadToEndAsync();
+        var outputTask = process.StandardOutput.ReadToEndAsync();
 
-        await process.WaitForExitAsync();
+        await Task.WhenAll(errorTask, outputTask, process.WaitForExitAsync());
+        var error = await errorTask;
+        var output = await outputTask;
+
         if (process.ExitCode != 0)
         {
             throw new InvalidOperationException($"npm root failed (exit {process.ExitCode}): {error.Trim()}");
@@ -74,10 +80,12 @@ internal static class NpmHelpers
         string relativePath;
         using (Process process = Process.Start(processStartInfo) ?? throw new InvalidOperationException("Failed to start npm process."))
         {
-            relativePath = await process.StandardOutput.ReadToEndAsync();
-            var error = await process.StandardError.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+            var outputTask = process.StandardOutput.ReadToEndAsync();
 
-            await process.WaitForExitAsync();
+            await Task.WhenAll(errorTask, outputTask, process.WaitForExitAsync());
+            var error = await errorTask;
+            relativePath = await outputTask;
 
             if (process.ExitCode != 0)
             {

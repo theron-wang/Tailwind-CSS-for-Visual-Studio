@@ -176,7 +176,7 @@ internal sealed class LinterUtilities : IDisposable
     {
         var projectCompletionValues = await _projectConfigurationManager.GetAllProjectCompletionValuesAsync();
 
-        List<TailwindVersion> versionsToFind;
+        HashSet<TailwindVersion> versionsToFind;
 
         lock (_cacheLock)
         {
