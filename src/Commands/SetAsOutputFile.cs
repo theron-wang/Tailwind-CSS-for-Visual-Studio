@@ -25,11 +25,12 @@ internal sealed class SetAsOutputFile : BaseCommand<SetAsOutputFile>
     internal SolutionExplorerSelectionService SolutionExplorerSelection { get; set; } = null!;
     internal SettingsProvider SettingsProvider { get; set; } = null!;
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "No other choice + settings likely loaded by the time this command is queried")]
     protected override void BeforeQueryStatus(EventArgs e)
     {
         var filePath = SolutionExplorerSelection.CurrentSelectedItemFullPath;
 
-        var settings = Package.JoinableTaskFactory.Run(SettingsProvider.GetSettingsAsync);
+        var settings = ThreadHelper.JoinableTaskFactory.Run(SettingsProvider.GetSettingsAsync);
 
         if (!settings.EnableTailwindCss || Path.GetExtension(filePath) != ".css" || settings.BuildFiles is null || settings.BuildFiles.Count == 0 ||
             settings.BuildFiles.Any(f => f.Input.Equals(filePath, StringComparison.InvariantCultureIgnoreCase) ||
@@ -72,6 +73,7 @@ internal sealed class SetAsOutputFile : BaseCommand<SetAsOutputFile>
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "No other choice + settings likely loaded by the time this command is queried")]
     protected override void Execute(object sender, EventArgs e)
     {
         var command = (OleMenuCommand)sender;
@@ -79,7 +81,7 @@ internal sealed class SetAsOutputFile : BaseCommand<SetAsOutputFile>
         if (command.Properties.Contains("path"))
         {
             var path = (string)command.Properties["path"];
-            var settings = Package.JoinableTaskFactory.Run(SettingsProvider.GetSettingsAsync);
+            var settings = ThreadHelper.JoinableTaskFactory.Run(SettingsProvider.GetSettingsAsync);
 
             var buildFile = settings.BuildFiles.FirstOrDefault(b => b.Input.Equals(path, StringComparison.InvariantCultureIgnoreCase));
             var isNew = buildFile is null;
@@ -94,7 +96,7 @@ internal sealed class SetAsOutputFile : BaseCommand<SetAsOutputFile>
                 settings.BuildFiles.Add(buildFile);
             }
 
-            Package.JoinableTaskFactory.Run(async delegate
+            ThreadHelper.JoinableTaskFactory.Run(async delegate
             {
                 await SettingsProvider.OverrideSettingsAsync(settings);
             });

@@ -19,7 +19,7 @@ namespace TailwindCSSIntellisense.Configuration;
 [PartCreationPolicy(CreationPolicy.Shared)]
 public sealed partial class CompletionConfiguration
 {
-    internal Action? ConfigurationUpdated;
+    internal Func<Task>? ConfigurationUpdated;
 
     [Import]
     internal ConfigurationFileReloader Reloader { get; set; } = null!;
@@ -36,6 +36,9 @@ public sealed partial class CompletionConfiguration
     [Import]
     public ProjectConfigurationManager ProjectConfigurationManager { get; set; } = null!;
 
+    [Import]
+    public ProjectConfigurationInitializer ProjectConfigurationInitializer { get; set; } = null!;
+
     internal TailwindConfiguration? LastConfig { get; private set; }
 
     /// <summary>
@@ -45,7 +48,7 @@ public sealed partial class CompletionConfiguration
     {
         var failed = false;
 
-        foreach (var configurationFile in settings.ConfigurationFiles)
+        foreach (var configurationFile in settings.ConfigurationFiles.ToList())
         {
             var success = await ReloadCustomAttributesImplAsync(configurationFile, settings);
 
@@ -57,7 +60,13 @@ public sealed partial class CompletionConfiguration
 
         if (ConfigurationUpdated is not null)
         {
-            ConfigurationUpdated();
+            // Cannot call ConfigurationUpdated.Invoke() because that only calls the last subscriber
+            var tasks = ConfigurationUpdated
+                .GetInvocationList()
+                .Cast<Func<Task>>()
+                .Select(d => d());
+
+            await Task.WhenAll(tasks);
         }
 
         if (!failed && settings.ConfigurationFiles.Count > 0)
@@ -75,7 +84,13 @@ public sealed partial class CompletionConfiguration
 
         if (ConfigurationUpdated is not null)
         {
-            ConfigurationUpdated();
+            // Cannot call ConfigurationUpdated.Invoke() because that only calls the last subscriber
+            var tasks = ConfigurationUpdated
+                .GetInvocationList()
+                .Cast<Func<Task>>()
+                .Select(d => d());
+
+            await Task.WhenAll(tasks);
         }
 
         if (success)
@@ -110,7 +125,12 @@ public sealed partial class CompletionConfiguration
                     Reloader.AddImport(imports, configurationFile);
                 }
 
-                var projectCompletionValues = ProjectConfigurationManager.GetCompletionConfigurationByConfigFilePath(configurationFile.Path);
+                var projectCompletionValues = await ProjectConfigurationManager.GetCompletionConfigurationByConfigFilePathAsync(configurationFile.Path);
+
+                if (projectCompletionValues is null)
+                {
+                    return false;
+                }
 
                 projectCompletionValues.ApplicablePaths = [.. config.ContentPaths.Where(c => !c.StartsWith("!"))];
                 projectCompletionValues.NotApplicablePaths = [.. config.ContentPaths.Where(c => c.StartsWith("!")).Select(c => c.Trim('!'))];
@@ -124,13 +144,13 @@ public sealed partial class CompletionConfiguration
                 {
                     projectCompletionValues.Prefix = config.Prefix;
                 }
-                LoadGlobalConfiguration(projectCompletionValues, config);
+                await LoadGlobalConfigurationAsync(projectCompletionValues, config);
                 projectCompletionValues.Variants = [.. projectCompletionValues.Variants.Distinct()];
 
-                LoadIndividualConfigurationOverride(projectCompletionValues, config);
+                await LoadIndividualConfigurationOverrideAsync(projectCompletionValues, config);
                 LoadIndividualConfigurationExtend(projectCompletionValues, config);
 
-                LoadPlugins(projectCompletionValues, config);
+                await LoadPluginsAsync(projectCompletionValues, config);
             }
             catch (Exception ex)
             {

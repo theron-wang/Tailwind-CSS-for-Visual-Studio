@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace TailwindCSSIntellisense.ClassSort.Sorters;
+
 [Export(typeof(SorterAggregator))]
 [method: ImportingConstructor]
 internal class SorterAggregator([ImportMany] IEnumerable<Sorter> sorters)
@@ -15,11 +17,12 @@ internal class SorterAggregator([ImportMany] IEnumerable<Sorter> sorters)
 
     public bool Handled(string file)
     {
-        return _sorters.Any(g => g.Handled.Contains(Path.GetExtension(file)));
+        return _sorters.Any(g => g.Handled.Contains(Path.GetExtension(file).ToLowerInvariant()));
     }
 
-    public string Sort(string filePath, string fileContent)
+    public async Task<string> SortAsync(string filePath, string fileContent)
     {
-        return _sorters.First(g => g.Handled.Contains(Path.GetExtension(filePath))).Sort(filePath, fileContent);
+        var sorter = _sorters.First(g => g.Handled.Contains(Path.GetExtension(filePath).ToLowerInvariant()));
+        return await sorter.SortAsync(filePath, fileContent);
     }
 }

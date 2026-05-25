@@ -23,6 +23,8 @@ internal sealed class StartMinifyBuildProcess : BaseCommand<StartMinifyBuildProc
     internal ConfigFileScanner ConfigFileScanner { get; set; } = null!;
     internal SettingsProvider SettingsProvider { get; set; } = null!;
 
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "No other choice + settings likely loaded by the time this command is queried")]
     protected override void BeforeQueryStatus(EventArgs e)
     {
         var settings = ThreadHelper.JoinableTaskFactory.Run(SettingsProvider.GetSettingsAsync);
@@ -33,6 +35,6 @@ internal sealed class StartMinifyBuildProcess : BaseCommand<StartMinifyBuildProc
     {
         await BuildProcess.InitializeAsync();
 
-        BuildProcess.BuildAll(BuildBehavior.Minified);
+        await BuildProcess.BuildAllAsync(BuildBehavior.Minified);
     }
 }

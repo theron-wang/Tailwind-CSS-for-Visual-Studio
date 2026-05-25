@@ -3,7 +3,7 @@ using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Operations;
 using Microsoft.VisualStudio.Utilities;
 using System.ComponentModel.Composition;
-using TailwindCSSIntellisense.Completions;
+using TailwindCSSIntellisense.Settings;
 
 namespace TailwindCSSIntellisense.QuickInfo;
 
@@ -16,10 +16,13 @@ internal sealed class CssDirectiveQuickInfoSourceProvider : IAsyncQuickInfoSourc
     public ITextStructureNavigatorSelectorService ITextStructureNavigatorSelectorService { get; set; } = null!;
 
     [Import]
-    public ProjectConfigurationManager ProjectConfigurationManager { get; set; } = null!;
+    public DirectoryVersionFinder DirectoryVersionFinder { get; set; } = null!;
+
+    [Import]
+    public SettingsProvider SettingsProvider { get; set; } = null!;
 
     public IAsyncQuickInfoSource TryCreateQuickInfoSource(ITextBuffer textBuffer)
     {
-        return textBuffer.Properties.GetOrCreateSingletonProperty(() => new CssDirectiveQuickInfoSource(textBuffer, ProjectConfigurationManager, ITextStructureNavigatorSelectorService));
+        return textBuffer.Properties.GetOrCreateSingletonProperty(() => new CssDirectiveQuickInfoSource(textBuffer, DirectoryVersionFinder, SettingsProvider, ITextStructureNavigatorSelectorService));
     }
 }

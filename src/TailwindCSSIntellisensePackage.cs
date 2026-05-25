@@ -8,6 +8,7 @@ using System.Threading;
 using TailwindCSSIntellisense.Build;
 using TailwindCSSIntellisense.ClassSort;
 using TailwindCSSIntellisense.Completions;
+using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Options;
 using Task = System.Threading.Tasks.Task;
 
@@ -52,8 +53,9 @@ public sealed class TailwindCSSIntellisensePackage : AsyncPackage, IDisposable
     #region Package Members
 
     private TailwindBuildProcess _buildProcess = null!;
-    private ProjectConfigurationManager _completionUtils = null!;
+    private ProjectConfigurationInitializer _projectConfigurationInitializer = null!;
     private ClassSorter _classSorter = null!;
+    private ConfigurationFileReloader _configurationFileReloader = null!;
 
     private readonly SemaphoreSlim _initializeLock = new(1, 1);
 
@@ -73,8 +75,9 @@ public sealed class TailwindCSSIntellisensePackage : AsyncPackage, IDisposable
         await JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
 
         _buildProcess = await VS.GetMefServiceAsync<TailwindBuildProcess>();
-        _completionUtils = await VS.GetMefServiceAsync<ProjectConfigurationManager>();
+        _projectConfigurationInitializer = await VS.GetMefServiceAsync<ProjectConfigurationInitializer>();
         _classSorter = await VS.GetMefServiceAsync<ClassSorter>();
+        _configurationFileReloader = await VS.GetMefServiceAsync<ConfigurationFileReloader>();
 
         // Reload Intellisense and build so everything starts clean in the new project/folder
         VS.Events.SolutionEvents.OnAfterOpenProject += ProjectLoaded;
@@ -103,15 +106,7 @@ public sealed class TailwindCSSIntellisensePackage : AsyncPackage, IDisposable
     /// <param name="folderName">Can be null or anything, does not affect output.</param>
     private void FolderOpened(string? folderName = null)
     {
-        try
-        {
-            JoinableTaskFactory.RunAsync(BeginInitializationAsync).FireAndForget();
-        }
-        catch (Exception ex)
-        {
-            JoinableTaskFactory.Run(() => VS.StatusBar.ShowMessageAsync("Tailwind CSS: An error occurred while loading in this project"));
-            ex.Log();
-        }
+        JoinableTaskFactory.RunAsync(BeginInitializationAsync).FileAndForget(nameof(TailwindCSSIntellisense) + "/FolderOpened");
     }
 
     private async Task BeginInitializationAsync()
@@ -122,13 +117,18 @@ public sealed class TailwindCSSIntellisensePackage : AsyncPackage, IDisposable
         {
             return;
         }
-
         try
         {
             await _buildProcess.InitializeAsync(true);
-            await _completionUtils.InitializeAsync();
-            await _completionUtils.Configuration.Reloader.InitializeAsync();
-            _classSorter.Initialize();
+            await _projectConfigurationInitializer.InitializeAsync();
+            await _configurationFileReloader.InitializeAsync();
+            await _classSorter.InitializeAsync();
+        }
+        catch (Exception ex)
+        {
+            await VS.StatusBar.ShowMessageAsync("Tailwind CSS: An error occurred while loading in this project");
+            await ex.LogAsync();
+            throw;
         }
         finally
         {

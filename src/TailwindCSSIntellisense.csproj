@@ -96,10 +96,12 @@
     <Compile Include="Completions\CompletionTooltipProvider.cs" />
     <Compile Include="Completions\Controllers\JavaScriptCompletionController.cs" />
     <Compile Include="Completions\ProjectCompletionValues.cs" />
+    <Compile Include="Completions\ProjectConfigurationInitializer.cs" />
     <Compile Include="Completions\Providers\JS\JavaScriptAsyncCompletionSourceProvider.cs" />
     <Compile Include="Completions\Sources\JS\JavaScriptAsyncCompletionSource.cs" />
     <Compile Include="Completions\TailwindVersion.cs" />
     <Compile Include="Completions\TCss\TCssFileAndContentTypeDeclaration.cs" />
+    <Compile Include="Helpers\ITextBufferExtensions.cs" />
     <Compile Include="Initialization\ClassSubType.cs" />
     <Compile Include="Configuration\CompletionConfiguration.cs" />
     <Compile Include="Completions\Controllers\CssCompletionController.cs" />

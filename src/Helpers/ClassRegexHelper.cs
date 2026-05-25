@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using TailwindCSSIntellisense.Settings;
 
 namespace TailwindCSSIntellisense.Helpers;
+
 internal class ClassRegexHelper
 {
     // To get the match value, get capture group 'content'
@@ -20,8 +21,11 @@ internal class ClassRegexHelper
 
     // For use on the content capture group of class regexes. No match if there are no single quote pairs.
     // For example, in open ? 'hi @('h')' : '@(Model.Name)', the matches would be 'hi @('h')' and '@(Model.Name)'
-    private static readonly Regex _razorQuotePairRegex = new(@"(?<!@\((?>\((?<c>)|[^()]+|\)(?<-c>))*(?(c)(?!)))'(?<content>(?:@\((?>\((?<c>)|[^()]+|\)(?<-c>))*(?(c)(?!))\)|(?:(?!')[^\\]|\\.))*)'", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
-    private static readonly Regex _normalQuotePairRegex = new(@"'(?<content>(?:[^'\\]|\\.)*)'", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
+    // This is mainly used to support libraries like Alpine.JS, which use single quotes of classes within class attributes.
+    // We avoid selecting single quote pairs within square brackets, though, since that could represent an arbitrary attribute
+    // or class (like before:content-[''])
+    private static readonly Regex _razorQuotePairRegex = new(@"(?<!@\((?>\((?<c>)|[^()]+|\)(?<-c>))*(?(c)(?!)))(?<!\[\s*)'(?<content>[^\]](?:@\((?>\((?<c>)|[^()]+|\)(?<-c>))*(?(c)(?!))\)|(?:(?!')[^\\]|\\.))*)'", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
+    private static readonly Regex _normalQuotePairRegex = new(@"(?<!\[\s*)'(?<content>[^\]](?:[^'\\]|\\.)*)'", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
     private static List<Regex>? _customRazorRegexes;
     private static List<Regex>? _customNormalRegexes;
@@ -34,6 +38,7 @@ internal class ClassRegexHelper
     private static TailwindSettings? _settingsCache;
     public static Func<Task<TailwindSettings>>? GetTailwindSettings;
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "GetTailwindSettings is only non-null when some sort of settings is already cached")]
     private static void UpdateTailwindSettingsIfNeeded()
     {
         if (GetTailwindSettings is not null)
@@ -208,6 +213,8 @@ internal class ClassRegexHelper
         {
             var classContent = GetClassTextGroup(match);
 
+            var razorSyntaxLocations = _razorSplitClassRegex.Matches(classContent.Value).Cast<Match>().Where(match => match.Value.Length > 0 && match.Value[0] == '@');
+
             if (_razorQuotePairRegex.IsMatch(classContent.Value))
             {
                 var lastQuoteMatchIndex = classContent.Index;
@@ -217,7 +224,14 @@ internal class ClassRegexHelper
                 while (_razorQuotePairRegex.Match(expandedSearchText, lastQuoteMatchIndex, Math.Max(0, classContent.Index + classContent.Length - lastQuoteMatchIndex)) is Match quoteMatch && quoteMatch.Success)
                 {
                     lastQuoteMatchIndex = quoteMatch.Index + quoteMatch.Length;
-                    pairs.Add(quoteMatch);
+
+                    var localIndex = quoteMatch.Index - GetClassTextGroup(match).Index;
+
+                    // If this quote pair match is inside a razor block, we also want to ignore it
+                    if (!razorSyntaxLocations.Any(r => r.Index <= localIndex && r.Index + r.Length >= localIndex))
+                    {
+                        pairs.Add(quoteMatch);
+                    }
                 }
 
                 return pairs;
@@ -311,6 +325,8 @@ internal class ClassRegexHelper
 
                 var classText = GetClassTextGroup(match).Value;
 
+                var razorSyntaxLocations = _razorSplitClassRegex.Matches(classText).Cast<Match>().Where(match => match.Value.Length > 0 && match.Value[0] == '@');
+
                 if (_razorQuotePairRegex.IsMatch(classText))
                 {
                     var lastQuoteMatchIndex = match.Index;
@@ -318,7 +334,14 @@ internal class ClassRegexHelper
                     while (_razorQuotePairRegex.Match(text, lastQuoteMatchIndex, Math.Min(text.Length - lastQuoteMatchIndex, match.Length)) is Match quoteMatch && quoteMatch.Success)
                     {
                         lastQuoteMatchIndex = quoteMatch.Index + quoteMatch.Length;
-                        yield return quoteMatch;
+
+                        var localIndex = quoteMatch.Index - GetClassTextGroup(match).Index;
+
+                        // If this quote pair match is inside a razor block, we also want to ignore it
+                        if (!razorSyntaxLocations.Any(r => r.Index <= localIndex && r.Index + r.Length >= localIndex))
+                        {
+                            yield return quoteMatch;
+                        }
                     }
                     continue;
                 }

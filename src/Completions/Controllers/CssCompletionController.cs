@@ -65,12 +65,12 @@ internal sealed class CssCommandFilter : IOleCommandTarget
 
     public int Exec(ref Guid pguidCmdGroup, uint nCmdID, uint nCmdexecopt, IntPtr pvaIn, IntPtr pvaOut)
     {
+        ThreadHelper.ThrowIfNotOnUIThread();
+
         if (VsShellUtilities.IsInAutomationFunction(_provider.ServiceProvider))
         {
             return _next.Exec(ref pguidCmdGroup, nCmdID, nCmdexecopt, pvaIn, pvaOut);
         }
-
-        ThreadHelper.ThrowIfNotOnUIThread();
 
         if (pguidCmdGroup == VSConstants.VSStd2K)
         {
@@ -338,6 +338,7 @@ internal sealed class CssCommandFilter : IOleCommandTarget
 
     public int QueryStatus(ref Guid pguidCmdGroup, uint cCmds, OLECMD[] prgCmds, IntPtr pCmdText)
     {
+        ThreadHelper.ThrowIfNotOnUIThread();
         return _next.QueryStatus(pguidCmdGroup, cCmds, prgCmds, pCmdText);
     }
 

@@ -23,6 +23,7 @@ internal sealed class StopBuildProcess : BaseCommand<StopBuildProcess>
     internal ConfigFileScanner ConfigFileScanner { get; set; } = null!;
     internal SettingsProvider SettingsProvider { get; set; } = null!;
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "No other choice + settings likely loaded by the time this command is queried")]
     protected override void BeforeQueryStatus(EventArgs e)
     {
         var settings = ThreadHelper.JoinableTaskFactory.Run(SettingsProvider.GetSettingsAsync);

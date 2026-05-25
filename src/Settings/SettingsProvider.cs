@@ -30,7 +30,6 @@ public sealed class SettingsProvider : IDisposable
             VS.Events.SolutionEvents.OnAfterOpenFolder += InvalidateCacheAndSettingsChanged;
             VS.Events.SolutionEvents.OnAfterOpenProject += InvalidateCacheAndSettingsChanged;
             VS.Events.DocumentEvents.Saved += OnFileSaved;
-            ClassRegexHelper.GetTailwindSettings = GetSettingsAsync;
         });
     }
 
@@ -60,14 +59,6 @@ public sealed class SettingsProvider : IDisposable
     public void RefreshSettings()
     {
         _cachedSettings = null;
-    }
-
-    /// <summary>
-    /// Not recommended to use this method. Use <see cref="GetSettingsAsync"/> instead.
-    /// </summary>
-    public TailwindSettings GetSettings()
-    {
-        return ThreadHelper.JoinableTaskFactory.Run(GetSettingsAsync);
     }
 
     /// <summary>
@@ -259,15 +250,30 @@ public sealed class SettingsProvider : IDisposable
                 CustomRegexes = projectSettings.CustomRegexes
             };
 
-            await ProjectConfigurationManager.OnSettingsChangedAsync(returnSettings);
+#pragma warning disable VSSDK007 // ThreadHelper.JoinableTaskFactory.RunAsync
+            // Yes, this is horrible, but we need to call this as a fire and forget in case some caller of GetSettingsAsync must 
+            // be synchronous.
+            ThreadHelper.JoinableTaskFactory.RunAsync(() => ProjectConfigurationManager.OnSettingsChangedAsync(returnSettings))
+                .FileAndForget(nameof(TailwindCSSIntellisense) + "/SettingsProvider/SettingsChanged");
+#pragma warning restore VSSDK007 // ThreadHelper.JoinableTaskFactory.RunAsync
 
             _cachedSettings = returnSettings;
         }
 
         if (changed)
         {
-            await OverrideSettingsAsync(returnSettings);
+#pragma warning disable VSSDK007 // ThreadHelper.JoinableTaskFactory.RunAsync
+            // Yes, this is horrible, but we need to call this as a fire and forget in case some caller of GetSettingsAsync must 
+            // be synchronous.
+            ThreadHelper.JoinableTaskFactory.RunAsync(() => OverrideSettingsAsync(returnSettings))
+                .FileAndForget(nameof(TailwindCSSIntellisense) + "/SettingsProvider/OverrideSettings");
+#pragma warning restore VSSDK007 // ThreadHelper.JoinableTaskFactory.RunAsync
         }
+
+        // At this point, we've guaranteed that the settings have been generated at least once, so
+        // we can proceed with setting ClassRegexHelper#GetTailwindSettings (since that is called only
+        // in a synchronous context)
+        ClassRegexHelper.GetTailwindSettings ??= GetSettingsAsync;
 
         return returnSettings;
     }
@@ -421,7 +427,13 @@ public sealed class SettingsProvider : IDisposable
 
         if (OnSettingsChanged != null)
         {
-            await OnSettingsChanged(settings);
+            // Cannot call OnSettingsChanged.Invoke() because that only calls the last subscriber
+            var tasks = OnSettingsChanged
+                .GetInvocationList()
+                .Cast<Func<TailwindSettings, Task>>()
+                .Select(d => d(settings));
+
+            await Task.WhenAll(tasks);
         }
     }
 
@@ -509,9 +521,16 @@ public sealed class SettingsProvider : IDisposable
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync", Justification = "FileAndForget ok")]
     private void GeneralSettingsChanged(General settings)
     {
-        var origSettings = ThreadHelper.JoinableTaskFactory.Run(GetSettingsAsync);
+        ThreadHelper.JoinableTaskFactory.RunAsync(() => GeneralSettingsChangedAsync(settings))
+            .FileAndForget(nameof(TailwindCSSIntellisense) + "/SettingsProvider/GeneralSettingsChanged");
+    }
+
+    private async Task GeneralSettingsChangedAsync(General settings)
+    {
+        var origSettings = await GetSettingsAsync();
 
         if (settings.UseTailwindCss != origSettings.EnableTailwindCss ||
             settings.TailwindOutputFileName != origSettings.DefaultOutputCssName ||
@@ -535,7 +554,13 @@ public sealed class SettingsProvider : IDisposable
 
             if (OnSettingsChanged is not null)
             {
-                ThreadHelper.JoinableTaskFactory.Run(async () => await OnSettingsChanged(origSettings));
+                // Cannot call OnSettingsChanged.Invoke() because that only calls the last subscriber
+                var tasks = OnSettingsChanged
+                    .GetInvocationList()
+                    .Cast<Func<TailwindSettings, Task>>()
+                    .Select(d => d(origSettings));
+
+                await Task.WhenAll(tasks);
             }
         }
 
@@ -544,12 +569,13 @@ public sealed class SettingsProvider : IDisposable
 
     private void InvalidateCacheAndSettingsChanged(string file)
     {
-        ThreadHelper.JoinableTaskFactory.Run(InvalidateCacheAndSettingsChangedImplAsync);
+        InvalidateCacheAndSettingsChanged(project: null);
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync", Justification = "Caller must be synchronous but OnSettingsChanged could be expensive")]
     private void InvalidateCacheAndSettingsChanged(Project? project)
     {
-        ThreadHelper.JoinableTaskFactory.Run(InvalidateCacheAndSettingsChangedImplAsync);
+        ThreadHelper.JoinableTaskFactory.RunAsync(InvalidateCacheAndSettingsChangedImplAsync).FileAndForget(nameof(TailwindCSSIntellisense) + "/SettingsProvider/InvalidateCacheAndSettingsChanged");
     }
 
     private async Task InvalidateCacheAndSettingsChangedImplAsync()
@@ -571,7 +597,15 @@ public sealed class SettingsProvider : IDisposable
                 return;
             }
 
-            await OnSettingsChanged(await GetSettingsAsync());
+            var settings = await GetSettingsAsync();
+
+            // Cannot call OnSettingsChanged.Invoke() because that only calls the last subscriber
+            var tasks = OnSettingsChanged
+                .GetInvocationList()
+                .Cast<Func<TailwindSettings, Task>>()
+                .Select(d => d(settings));
+
+            await Task.WhenAll(tasks);
         }
         finally
         {

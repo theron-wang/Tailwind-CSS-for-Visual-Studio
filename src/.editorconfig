@@ -75,6 +75,9 @@ csharp_style_var_elsewhere = false:silent
 # CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
 dotnet_diagnostic.CS8632.severity = none
 
+# VSTHRD102: Implement internal logic asynchronously
+dotnet_diagnostic.VSTHRD102.severity = warning
+
 [*.{cs,vb}]
 #### Naming styles ####
 

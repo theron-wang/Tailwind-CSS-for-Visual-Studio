@@ -4,17 +4,19 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using TailwindCSSIntellisense.Completions;
+using TailwindCSSIntellisense.Configuration;
 
 namespace TailwindCSSIntellisense.Linting.Validators;
-internal abstract class HtmlLikeValidator(ITextBuffer buffer, LinterUtilities linterUtils, ProjectConfigurationManager completionUtilities)
-    : Validator(buffer, linterUtils, completionUtilities)
+
+internal abstract class HtmlLikeValidator(ITextBuffer buffer, LinterUtilities linterUtils, ProjectConfigurationManager completionUtilities, CompletionConfiguration completionConfiguration)
+    : Validator(buffer, linterUtils, completionUtilities, completionConfiguration)
 {
     protected abstract Func<string, IEnumerable<Match>> ClassSplitter { get; set; }
     protected abstract Func<string, string, IEnumerable<Match>> ClassMatchGetter { get; set; }
 
     public override IEnumerable<Error> GetErrors(SnapshotSpan span, bool force = false)
     {
-        if (_checkedSpans.Any(s => s.Equals(span)) && !force)
+        if (_projectCompletionValues is null || (_checkedSpans.Any(s => s.Equals(span)) && !force))
         {
             yield break;
         }

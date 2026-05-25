@@ -94,16 +94,17 @@ internal sealed class TailwindSetUpProcess
         return null;
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync", Justification = "FileAndForget ok")]
     private void ErrorDataReceived(object sender, DataReceivedEventArgs e)
     {
-        ThreadHelper.JoinableTaskFactory.Run(async () =>
+        ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
         {
             if (e.Data != null)
             {
                 var ex = new Exception(e.Data);
                 await LogErrorAsync(ex);
             }
-        });
+        }).FileAndForget(nameof(TailwindCSSIntellisense) + "/TailwindSetUpProcess/ErrorDataReceived");
     }
 
     private async Task LogErrorAsync(Exception exception)

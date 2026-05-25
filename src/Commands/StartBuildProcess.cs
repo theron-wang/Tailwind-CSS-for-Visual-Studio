@@ -23,6 +23,8 @@ internal sealed class StartBuildProcess : BaseCommand<StartBuildProcess>
     internal ConfigFileScanner ConfigFileScanner { get; set; } = null!;
     internal SettingsProvider SettingsProvider { get; set; } = null!;
 
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "No other choice + settings likely loaded by the time this command is queried")]
     protected override void BeforeQueryStatus(EventArgs e)
     {
         var settings = ThreadHelper.JoinableTaskFactory.Run(SettingsProvider.GetSettingsAsync);
@@ -34,6 +36,6 @@ internal sealed class StartBuildProcess : BaseCommand<StartBuildProcess>
     {
         await BuildProcess.InitializeAsync();
 
-        BuildProcess.BuildAll(BuildBehavior.Default);
+        await BuildProcess.BuildAllAsync(BuildBehavior.Default);
     }
 }

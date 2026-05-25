@@ -1,5 +1,4 @@
-﻿using Community.VisualStudio.Toolkit;
-using Microsoft.VisualStudio.Shell;
+﻿using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Threading;
 using System;
 using System.Collections.Generic;
@@ -7,11 +6,11 @@ using System.ComponentModel.Composition;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using TailwindCSSIntellisense.Configuration;
-using TailwindCSSIntellisense.Initialization;
 using TailwindCSSIntellisense.Node;
 using TailwindCSSIntellisense.Settings;
 
@@ -29,13 +28,11 @@ public sealed class ProjectConfigurationManager
     [Import]
     internal DirectoryVersionFinder DirectoryVersionFinder { get; set; } = null!;
     [Import]
+    internal ProjectConfigurationInitializer ProjectConfigurationInitializer { get; set; } = null!;
+    [Import]
     internal SettingsProvider SettingsProvider { get; set; } = null!;
 
-    internal ImageSource TailwindLogo { get; private set; } = new BitmapImage(new Uri(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "Resources", "tailwindlogo.png"), UriKind.Relative));
-    internal bool Initialized { get; private set; }
-    internal bool Initializing { get; private set; }
-
-    internal List<int> Opacity { get; set; } = [];
+    internal static ImageSource TailwindLogo { get; private set; } = new BitmapImage(new Uri(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "Resources", "tailwindlogo.png"), UriKind.Relative));
 
     /// <summary>
     /// Completion settings for each project, keyed by configuration file paths.
@@ -43,106 +40,114 @@ public sealed class ProjectConfigurationManager
     private readonly Dictionary<string, ProjectCompletionValues> _projectCompletionConfiguration = [];
     private ProjectCompletionValues? _defaultProjectCompletionConfiguration;
 
-    private readonly Dictionary<TailwindVersion, UnsetProjectCompletionValues> _unsetProjectCompletionConfigurations = [];
+    /// <summary>
+    /// A cache of file paths to their corresponding project configuration, to speed up lookups for files that don't have an applicable path but are still part of the project.
+    /// </summary>
+    private readonly Dictionary<string, ProjectCompletionValues> _filePathToProjectConfigurationCache = [];
 
     /// <summary>
-    /// Initializes the necessary utilities to provide completion
+    /// Guards all reads and writes of _projectCompletionConfiguration,
+    /// _defaultProjectCompletionConfiguration, and _filePathToProjectConfigurationCache.
+    /// SemaphoreSlim(1,1) is used instead of lock because the critical sections contain awaits.
     /// </summary>
-    /// <returns>An awaitable <see cref="Task{bool}"/> of type <see cref="bool"/> which returns true if completion should be provided and false if not.</returns>
-    public async Task<bool> InitializeAsync()
-    {
-        if (Initialized || Initializing)
-        {
-            return true;
-        }
-
-        try
-        {
-            if ((await ShouldInitializeAsync()) == false)
-            {
-                Initialized = false;
-                return false;
-            }
-
-            Initializing = true;
-
-            // Initial load of settings, which then triggers class loading based on the versions of the config files
-            await SettingsProvider.GetSettingsAsync();
-
-            Initialized = true;
-
-            await VS.StatusBar.ShowMessageAsync("Tailwind CSS IntelliSense initialized");
-
-            return true;
-        }
-        catch (Exception ex)
-        {
-            await ex.LogAsync();
-
-            // Clear progress
-            await VS.StatusBar.ShowMessageAsync("Tailwind CSS initialization failed: check extension output");
-
-            return false;
-        }
-        finally
-        {
-            Initializing = false;
-        }
-    }
-
-    public UnsetProjectCompletionValues GetUnsetCompletionConfiguration(TailwindVersion version)
-    {
-        ThreadHelper.JoinableTaskFactory.Run(InitializeAsync);
-
-        if (!_unsetProjectCompletionConfigurations.ContainsKey(version))
-        {
-            ThreadHelper.JoinableTaskFactory.Run(() => LoadClassesAsync(version));
-        }
-
-        return _unsetProjectCompletionConfigurations[version];
-    }
+    private readonly SemaphoreSlim _configLock = new SemaphoreSlim(1, 1);
 
     /// <summary>
     /// Returns the ProjectCompletionValues for the given configuration file path.
     /// </summary>
-    public ProjectCompletionValues GetCompletionConfigurationByConfigFilePath(string configFile)
+    public async Task<ProjectCompletionValues?> GetCompletionConfigurationByConfigFilePathAsync(string configFile)
     {
-        ThreadHelper.JoinableTaskFactory.Run(InitializeAsync);
+        await ProjectConfigurationInitializer.InitializeAsync();
 
-        return _projectCompletionConfiguration[configFile.ToLower()];
+        await _configLock.WaitAsync();
+        try
+        {
+            return _projectCompletionConfiguration.TryGetValue(configFile.ToLower(), out var value) ? value : null;
+        }
+        finally
+        {
+            _configLock.Release();
+        }
     }
 
     /// <summary>
-    /// For IntelliSense; detect which configuration file this file belongs to and return the completion configuration for it.
+    /// For IntelliSense; detect which configuration file this file belongs to and return the completion configuration for it. Has built-in caching.
     /// </summary>
-    public ProjectCompletionValues GetCompletionConfigurationByFilePath(string? filePath)
+    public async Task<ProjectCompletionValues> GetCompletionConfigurationByFilePathAsync(string? filePath)
     {
-        ThreadHelper.JoinableTaskFactory.Run(InitializeAsync);
+        await ProjectConfigurationInitializer.InitializeAsync();
 
-        if (filePath is null)
+        await _configLock.WaitAsync();
+        try
         {
-            if (_defaultProjectCompletionConfiguration is not null)
+            if (string.IsNullOrWhiteSpace(filePath))
             {
-                return _defaultProjectCompletionConfiguration;
+                if (_defaultProjectCompletionConfiguration is not null)
+                {
+                    return _defaultProjectCompletionConfiguration;
+                }
             }
-            else if (_unsetProjectCompletionConfigurations.Any())
+            else if (_filePathToProjectConfigurationCache.TryGetValue(filePath!.ToLower(), out var cached))
             {
-                return _unsetProjectCompletionConfigurations.First().Value;
+                return cached;
+            }
+        }
+        finally
+        {
+            _configLock.Release();
+        }
+
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            // Default to v4 — no state access needed here
+            return await ProjectConfigurationInitializer.GetUnsetCompletionConfigurationAsync(TailwindVersion.LATEST);
+        }
+
+        // Compute the result outside the lock (may await); snapshot the dictionary first.
+        Dictionary<string, ProjectCompletionValues> snapshot;
+        await _configLock.WaitAsync();
+        try
+        {
+            snapshot = new Dictionary<string, ProjectCompletionValues>(_projectCompletionConfiguration);
+        }
+        finally
+        {
+            _configLock.Release();
+        }
+
+        ProjectCompletionValues config = await GetCompletionConfigurationByFilePathImplAsync(filePath!, snapshot);
+
+        await _configLock.WaitAsync();
+        try
+        {
+            // Re-check cache in case a concurrent call already populated it.
+            if (!_filePathToProjectConfigurationCache.TryGetValue(filePath!.ToLower(), out var existing))
+            {
+                _filePathToProjectConfigurationCache[filePath.ToLower()] = config;
             }
             else
             {
-                // Default to v3
-                ThreadHelper.JoinableTaskFactory.Run(LoadClassesV3Async);
-                return _unsetProjectCompletionConfigurations[TailwindVersion.V3];
+                config = existing;
             }
         }
+        finally
+        {
+            _configLock.Release();
+        }
 
+        return config;
+    }
+
+    private async Task<ProjectCompletionValues> GetCompletionConfigurationByFilePathImplAsync(
+        string filePath,
+        Dictionary<string, ProjectCompletionValues> projectCompletionConfiguration)
+    {
         ProjectCompletionValues? closest = null;
         var minDist = int.MaxValue;
 
         var inputFileDirectories = Path.GetDirectoryName(filePath).ToLower().Split(Path.DirectorySeparatorChar);
 
-        foreach (var k in _projectCompletionConfiguration.Values)
+        foreach (var k in projectCompletionConfiguration.Values)
         {
             if (!k.ApplicablePaths.Any())
             {
@@ -195,7 +200,7 @@ public sealed class ProjectConfigurationManager
             return closest;
         }
 
-        foreach (var k in _projectCompletionConfiguration.Values)
+        foreach (var k in projectCompletionConfiguration.Values)
         {
             if (k.FilePath.Equals(filePath, StringComparison.InvariantCultureIgnoreCase))
             {
@@ -221,24 +226,27 @@ public sealed class ProjectConfigurationManager
             }
         }
 
-        if (_unsetProjectCompletionConfigurations.Any())
+        return await ProjectConfigurationInitializer.GetUnsetCompletionConfigurationAsync(TailwindVersion.LATEST);
+    }
+
+    public async Task<IEnumerable<ProjectCompletionValues>> GetAllProjectCompletionValuesAsync()
+    {
+        await _configLock.WaitAsync();
+        try
         {
-            return _unsetProjectCompletionConfigurations.First().Value;
+            // Return a snapshot so callers enumerate a stable copy.
+            return _projectCompletionConfiguration.Values.ToList();
         }
-        else
+        finally
         {
-            // Default to v3
-            ThreadHelper.JoinableTaskFactory.Run(LoadClassesV3Async);
-            return _unsetProjectCompletionConfigurations[TailwindVersion.V3];
+            _configLock.Release();
         }
     }
 
     public async Task OnSettingsChangedAsync(TailwindSettings settings)
     {
-        _defaultProjectCompletionConfiguration = null;
-
-        // V4 uses BuildFiles as ConfigurationFiles. Since existing code already uses ConfigurationFiles, it's easier to just
-        // populate it here rather than rewrite everything to account for BuildFiles.
+        // Perform all async I/O (version detection, config file updates) before
+        // acquiring the lock so we hold it only while mutating shared state.
         foreach (var buildFile in settings.BuildFiles)
         {
             if (settings.ConfigurationFiles.All(cf => !cf.Path.Equals(buildFile.Input, StringComparison.InvariantCultureIgnoreCase)))
@@ -252,9 +260,28 @@ public sealed class ProjectConfigurationManager
             }
         }
 
+        // Pre-compute new configs outside the lock (these involve awaits).
+        var newConfigs = new Dictionary<string, ProjectCompletionValues>(StringComparer.OrdinalIgnoreCase);
+
         foreach (var file in settings.ConfigurationFiles)
         {
-            if (!_projectCompletionConfiguration.TryGetValue(file.Path.ToLower(), out var projectConfig))
+            var key = file.Path.ToLower();
+
+            // Check existing config under the lock briefly.
+            ProjectCompletionValues? existingConfig;
+            await _configLock.WaitAsync();
+            try
+            {
+                _projectCompletionConfiguration.TryGetValue(key, out existingConfig);
+            }
+            finally
+            {
+                _configLock.Release();
+            }
+            var version = await DirectoryVersionFinder.GetTailwindVersionAsync(file.Path, settings);
+
+            ProjectCompletionValues projectConfig;
+            if (existingConfig is null || existingConfig.Version != version)
             {
                 if (!settings.UseCli || string.IsNullOrWhiteSpace(settings.TailwindCliPath))
                 {
@@ -262,519 +289,58 @@ public sealed class ProjectConfigurationManager
                     DirectoryVersionFinder.ClearCacheForDirectory(Path.GetDirectoryName(file.Path));
                 }
 
-                var version = await DirectoryVersionFinder.GetTailwindVersionAsync(file.Path, settings);
-
-                if (!_unsetProjectCompletionConfigurations.TryGetValue(version, out var toCopy))
-                {
-                    await LoadClassesAsync(version);
-                    toCopy = _unsetProjectCompletionConfigurations[version];
-                }
-
-                projectConfig = toCopy.Copy();
-                _projectCompletionConfiguration[file.Path.ToLower()] = projectConfig;
+                projectConfig = (await ProjectConfigurationInitializer.GetUnsetCompletionConfigurationAsync(version)).Copy();
+            }
+            else
+            {
+                projectConfig = existingConfig;
             }
 
-            projectConfig.FilePath = file.Path.ToLower();
+            projectConfig.FilePath = key;
+            newConfigs[key] = projectConfig;
         }
 
-        var toRemove = _projectCompletionConfiguration.Keys.Except(settings.ConfigurationFiles.Select(f => f.Path.ToLower())).ToList();
-
-        foreach (var file in toRemove)
+        // Now atomically swap in all new state under the lock.
+        await _configLock.WaitAsync();
+        try
         {
-            _projectCompletionConfiguration.Remove(file);
-        }
+            _defaultProjectCompletionConfiguration = null;
+            _filePathToProjectConfigurationCache.Clear();
 
-        if (settings.ConfigurationFiles.Count > 0)
-        {
-            foreach (var config in settings.ConfigurationFiles)
+            var toRemove = _projectCompletionConfiguration.Keys
+                .Except(newConfigs.Keys, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            foreach (var key in toRemove)
             {
-                if (_projectCompletionConfiguration[config.Path.ToLower()].ApplicablePaths.Count > 0)
-                {
-                    _defaultProjectCompletionConfiguration = _projectCompletionConfiguration[settings.ConfigurationFiles.First().Path.ToLower()];
-                    break;
-                }
+                _projectCompletionConfiguration.Remove(key);
             }
 
-            _defaultProjectCompletionConfiguration ??= _projectCompletionConfiguration[settings.ConfigurationFiles.First().Path.ToLower()];
-        }
-
-        if (Initialized)
-        {
-            await Configuration.ReloadCustomAttributesAsync(settings);
-        }
-    }
-
-    private async Task<bool> ShouldInitializeAsync()
-    {
-        var settings = await SettingsProvider.GetSettingsAsync();
-        return settings.ConfigurationFiles.Count > 0 || settings.BuildFiles.Count > 0;
-    }
-
-    private async Task LoadClassesV3Async()
-    {
-        if (_unsetProjectCompletionConfigurations.ContainsKey(TailwindVersion.V3))
-        {
-            return;
-        }
-
-        var result = await ResourcesLoader.LoadResourcesForVersionAsync(TailwindVersion.V3);
-
-        var project = result.UnsetProject;
-
-        project.Classes = [];
-        Opacity = result.Opacity;
-
-        foreach (var classType in result.ClassTypes.Cast<ClassTypeV3>())
-        {
-            var classes = new List<TailwindClass>();
-
-            if (classType.DirectVariants != null && classType.DirectVariants.Count > 0)
+            foreach (var kvp in newConfigs)
             {
-                foreach (var v in classType.DirectVariants)
+                _projectCompletionConfiguration[kvp.Key] = kvp.Value;
+            }
+
+            if (settings.ConfigurationFiles.Count > 0)
+            {
+                foreach (var config in settings.ConfigurationFiles)
                 {
-                    if (string.IsNullOrWhiteSpace(v))
+                    var key = config.Path.ToLower();
+                    if (_projectCompletionConfiguration.TryGetValue(key, out var pcv) && pcv.ApplicablePaths.Count > 0)
                     {
-                        classes.Add(new TailwindClass()
-                        {
-                            Name = classType.Stem
-                        });
-                    }
-                    else
-                    {
-                        if (v.Contains("{s}"))
-                        {
-                            classes.Add(new TailwindClass()
-                            {
-                                Name = classType.Stem + "-" + v.Replace("{s}", "{0}"),
-                                UseSpacing = true
-                            });
-                        }
-                        else if (v.Contains("{c}"))
-                        {
-                            classes.Add(new TailwindClass()
-                            {
-                                Name = classType.Stem + "-" + v.Replace("{c}", "{0}"),
-                                UseColors = true,
-                                UseOpacity = classType.UseOpacity == true
-                            });
-                        }
-                        else
-                        {
-                            classes.Add(new TailwindClass()
-                            {
-                                Name = classType.Stem + "-" + v
-                            });
-                        }
+                        _defaultProjectCompletionConfiguration = pcv;
+                        break;
                     }
                 }
-            }
 
-            if (classType.Subvariants != null && classType.Subvariants.Count > 0)
-            {
-                // Do the same check for each of the subvariants as above
-
-                foreach (var subvariant in classType.Subvariants)
-                {
-                    if (subvariant.Variants != null)
-                    {
-                        foreach (var v in subvariant.Variants)
-                        {
-                            if (string.IsNullOrWhiteSpace(v))
-                            {
-                                classes.Add(new TailwindClass()
-                                {
-                                    Name = classType.Stem + "-" + subvariant.Stem
-                                });
-                            }
-                            else
-                            {
-                                classes.Add(new TailwindClass()
-                                {
-                                    Name = classType.Stem + "-" + subvariant.Stem + "-" + v
-                                });
-                            }
-                        }
-                    }
-
-                    if (subvariant.Stem.Contains("{c}"))
-                    {
-                        classes.Add(new TailwindClass()
-                        {
-                            Name = classType.Stem + "-" + subvariant.Stem.Replace("{c}", "{0}"),
-                            // Notify the completion provider to show color options
-                            UseColors = true,
-                            UseOpacity = classType.UseOpacity == true
-                        });
-                    }
-                    else if (subvariant.Stem.Contains("{s}"))
-                    {
-                        classes.Add(new TailwindClass()
-                        {
-                            Name = classType.Stem + "-" + subvariant.Stem.Replace("{s}", "{0}"),
-                            // Notify the completion provider to show spacing options
-                            UseSpacing = true
-                        });
-                    }
-                }
-            }
-
-            if ((classType.DirectVariants == null || classType.DirectVariants.Count == 0) && (classType.Subvariants == null || classType.Subvariants.Count == 0))
-            {
-                var newClass = new TailwindClass()
-                {
-                    Name = classType.Stem
-                };
-                if (classType.UseColors == true)
-                {
-                    newClass.UseColors = true;
-                    newClass.UseOpacity = classType.UseOpacity == true;
-                    newClass.Name += "-{0}";
-                }
-                else if (classType.UseSpacing == true)
-                {
-                    newClass.UseSpacing = true;
-                    newClass.Name += "-{0}";
-                }
-                classes.Add(newClass);
-            }
-
-            project.Classes.AddRange(classes);
-
-            if (classType.HasNegative == true)
-            {
-                var negativeClasses = classes.Select(c =>
-                {
-                    return new TailwindClass()
-                    {
-                        Name = $"-{c.Name}",
-                        UseColors = c.UseColors,
-                        UseSpacing = c.UseSpacing
-                    };
-                }).ToList();
-
-                project.Classes.AddRange(negativeClasses);
+                _defaultProjectCompletionConfiguration ??= _projectCompletionConfiguration[settings.ConfigurationFiles.First().Path.ToLower()];
             }
         }
-        foreach (var stems in project.ConfigurationValueToClassStems.Values)
+        finally
         {
-            foreach (var stem in stems)
-            {
-                string name;
-                if (stem.Contains('{'))
-                {
-                    var replace = stem.Substring(stem.IndexOf('{'), stem.IndexOf('}') - stem.IndexOf('{') + 1);
-                    name = stem.Replace(replace, "");
-                }
-                else
-                {
-                    name = stem.EndsWith("-") ? stem : stem + "-";
-                }
-
-                if (stem.Contains(":"))
-                {
-                    project.Variants.Add($"{name.Replace(":-", "")}-[]");
-                }
-                else
-                {
-                    if (project.Classes.All(c => (c.Name == name && c.HasArbitrary == false) || c.Name != name))
-                    {
-                        project.Classes.Add(new TailwindClass()
-                        {
-                            Name = name,
-                            HasArbitrary = true
-                        });
-                    }
-                }
-            }
+            _configLock.Release();
         }
 
-        project.Breakpoints = new Dictionary<string, string>
-        {
-            { "sm", "640px" },
-            { "md", "768px" },
-            { "lg", "1024px" },
-            { "xl", "1280px" },
-            { "2xl", "1536px" }
-        };
-
-        _unsetProjectCompletionConfigurations[TailwindVersion.V3] = project;
-    }
-
-    private async Task LoadClassesAsync(TailwindVersion version)
-    {
-        if (_unsetProjectCompletionConfigurations.ContainsKey(version))
-        {
-            return;
-        }
-
-        if (version == TailwindVersion.V3)
-        {
-            await LoadClassesV3Async();
-            return;
-        }
-
-        var result = await ResourcesLoader.LoadResourcesForVersionAsync(version);
-
-        var project = result.UnsetProject;
-
-        project.Variants = [.. project.VariantsToDescriptions.Keys];
-
-        project.Classes = [];
-        Opacity = result.Opacity;
-
-        var fractions = new[] { 2, 3, 4, 6, 12 }
-            .SelectMany(d => Enumerable.Range(1, d - 1)
-            .Select(n => new { Numerator = n, Denominator = d }))
-            .Where(f => f.Numerator < 12)
-            .Select(f => $"{f.Numerator}/{f.Denominator}")
-            .ToList();
-
-        foreach (var classType in result.ClassTypes.Cast<ClassType>())
-        {
-            var classes = new List<TailwindClass>();
-
-            if (classType.DirectVariants != null && classType.DirectVariants.Count > 0)
-            {
-                foreach (var v in classType.DirectVariants)
-                {
-                    if (string.IsNullOrWhiteSpace(v))
-                    {
-                        classes.Add(new TailwindClass()
-                        {
-                            Name = classType.Stem
-                        });
-                    }
-                    else
-                    {
-                        if (v.Contains("{s}"))
-                        {
-                            classes.Add(new TailwindClass()
-                            {
-                                Name = classType.Stem + "-" + v.Replace("{s}", "{0}"),
-                                UseSpacing = true
-                            });
-                        }
-                        else if (v.Contains("{c}"))
-                        {
-                            classes.Add(new TailwindClass()
-                            {
-                                Name = classType.Stem + "-" + v.Replace("{c}", "{0}"),
-                                UseColors = true,
-                                UseOpacity = true
-                            });
-                        }
-                        else if (v.Contains("{n}"))
-                        {
-                            classes.Add(new TailwindClass()
-                            {
-                                Name = classType.Stem + "-" + v.Replace("{n}", "{0}"),
-                                UseNumbers = true
-                            });
-                        }
-                        else if (v.Contains("{%}"))
-                        {
-                            classes.Add(new TailwindClass()
-                            {
-                                Name = classType.Stem + "-" + v.Replace("{%}", "{0}"),
-                                UsePercent = true
-                            });
-                        }
-                        else if (v.Contains("{f}"))
-                        {
-                            classes.Add(new TailwindClass()
-                            {
-                                Name = classType.Stem + "-" + v.Replace("{f}", "{0}"),
-                                UseFractions = true
-                            });
-
-                            // Auto-generate fractions
-                            classes.AddRange(fractions.Select(f =>
-                            {
-                                return new TailwindClass()
-                                {
-                                    Name = classType.Stem + "-" + v.Replace("{f}", f)
-                                };
-                            }));
-                        }
-                        else
-                        {
-                            classes.Add(new TailwindClass()
-                            {
-                                Name = classType.Stem + "-" + v
-                            });
-                        }
-                    }
-                }
-            }
-
-            if (classType.Subvariants != null && classType.Subvariants.Count > 0)
-            {
-                // Do the same check for each of the subvariants as above
-
-                foreach (var subvariant in classType.Subvariants)
-                {
-                    if (subvariant.Variants != null)
-                    {
-                        foreach (var v in subvariant.Variants)
-                        {
-                            if (string.IsNullOrWhiteSpace(v))
-                            {
-                                classes.Add(new TailwindClass()
-                                {
-                                    Name = classType.Stem + "-" + subvariant.Stem
-                                });
-                            }
-                            else
-                            {
-                                classes.Add(new TailwindClass()
-                                {
-                                    Name = classType.Stem + "-" + subvariant.Stem + "-" + v
-                                });
-                            }
-                        }
-                    }
-
-                    if (subvariant.HasArbitrary == true)
-                    {
-                        classes.Add(new TailwindClass()
-                        {
-                            Name = classType.Stem + "-" + subvariant.Stem + "-",
-                            HasArbitrary = true
-                        });
-                    }
-                }
-            }
-
-            if ((classType.DirectVariants == null || classType.DirectVariants.Count == 0) && (classType.Subvariants == null || classType.Subvariants.Count == 0))
-            {
-                var newClass = new TailwindClass()
-                {
-                    Name = classType.Stem
-                };
-                if (classType.UseColors == true)
-                {
-                    newClass.UseColors = true;
-                    newClass.UseOpacity = true;
-                    newClass.Name = newClass.Name.Replace("{c}", "{0}");
-                }
-                else if (classType.UseSpacing == true)
-                {
-                    newClass.UseSpacing = true;
-                    newClass.Name = newClass.Name.Replace("{s}", "{0}");
-                }
-                else if (classType.UseNumbers == true)
-                {
-                    newClass.UseNumbers = true;
-                    newClass.Name = newClass.Name.Replace("{n}", "{0}");
-                }
-                else if (classType.UsePercent == true)
-                {
-                    newClass.UsePercent = true;
-                    newClass.Name = newClass.Name.Replace("{%}", "{0}");
-                }
-                else if (classType.UseFractions == true)
-                {
-                    newClass.UseFractions = true;
-                    newClass.Name = newClass.Name.Replace("{f}", "{0}");
-                }
-                classes.Add(newClass);
-            }
-
-            if (classType.HasArbitrary == true || classType.UseFractions == true || classType.UseSpacing == true || classType.UsePercent == true ||
-                classType.UseColors == true || classType.UseNumbers == true)
-            {
-                classes.Add(new TailwindClass()
-                {
-                    Name = classType.Stem.Replace("{c}", "")
-                        .Replace("{s}", "")
-                        .Replace("{n}", "")
-                        .Replace("{%}", "")
-                        .Replace("{f}", "").TrimEnd('-') + "-",
-                    HasArbitrary = true
-                });
-            }
-
-            project.Classes.AddRange(classes);
-
-            if (classType.HasNegative == true)
-            {
-                var negativeClasses = classes.Select(c =>
-                {
-                    return new TailwindClass()
-                    {
-                        Name = $"-{c.Name}",
-                        UseColors = c.UseColors,
-                        UseSpacing = c.UseSpacing,
-                        UseNumbers = c.UseNumbers,
-                        UsePercent = c.UsePercent,
-                        UseFractions = c.UseFractions,
-                        UseOpacity = c.UseOpacity,
-                        HasArbitrary = c.HasArbitrary
-                    };
-                }).ToList();
-
-                project.Classes.AddRange(negativeClasses);
-            }
-        }
-
-        foreach (var breakpoints in project.CssVariables.Where(v => v.Key.StartsWith("--breakpoint-")))
-        {
-            var breakpointName = breakpoints.Key.Replace("--breakpoint-", "");
-            project.Breakpoints[breakpointName] = breakpoints.Value;
-        }
-
-        foreach (var containers in project.CssVariables.Where(v => v.Key.StartsWith("--container-")))
-        {
-            var breakpointName = containers.Key.Replace("--container-", "");
-            project.Containers[breakpointName] = containers.Value;
-        }
-
-        var keys = project.CssVariables.Keys.OrderBy(k => k).ToList();
-
-        HashSet<string> stems = ["--color-"];
-
-        for (int i = 0; i < keys.Count; i++)
-        {
-            var key = keys[i];
-
-            if (key.StartsWith("--default"))
-            {
-                stems.Add(key);
-                continue;
-            }
-
-            if (i + 1 == keys.Count || key.LastIndexOf('-') == 1)
-            {
-                stems.Add(key);
-            }
-
-            var best = key;
-            var bestMatches = 0;
-
-            key = key.TrimStart('-');
-
-            while (key.Contains('-'))
-            {
-                key = key.Substring(0, key.LastIndexOf('-'));
-
-                var searchKey = $"--{key}-";
-                var matches = keys.Count(k => k.StartsWith(searchKey));
-
-                if (matches <= bestMatches)
-                {
-                    break;
-                }
-
-                bestMatches = matches;
-                best = searchKey;
-            }
-
-            stems.Add(best);
-            i += Math.Max(0, bestMatches - 1);
-        }
-
-        project.ThemeStems = [.. stems.OrderBy(s => s)];
-
-        _unsetProjectCompletionConfigurations[version] = project;
+        await Configuration.ReloadCustomAttributesAsync(settings);
     }
 }

@@ -1,8 +1,10 @@
 ﻿using Microsoft.VisualStudio.Language.Intellisense;
+using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Settings;
@@ -11,8 +13,9 @@ namespace TailwindCSSIntellisense.Completions.Sources;
 
 internal abstract class ClassCompletionGenerator : IDisposable
 {
-    protected readonly ProjectConfigurationManager _completionUtils;
-    protected ProjectCompletionValues _projectCompletionValues;
+    protected readonly ProjectConfigurationManager _projectCompletionManager;
+    protected readonly ProjectConfigurationInitializer _projectCompletionInit;
+    protected ProjectCompletionValues? _projectCompletionValues;
     protected readonly ColorIconGenerator _colorIconGenerator;
     protected readonly DescriptionGenerator _descriptionGenerator;
     protected readonly SettingsProvider _settingsProvider;
@@ -20,18 +23,36 @@ internal abstract class ClassCompletionGenerator : IDisposable
     protected readonly ITextBuffer _textBuffer;
 
     protected bool? _showAutocomplete;
+    protected TailwindSettings? _settings;
 
-    protected ClassCompletionGenerator(ITextBuffer textBuffer, ProjectConfigurationManager completionUtils, ColorIconGenerator colorIconGenerator, DescriptionGenerator descriptionGenerator, SettingsProvider settingsProvider, CompletionConfiguration completionConfiguration)
+    private readonly SemaphoreSlim _reloadLock = new(1, 1);
+
+    protected ClassCompletionGenerator(ITextBuffer textBuffer, ProjectConfigurationManager completionUtils, ColorIconGenerator colorIconGenerator, DescriptionGenerator descriptionGenerator, SettingsProvider settingsProvider, CompletionConfiguration completionConfiguration, ProjectConfigurationInitializer projectCompletionInit)
     {
         _textBuffer = textBuffer;
-        _completionUtils = completionUtils;
-        _projectCompletionValues = completionUtils.GetCompletionConfigurationByFilePath(_textBuffer.GetFileName());
+        _projectCompletionManager = completionUtils;
         _colorIconGenerator = colorIconGenerator;
         _descriptionGenerator = descriptionGenerator;
         _settingsProvider = settingsProvider;
         _completionConfiguration = completionConfiguration;
         _settingsProvider.OnSettingsChanged += SettingsChangedAsync;
-        _completionConfiguration.ConfigurationUpdated += ConfigurationChanged;
+        _completionConfiguration.ConfigurationUpdated += ReloadProjectCompletionValuesAsync;
+        _projectCompletionInit = projectCompletionInit;
+    }
+
+    /// <summary>
+    /// Must call in child class constructors.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync", Justification = "FileAndForget is ok")]
+    protected void Initialize()
+    {
+        // Set _projectConfigurationValues without blocking
+        ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+        {
+            await ReloadProjectCompletionValuesAsync();
+            _settings = await _settingsProvider.GetSettingsAsync();
+
+        }).FileAndForget(nameof(TailwindCSSIntellisense) + "/ClassCompletionGenerator/Initialize");
     }
 
     /// <summary>
@@ -41,6 +62,11 @@ internal abstract class ClassCompletionGenerator : IDisposable
     /// <returns>A list of completions</returns>
     protected List<Completion> GetCompletions(string classRaw, bool isRazor = false)
     {
+        if (_projectCompletionValues is null)
+        {
+            return [];
+        }
+
         var prefix = _projectCompletionValues.Prefix;
 
         if (!string.IsNullOrWhiteSpace(prefix))
@@ -197,7 +223,7 @@ internal abstract class ClassCompletionGenerator : IDisposable
 
                     if (twClass.UseOpacity && currentClass.Contains(color) && currentClass.Contains('/') && currentClass.StartsWith(className))
                     {
-                        foreach (var opacity in _completionUtils.Opacity)
+                        foreach (var opacity in _projectCompletionInit.Opacity)
                         {
                             if (!_projectCompletionValues.IsClassAllowed($"{variantsAsStringUnescaped}{className}/{opacity}{suffix}"))
                             {
@@ -219,7 +245,7 @@ internal abstract class ClassCompletionGenerator : IDisposable
                                     new Completion(className + "/[]" + suffix,
                                                         insert,
                                                         className + "/[]",
-                                                        _completionUtils.TailwindLogo,
+                                                        ProjectConfigurationManager.TailwindLogo,
                                                         null));
                     }
 
@@ -266,7 +292,7 @@ internal abstract class ClassCompletionGenerator : IDisposable
                         new Completion(className + suffix,
                                             insert,
                                             classNameRaw,
-                                            _completionUtils.TailwindLogo,
+                                            ProjectConfigurationManager.TailwindLogo,
                                             null));
                 }
             }
@@ -297,7 +323,7 @@ internal abstract class ClassCompletionGenerator : IDisposable
                 new Completion(className + "[]" + suffix,
                                     insert,
                                     classNameRaw + "[]",
-                                    _completionUtils.TailwindLogo,
+                                    ProjectConfigurationManager.TailwindLogo,
                                     null));
             }
             else
@@ -333,7 +359,7 @@ internal abstract class ClassCompletionGenerator : IDisposable
                 new Completion(className + suffix,
                                     insert,
                                     classNameRaw,
-                                    _completionUtils.TailwindLogo,
+                                    ProjectConfigurationManager.TailwindLogo,
                                     null));
 
                 if (currentClass.Contains('/'))
@@ -353,7 +379,7 @@ internal abstract class ClassCompletionGenerator : IDisposable
                                     new Completion($"{className}/{modifier}{suffix}",
                                                         insert,
                                                         $"{classNameRaw}/{modifier}",
-                                                        _completionUtils.TailwindLogo,
+                                                        ProjectConfigurationManager.TailwindLogo,
                                                         null));
                         }
 
@@ -362,7 +388,7 @@ internal abstract class ClassCompletionGenerator : IDisposable
                                     new Completion(className + "/[]" + suffix,
                                                        insert,
                                                        classNameRaw + "/[]",
-                                                       _completionUtils.TailwindLogo,
+                                                       ProjectConfigurationManager.TailwindLogo,
                                                        null));
                     }
                     else if (KnownModifiers.IsEligibleForLineHeightModifier(className, _projectCompletionValues))
@@ -380,7 +406,7 @@ internal abstract class ClassCompletionGenerator : IDisposable
                                     new Completion($"{className}/{modifier}{suffix}",
                                                         insert,
                                                         $"{classNameRaw}/{modifier}",
-                                                        _completionUtils.TailwindLogo,
+                                                        ProjectConfigurationManager.TailwindLogo,
                                                         null));
                         }
 
@@ -389,7 +415,7 @@ internal abstract class ClassCompletionGenerator : IDisposable
                                     new Completion(className + "/[]" + suffix,
                                                         insert,
                                                         classNameRaw + "/[]",
-                                                        _completionUtils.TailwindLogo,
+                                                        ProjectConfigurationManager.TailwindLogo,
                                                         null));
                     }
                 }
@@ -411,7 +437,7 @@ internal abstract class ClassCompletionGenerator : IDisposable
                     new Completion(pluginClass.TrimStart('.'),
                                         insert,
                                         pluginClass.TrimStart('.'),
-                                        _completionUtils.TailwindLogo,
+                                        ProjectConfigurationManager.TailwindLogo,
                                         null));
             }
         }
@@ -448,7 +474,7 @@ internal abstract class ClassCompletionGenerator : IDisposable
                 var completion = new Completion(variant + ":",
                     insert,
                     description,
-                    _completionUtils.TailwindLogo,
+                    ProjectConfigurationManager.TailwindLogo,
                     null);
 
                 completion.Properties.AddProperty("variant", true);
@@ -461,7 +487,7 @@ internal abstract class ClassCompletionGenerator : IDisposable
                     completion = new Completion("group-" + variant + ":",
                         insert,
                         _descriptionGenerator.GetVariantDescription("group-" + variant, _projectCompletionValues),
-                        _completionUtils.TailwindLogo,
+                        ProjectConfigurationManager.TailwindLogo,
                         null);
                     completion.Properties.AddProperty("variant", true);
                     variantCompletionsToAddToEnd.Add(completion);
@@ -470,7 +496,7 @@ internal abstract class ClassCompletionGenerator : IDisposable
                     completion = new Completion("peer-" + variant + ":",
                         insert,
                         _descriptionGenerator.GetVariantDescription("peer-" + variant, _projectCompletionValues),
-                        _completionUtils.TailwindLogo,
+                        ProjectConfigurationManager.TailwindLogo,
                         null);
                     completion.Properties.AddProperty("variant", true);
                     variantCompletionsToAddToEnd.Add(completion);
@@ -489,7 +515,7 @@ internal abstract class ClassCompletionGenerator : IDisposable
                                             insert,
                                             _projectCompletionValues.Version >= TailwindVersion.V4 ?
                                             _descriptionGenerator.GetVariantDescription(variant, _projectCompletionValues) : variant,
-                                            _completionUtils.TailwindLogo,
+                                            ProjectConfigurationManager.TailwindLogo,
                                             null);
 
                     completion.Properties.AddProperty("variant", true);
@@ -509,7 +535,7 @@ internal abstract class ClassCompletionGenerator : IDisposable
                     var completion = new Completion(screen + ":",
                                             insert,
                                             screen,
-                                            _completionUtils.TailwindLogo,
+                                            ProjectConfigurationManager.TailwindLogo,
                                             null);
 
                     completion.Properties.AddProperty("variant", true);
@@ -522,7 +548,7 @@ internal abstract class ClassCompletionGenerator : IDisposable
                         completion = new Completion("max-" + screen + ":",
                                                 insert,
                                                 screen,
-                                                _completionUtils.TailwindLogo,
+                                                ProjectConfigurationManager.TailwindLogo,
                                                 null);
                         completion.Properties.AddProperty("variant", true);
                         variantCompletionsToAddToEnd.Add(completion);
@@ -553,20 +579,37 @@ internal abstract class ClassCompletionGenerator : IDisposable
     public virtual void Dispose()
     {
         _settingsProvider.OnSettingsChanged -= SettingsChangedAsync;
-        _completionConfiguration.ConfigurationUpdated -= ConfigurationChanged;
+        _completionConfiguration.ConfigurationUpdated -= ReloadProjectCompletionValuesAsync;
     }
 
     private Task SettingsChangedAsync(TailwindSettings settings)
     {
         _showAutocomplete = settings.EnableTailwindCss;
-
-        _projectCompletionValues = _completionUtils.GetCompletionConfigurationByFilePath(_textBuffer.GetFileName());
+        _settings = settings;
 
         return Task.CompletedTask;
     }
 
-    private void ConfigurationChanged()
+    /// <summary>
+    /// Runs on completion configuration update and runs AFTER _projectCompletionValues is set,
+    /// so you can assume it is non-null.
+    /// </summary>
+    protected virtual Task OnConfigurationUpdatedAsync()
     {
-        _projectCompletionValues = _completionUtils.GetCompletionConfigurationByFilePath(_textBuffer.GetFileName());
+        return Task.CompletedTask;
+    }
+
+    private async Task ReloadProjectCompletionValuesAsync()
+    {
+        await _reloadLock.WaitAsync();
+        try
+        {
+            _projectCompletionValues = await _projectCompletionManager.GetCompletionConfigurationByFilePathAsync(_textBuffer.GetFileNameSafe());
+            await OnConfigurationUpdatedAsync();
+        }
+        finally
+        {
+            _reloadLock.Release();
+        }
     }
 }

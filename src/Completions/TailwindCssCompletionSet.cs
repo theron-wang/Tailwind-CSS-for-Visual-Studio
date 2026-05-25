@@ -47,6 +47,9 @@ internal class TailwindCssCompletionSet : CompletionSet
     /// Adds completions to the existing completion set (used to combine Tailwind completions with shim completions)
     /// </summary>
     /// <param name="completions">The list of completions to add</param>
+    /// 
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "Not expensive")]
     public void AddCompletions(IEnumerable<Completion> completions)
     {
         var addToEnd = ThreadHelper.JoinableTaskFactory.Run(General.GetLiveInstanceAsync).TailwindCompletionsComeFirst;

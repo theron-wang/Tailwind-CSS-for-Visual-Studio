@@ -15,10 +15,12 @@ namespace TailwindCSSIntellisense.Completions.Sources;
 /// <summary>
 /// Completion provider for all HTML content files to provide Intellisense support for TailwindCSS classes
 /// </summary>
-internal class HtmlCompletionSource(ITextBuffer textBuffer, ProjectConfigurationManager completionUtils, ColorIconGenerator colorIconGenerator, DescriptionGenerator descriptionGenerator, SettingsProvider settingsProvider, CompletionConfiguration completionConfiguration) :
-    ClassCompletionGenerator(textBuffer, completionUtils, colorIconGenerator, descriptionGenerator, settingsProvider, completionConfiguration), ICompletionSource
+internal class HtmlCompletionSource : ClassCompletionGenerator, ICompletionSource
 {
-    private bool _initializeSuccess = true;
+    public HtmlCompletionSource(ITextBuffer textBuffer, ProjectConfigurationManager completionUtils, ColorIconGenerator colorIconGenerator, DescriptionGenerator descriptionGenerator, SettingsProvider settingsProvider, CompletionConfiguration completionConfiguration, ProjectConfigurationInitializer projectCompletionInit) : base(textBuffer, completionUtils, colorIconGenerator, descriptionGenerator, settingsProvider, completionConfiguration, projectCompletionInit)
+    {
+        Initialize();
+    }
 
     /// <summary>
     /// Overrides the original completion set to include TailwindCSS classes
@@ -27,23 +29,16 @@ internal class HtmlCompletionSource(ITextBuffer textBuffer, ProjectConfiguration
     /// <param name="completionSets">Provided by Visual Studio</param>
     void ICompletionSource.AugmentCompletionSession(ICompletionSession session, IList<CompletionSet> completionSets)
     {
-        var settings = _settingsProvider.GetSettings();
-
-        _showAutocomplete ??= settings.EnableTailwindCss;
-
-        if (_showAutocomplete == false || settings.ConfigurationFiles.Count == 0)
+        if (_settings is null)
         {
             return;
         }
 
-        if (!_completionUtils.Initialized || _initializeSuccess == false)
-        {
-            _initializeSuccess = ThreadHelper.JoinableTaskFactory.Run(_completionUtils.InitializeAsync);
+        _showAutocomplete ??= _settings.EnableTailwindCss;
 
-            if (_initializeSuccess == false)
-            {
-                return;
-            }
+        if (_showAutocomplete == false || _settings.ConfigurationFiles.Count == 0)
+        {
+            return;
         }
 
         if (HtmlParser.IsCursorInClassScope(session.TextView, out var classSpan) == false || classSpan is null)

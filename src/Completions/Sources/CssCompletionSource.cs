@@ -5,6 +5,7 @@ using Microsoft.VisualStudio.Text;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Options;
 using TailwindCSSIntellisense.Settings;
@@ -14,11 +15,14 @@ namespace TailwindCSSIntellisense.Completions.Sources;
 /// <summary>
 /// Completion provider for all CSS files to provide Intellisense support for TailwindCSS classes, functions, and directives
 /// </summary>
-internal class CssCompletionSource(ITextBuffer textBuffer, ProjectConfigurationManager completionUtils, ColorIconGenerator colorIconGenerator, DescriptionGenerator descriptionGenerator, SettingsProvider settingsProvider, CompletionConfiguration completionConfiguration) :
-    ClassCompletionGenerator(textBuffer, completionUtils, colorIconGenerator, descriptionGenerator, settingsProvider, completionConfiguration), ICompletionSource
+internal class CssCompletionSource : ClassCompletionGenerator, ICompletionSource
 {
-    private bool _initializeSuccess = true;
-    private readonly ProjectConfigurationManager _projectConfigurationManager = completionUtils;
+    private UnsetProjectCompletionValues? _unsetProjectCompletionValues;
+
+    public CssCompletionSource(ITextBuffer textBuffer, ProjectConfigurationManager completionUtils, ColorIconGenerator colorIconGenerator, DescriptionGenerator descriptionGenerator, SettingsProvider settingsProvider, CompletionConfiguration completionConfiguration, ProjectConfigurationInitializer projectCompletionInit) : base(textBuffer, completionUtils, colorIconGenerator, descriptionGenerator, settingsProvider, completionConfiguration, projectCompletionInit)
+    {
+        Initialize();
+    }
 
     /// <summary>
     /// Provides relevant TailwindCSS completions
@@ -27,23 +31,16 @@ internal class CssCompletionSource(ITextBuffer textBuffer, ProjectConfigurationM
     /// <param name="completionSets">VS provided</param>
     void ICompletionSource.AugmentCompletionSession(ICompletionSession session, IList<CompletionSet> completionSets)
     {
-        var settings = _settingsProvider.GetSettings();
-
-        _showAutocomplete ??= settings.EnableTailwindCss;
-
-        if (_showAutocomplete == false || settings.ConfigurationFiles.Count == 0)
+        if (_settings is null)
         {
             return;
         }
 
-        if (!_completionUtils.Initialized || _initializeSuccess == false)
-        {
-            _initializeSuccess = ThreadHelper.JoinableTaskFactory.Run(_completionUtils.InitializeAsync);
+        _showAutocomplete ??= _settings.EnableTailwindCss;
 
-            if (_initializeSuccess == false)
-            {
-                return;
-            }
+        if (_showAutocomplete == false || _settings.ConfigurationFiles.Count == 0 || _projectCompletionValues is null || _unsetProjectCompletionValues is null)
+        {
+            return;
         }
 
         var completions = new List<Completion>();
@@ -72,26 +69,26 @@ internal class CssCompletionSource(ITextBuffer textBuffer, ProjectConfigurationM
                         case "@tailwind":
                             completions =
                             [
-                                new("base", "base", "base", _completionUtils.TailwindLogo, null),
-                                new("components", "components", "components", _completionUtils.TailwindLogo, null),
-                                new("utilities", "utilities", "utilities", _completionUtils.TailwindLogo, null),
-                                new("screens", "screens", "screens", _completionUtils.TailwindLogo, null),
-                                new("variants", "variants", "variants", _completionUtils.TailwindLogo, null)
+                                new("base", "base", "base", ProjectConfigurationManager.TailwindLogo, null),
+                                new("components", "components", "components", ProjectConfigurationManager.TailwindLogo, null),
+                                new("utilities", "utilities", "utilities", ProjectConfigurationManager.TailwindLogo, null),
+                                new("screens", "screens", "screens", ProjectConfigurationManager.TailwindLogo, null),
+                                new("variants", "variants", "variants", ProjectConfigurationManager.TailwindLogo, null)
                             ];
                             break;
                         case "@layer":
                             completions =
                             [
-                                new("base", "base", "base", _completionUtils.TailwindLogo, null),
-                                new("components", "components", "components", _completionUtils.TailwindLogo, null),
-                                new("utilities", "utilities", "utilities", _completionUtils.TailwindLogo, null)
+                                new("base", "base", "base", ProjectConfigurationManager.TailwindLogo, null),
+                                new("components", "components", "components", ProjectConfigurationManager.TailwindLogo, null),
+                                new("utilities", "utilities", "utilities", ProjectConfigurationManager.TailwindLogo, null)
                             ];
                             break;
                         case "@media":
                             completions = [];
                             foreach (var screen in _projectCompletionValues.Breakpoints)
                             {
-                                completions.Add(new($"screen({screen})", $"screen({screen})", $"screen({screen})", _completionUtils.TailwindLogo, null));
+                                completions.Add(new($"screen({screen})", $"screen({screen})", $"screen({screen})", ProjectConfigurationManager.TailwindLogo, null));
                             }
                             break;
                     }
@@ -102,10 +99,10 @@ internal class CssCompletionSource(ITextBuffer textBuffer, ProjectConfigurationM
                     {
                         completions =
                         [
-                            new("reference", "reference", "Don't emit CSS variables for these theme values.", _completionUtils.TailwindLogo, null),
-                            new("inline", "inline", "Inline these theme values into generated utilities instead of using var(…).", _completionUtils.TailwindLogo, null),
-                            new("static", "static", "Always emit these theme values into the CSS file instead of only when used.", _completionUtils.TailwindLogo, null),
-                            new("default", "default", "Allow these theme values to be overriden by JS configs and plugins.", _completionUtils.TailwindLogo, null)
+                            new("reference", "reference", "Don't emit CSS variables for these theme values.", ProjectConfigurationManager.TailwindLogo, null),
+                            new("inline", "inline", "Inline these theme values into generated utilities instead of using var(…).", ProjectConfigurationManager.TailwindLogo, null),
+                            new("static", "static", "Always emit these theme values into the CSS file instead of only when used.", ProjectConfigurationManager.TailwindLogo, null),
+                            new("default", "default", "Allow these theme values to be overriden by JS configs and plugins.", ProjectConfigurationManager.TailwindLogo, null)
                         ];
                     }
                 }
@@ -117,19 +114,19 @@ internal class CssCompletionSource(ITextBuffer textBuffer, ProjectConfigurationM
                     completions =
                     [
                         // Directive completions are hard-coded in as there are only two of them
-                        new("@tailwind", "@tailwind", "Use the @tailwind directive to insert Tailwind’s base, components, utilities and variants styles into your CSS.", _completionUtils.TailwindLogo, null),
-                        new("@config", "@config", "Use the @config directive to specify which config file Tailwind should use when compiling that CSS file. This is useful for projects that need to use different configuration files for different CSS entry points.", _completionUtils.TailwindLogo, null)
+                        new("@tailwind", "@tailwind", "Use the @tailwind directive to insert Tailwind’s base, components, utilities and variants styles into your CSS.", ProjectConfigurationManager.TailwindLogo, null),
+                        new("@config", "@config", "Use the @config directive to specify which config file Tailwind should use when compiling that CSS file. This is useful for projects that need to use different configuration files for different CSS entry points.", ProjectConfigurationManager.TailwindLogo, null)
                     ];
                 }
                 else
                 {
                     completions = [
-                        new("@theme", "@theme", "Use the @theme directive to specify which config file Tailwind should use when compiling that CSS file.", _completionUtils.TailwindLogo, null),
-                        new("@source", "@source", "Use the @source directive to explicitly specify source files that aren't picked up by Tailwind's automatic content detection.", _completionUtils.TailwindLogo, null),
-                        new("@utility", "@utility", "Use the @utility directive to define a custom utility.", _completionUtils.TailwindLogo, null),
-                        new("@custom-variant", "@custom-variant", "Use the @custom-variant directive to add a custom variant in your project.", _completionUtils.TailwindLogo, null),
-                        new("@config", "@config", "Use the @config directive to specify which config file Tailwind should use when compiling that CSS file.", _completionUtils.TailwindLogo, null),
-                        new("@plugin", "@plugin", "Use the @plugin directive to include a JS plugin in your Tailwind CSS build.", _completionUtils.TailwindLogo, null)
+                        new("@theme", "@theme", "Use the @theme directive to specify which config file Tailwind should use when compiling that CSS file.", ProjectConfigurationManager.TailwindLogo, null),
+                        new("@source", "@source", "Use the @source directive to explicitly specify source files that aren't picked up by Tailwind's automatic content detection.", ProjectConfigurationManager.TailwindLogo, null),
+                        new("@utility", "@utility", "Use the @utility directive to define a custom utility.", ProjectConfigurationManager.TailwindLogo, null),
+                        new("@custom-variant", "@custom-variant", "Use the @custom-variant directive to add a custom variant in your project.", ProjectConfigurationManager.TailwindLogo, null),
+                        new("@config", "@config", "Use the @config directive to specify which config file Tailwind should use when compiling that CSS file.", ProjectConfigurationManager.TailwindLogo, null),
+                        new("@plugin", "@plugin", "Use the @plugin directive to include a JS plugin in your Tailwind CSS build.", ProjectConfigurationManager.TailwindLogo, null)
                     ];
                 }
             }
@@ -146,13 +143,13 @@ internal class CssCompletionSource(ITextBuffer textBuffer, ProjectConfigurationM
             {
                 completions.Add(
                     // @apply completion is the only completion in this context
-                    new Completion("@apply", "@apply", "Use @apply to inline any existing utility classes into your own custom CSS.", _completionUtils.TailwindLogo, null)
+                    new Completion("@apply", "@apply", "Use @apply to inline any existing utility classes into your own custom CSS.", ProjectConfigurationManager.TailwindLogo, null)
                 );
                 if (_projectCompletionValues.Version >= TailwindVersion.V4)
                 {
                     completions.Add(
                         // @apply completion is the only completion in this context
-                        new Completion("@variant", "@variant", "Use the @variant directive to apply a Tailwind variant to styles in your CSS.", _completionUtils.TailwindLogo, null)
+                        new Completion("@variant", "@variant", "Use the @variant directive to apply a Tailwind variant to styles in your CSS.", ProjectConfigurationManager.TailwindLogo, null)
                     );
                 }
             }
@@ -164,7 +161,7 @@ internal class CssCompletionSource(ITextBuffer textBuffer, ProjectConfigurationM
                     _projectCompletionValues.Version >= TailwindVersion.V4 ?
                         "Deprecated - use CSS theme variables instead." :
                         "Use the theme() function to access your Tailwind config values using dot notation.",
-                    _completionUtils.TailwindLogo, null)
+                    ProjectConfigurationManager.TailwindLogo, null)
                 ];
             }
         }
@@ -178,9 +175,9 @@ internal class CssCompletionSource(ITextBuffer textBuffer, ProjectConfigurationM
             }
 
             completions =
-                [.._projectConfigurationManager.GetUnsetCompletionConfiguration(_projectCompletionValues.Version).ThemeStems
+                [.._unsetProjectCompletionValues.ThemeStems
                 .Select(t =>
-                    new Completion(t, t, "", _completionUtils.TailwindLogo, null)
+                    new Completion(t, t, "", ProjectConfigurationManager.TailwindLogo, null)
                 )];
         }
 
@@ -377,5 +374,11 @@ internal class CssCompletionSource(ITextBuffer textBuffer, ProjectConfigurationM
             directive = null;
             return false;
         }
+    }
+
+    protected override async Task OnConfigurationUpdatedAsync()
+    {
+        // _projectCompletionValues is non-null as per base definition
+        _unsetProjectCompletionValues = await _projectCompletionInit.GetUnsetCompletionConfigurationAsync(_projectCompletionValues!.Version);
     }
 }

@@ -21,6 +21,6 @@ internal class HtmlErrorListListener : ErrorListListener
 
     protected override Validator GetValidator(ITextView view)
     {
-        return HtmlValidator.Create(view.TextBuffer, _linterUtilities, _projectConfigurationManager);
+        return HtmlValidator.Create(view.TextBuffer, _linterUtilities, _projectConfigurationManager, _completionConfiguration);
     }
 }

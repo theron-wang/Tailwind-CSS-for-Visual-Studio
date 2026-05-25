@@ -6,7 +6,9 @@ public enum TailwindVersion
     V4,
     V4_1,
     V4_2,
-    V4_3
+    V4_3,
+
+    LATEST = V4_3
 }
 
 public static class TailwindVersionExtensions

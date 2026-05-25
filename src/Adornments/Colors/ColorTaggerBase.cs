@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Media;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Configuration;
@@ -22,20 +23,23 @@ internal abstract class ColorTaggerBase : ITagger<IntraTextAdornmentTag>, IDispo
     private readonly ITextView _view;
     private readonly ProjectConfigurationManager _projectConfigurationManager;
     private readonly CompletionConfiguration _completionConfiguration;
-    private ProjectCompletionValues _projectConfigurationValues;
+    private ProjectCompletionValues? _projectConfigurationValues;
     private bool _isProcessing;
     private General? _generalOptions;
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync", Justification = "FileAndForget is ok")]
     protected ColorTaggerBase(ITextBuffer buffer, ITextView view, ProjectConfigurationManager projectConfigurationManager, CompletionConfiguration completionConfiguration)
     {
         _buffer = buffer;
         _view = view;
         _projectConfigurationManager = projectConfigurationManager;
         _completionConfiguration = completionConfiguration;
-        _projectConfigurationValues = projectConfigurationManager.GetCompletionConfigurationByFilePath(_buffer.GetFileName());
         _buffer.Changed += OnBufferChanged;
         General.Saved += GeneralSettingsChanged;
-        _completionConfiguration.ConfigurationUpdated += ConfigurationUpdated;
+        _completionConfiguration.ConfigurationUpdated += ConfigurationUpdatedAsync;
+
+        // Set _projectConfigurationValues without blocking
+        ThreadHelper.JoinableTaskFactory.RunAsync(ConfigurationUpdatedAsync).FileAndForget(nameof(TailwindCSSIntellisense) + "/ColorTagger/Initialize");
     }
 
     private void OnBufferChanged(object sender, TextContentChangedEventArgs e)
@@ -68,7 +72,7 @@ internal abstract class ColorTaggerBase : ITagger<IntraTextAdornmentTag>, IDispo
     public void Dispose()
     {
         _buffer.Changed -= OnBufferChanged;
-        _completionConfiguration.ConfigurationUpdated -= ConfigurationUpdated;
+        _completionConfiguration.ConfigurationUpdated -= ConfigurationUpdatedAsync;
         General.Saved -= GeneralSettingsChanged;
     }
 
@@ -83,12 +87,13 @@ internal abstract class ColorTaggerBase : ITagger<IntraTextAdornmentTag>, IDispo
         TagsChanged?.Invoke(this, new SnapshotSpanEventArgs(new SnapshotSpan(_buffer.CurrentSnapshot, 0, _buffer.CurrentSnapshot.Length)));
     }
 
-    private void ConfigurationUpdated()
+    private async Task ConfigurationUpdatedAsync()
     {
-        _projectConfigurationValues = _projectConfigurationManager.GetCompletionConfigurationByFilePath(_buffer.GetFileName());
+        _projectConfigurationValues = await _projectConfigurationManager.GetCompletionConfigurationByFilePathAsync(_buffer.GetFileNameSafe());
         TagsChanged?.Invoke(this, new SnapshotSpanEventArgs(new SnapshotSpan(_buffer.CurrentSnapshot, 0, _buffer.CurrentSnapshot.Length)));
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "Not expensive")]
     private bool Enabled()
     {
         _generalOptions ??= ThreadHelper.JoinableTaskFactory.Run(General.GetLiveInstanceAsync);
@@ -131,6 +136,11 @@ internal abstract class ColorTaggerBase : ITagger<IntraTextAdornmentTag>, IDispo
 
     private byte[]? GetRgbaFromClass(string text)
     {
+        if (_projectConfigurationValues is null)
+        {
+            return null;
+        }
+
         // V4
         var v4Removed = false;
         if (string.IsNullOrWhiteSpace(_projectConfigurationValues.Prefix) == false)

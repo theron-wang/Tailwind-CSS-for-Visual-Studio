@@ -14,6 +14,6 @@ internal class JSErrorListListener : ErrorListListener
 {
     protected override Validator GetValidator(ITextView view)
     {
-        return JSValidator.Create(view.TextBuffer, _linterUtilities, _projectConfigurationManager);
+        return JSValidator.Create(view.TextBuffer, _linterUtilities, _projectConfigurationManager, _completionConfiguration);
     }
 }

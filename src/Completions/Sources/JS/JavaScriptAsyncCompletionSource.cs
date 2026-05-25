@@ -4,7 +4,6 @@ using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Adornments;
-using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,12 +12,15 @@ using TailwindCSSIntellisense.Parsers;
 using TailwindCSSIntellisense.Settings;
 
 namespace TailwindCSSIntellisense.Completions.Sources.JS;
-internal class JavaScriptAsyncCompletionSource(ITextBuffer buffer, ProjectConfigurationManager completionUtils, ColorIconGenerator colorIconGenerator, DescriptionGenerator descriptionGenerator, SettingsProvider settingsProvider, CompletionConfiguration completionConfiguration) :
-    ClassCompletionGenerator(buffer, completionUtils, colorIconGenerator, descriptionGenerator, settingsProvider, completionConfiguration), IAsyncCompletionSource
+
+internal class JavaScriptAsyncCompletionSource : ClassCompletionGenerator, IAsyncCompletionSource
 {
     private static readonly ImageElement _icon = new(KnownMonikers.Field.ToImageId(), "Tailwind CSS Class");
 
-    private bool _initializeSuccess = true;
+    public JavaScriptAsyncCompletionSource(ITextBuffer buffer, ProjectConfigurationManager completionUtils, ColorIconGenerator colorIconGenerator, DescriptionGenerator descriptionGenerator, SettingsProvider settingsProvider, CompletionConfiguration completionConfiguration, ProjectConfigurationInitializer projectConfigurationInitializer) : base(buffer, completionUtils, colorIconGenerator, descriptionGenerator, settingsProvider, completionConfiguration, projectConfigurationInitializer)
+    {
+        Initialize();
+    }
 
     public CompletionStartData InitializeCompletion(CompletionTrigger trigger, SnapshotPoint triggerLocation, CancellationToken token)
     {
@@ -49,22 +51,12 @@ internal class JavaScriptAsyncCompletionSource(ITextBuffer buffer, ProjectConfig
 
         if (_showAutocomplete == false || settings.ConfigurationFiles.Count == 0)
         {
-            return new CompletionContext(ImmutableArray<CompletionItem>.Empty, null);
-        }
-
-        if (!_completionUtils.Initialized || _initializeSuccess == false)
-        {
-            _initializeSuccess = await _completionUtils.InitializeAsync();
-
-            if (_initializeSuccess == false)
-            {
-                return new CompletionContext(ImmutableArray<CompletionItem>.Empty, null);
-            }
+            return new CompletionContext([], null);
         }
 
         if (JSParser.IsCursorInClassScope(session.TextView, out var classSpan) == false || classSpan is null)
         {
-            return new CompletionContext(ImmutableArray<CompletionItem>.Empty, null);
+            return new CompletionContext([], null);
         }
 
         var truncatedClassSpan = new SnapshotSpan(classSpan.Value.Start, session.TextView.Caret.Position.BufferPosition);
@@ -73,25 +65,25 @@ internal class JavaScriptAsyncCompletionSource(ITextBuffer buffer, ProjectConfig
         var items = GetCompletions(applicableToSpan.GetText())
             .Select(c =>
             {
-                var item = new CompletionItem(c.DisplayText, this, _icon, ImmutableArray<CompletionFilter>.Empty, "", c.InsertionText, c.InsertionText, c.InsertionText, "", ImmutableArray<ImageElement>.Empty, ImmutableArray<char>.Empty, applicableToSpan, false, false);
+                var item = new CompletionItem(c.DisplayText, this, _icon, [], "", c.InsertionText, c.InsertionText, c.InsertionText, "", [], [], applicableToSpan, false, false);
                 item.Properties.AddProperty("description-text", c.Description);
 
                 return item;
             });
 
-        return new CompletionContext(items.ToImmutableArray(), null);
+        return new CompletionContext([.. items], null);
     }
 
     /// <summary>
     /// Provides detailed element information in the tooltip
     /// </summary>
-    public Task<object> GetDescriptionAsync(IAsyncCompletionSession session, CompletionItem item, CancellationToken token)
+    public async Task<object> GetDescriptionAsync(IAsyncCompletionSession session, CompletionItem item, CancellationToken token)
     {
         if (item.Properties.TryGetProperty("description-text", out string description))
         {
-            return Task.FromResult<object>(_descriptionGenerator.GetDescription(description, _projectCompletionValues) ?? "");
+            return _descriptionGenerator.GetDescription(description, await _projectCompletionManager.GetCompletionConfigurationByFilePathAsync(_textBuffer.GetFileNameSafe())) ?? "";
         }
-        return Task.FromResult<object>("");
+        return "";
     }
     private SnapshotSpan GetApplicableTo(SnapshotPoint triggerPoint, ITextSnapshot snapshot)
     {

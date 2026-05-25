@@ -3,13 +3,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using TailwindCSSIntellisense.Completions;
+using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Parsers;
 
 namespace TailwindCSSIntellisense.Linting.Validators;
 
 internal class CssValidator : Validator
 {
-    private CssValidator(ITextBuffer buffer, LinterUtilities linterUtils, ProjectConfigurationManager completionUtilities) : base(buffer, linterUtils, completionUtilities)
+    private CssValidator(ITextBuffer buffer, LinterUtilities linterUtils, ProjectConfigurationManager completionUtilities, CompletionConfiguration completionConfiguration) : base(buffer, linterUtils, completionUtilities, completionConfiguration)
     {
 
     }
@@ -21,7 +22,7 @@ internal class CssValidator : Validator
 
     public override IEnumerable<Error> GetErrors(SnapshotSpan span, bool force = false)
     {
-        if (_checkedSpans.Contains(span) && !force)
+        if (_projectCompletionValues is null || (_checkedSpans.Contains(span) && !force))
         {
             yield break;
         }
@@ -410,17 +411,17 @@ internal class CssValidator : Validator
         #endregion
     }
 
-    public static Validator Create(ITextBuffer buffer, LinterUtilities linterUtils, ProjectConfigurationManager completionUtilities)
+    public static Validator Create(ITextBuffer buffer, LinterUtilities linterUtils, ProjectConfigurationManager completionUtilities, CompletionConfiguration completionConfiguration)
     {
-        return buffer.Properties.GetOrCreateSingletonProperty<Validator>(() => new CssValidator(buffer, linterUtils, completionUtilities));
+        return buffer.Properties.GetOrCreateSingletonProperty<Validator>(() => new CssValidator(buffer, linterUtils, completionUtilities, completionConfiguration));
     }
 
-    private bool HasOnlyOneDirective(string text, string directive)
+    private static bool HasOnlyOneDirective(string text, string directive)
     {
         return text.Contains(directive) && text.IndexOf(directive, text.IndexOf(directive) + 1) == -1;
     }
 
-    private string GetFullScope(SnapshotSpan span, string text)
+    private static string GetFullScope(SnapshotSpan span, string text)
     {
         var start = span.Span.Start;
         var length = span.Span.Length;
@@ -434,7 +435,7 @@ internal class CssValidator : Validator
         return text;
     }
 
-    private List<string> TokenizeTheme(string input)
+    private static List<string> TokenizeTheme(string input)
     {
         List<string> segments = [];
         int startIndex = 0;

@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using TailwindCSSIntellisense.ClassSort.Sorters;
 using TailwindCSSIntellisense.Configuration;
@@ -30,26 +31,44 @@ internal sealed class ClassSorter : IDisposable
 
     public bool Sorting { get; private set; }
 
-    private TailwindSettings? _tailwindSettings;
+    private TailwindSettings _tailwindSettings = null!;
+    private SemaphoreSlim _initLock = new(1, 1);
+    private Task? _initTask;
 
     private readonly HashSet<string> _sorted = [];
 
-    private bool _initialized = false;
-
-    public void Initialize()
+    public async Task InitializeAsync()
     {
-        if (!_initialized)
+        Task task;
+
+        await _initLock.WaitAsync();
+        try
         {
-            VS.Events.DocumentEvents.Saved += DocumentSaved;
-            VS.Events.BuildEvents.SolutionBuildStarted += OnBuild;
-            SettingsProvider.OnSettingsChanged += OnSettingsChangedAsync;
-            CompletionConfiguration.ConfigurationUpdated += ConfigurationChanged;
-            _initialized = true;
+            _initTask ??= InitializeImplAsync();
+            task = _initTask;
         }
+        finally
+        {
+            _initLock.Release();
+        }
+
+        await task;
     }
+
+    private async Task InitializeImplAsync()
+    {
+        _tailwindSettings = await SettingsProvider.GetSettingsAsync();
+
+        VS.Events.DocumentEvents.Saved += DocumentSaved;
+        VS.Events.BuildEvents.SolutionBuildStarted += OnBuild;
+        SettingsProvider.OnSettingsChanged += OnSettingsChangedAsync;
+        CompletionConfiguration.ConfigurationUpdated += ConfigurationChangedAsync;
+    }
+
 
     public async Task SortAllAsync()
     {
+        await InitializeAsync();
         Sorting = true;
         try
         {
@@ -76,13 +95,14 @@ internal sealed class ClassSorter : IDisposable
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync", Justification = "RunAsync with FileAndForget is ok")]
     private void DocumentSaved(string path)
     {
         if (_sorted.Contains(path.ToLower()))
         {
             _sorted.Remove(path);
         }
-        if (GetSettings().EnableTailwindCss && GetSettings().SortClassesType == SortClassesOptions.OnSave)
+        if (_tailwindSettings.EnableTailwindCss && _tailwindSettings.SortClassesType == SortClassesOptions.OnSave)
         {
             Sorting = true;
             ThreadHelper.JoinableTaskFactory.RunAsync(async delegate
@@ -100,15 +120,16 @@ internal sealed class ClassSorter : IDisposable
                 {
                     Sorting = false;
                 }
-            }).FireAndForget();
+            }).FileAndForget(nameof(TailwindCSSIntellisense) + "/ClassSorter/OnDocumentSave");
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync", Justification = "RunAsync with FileAndForget is ok")]
     private void OnBuild(object sender, EventArgs e)
     {
-        if (GetSettings().EnableTailwindCss && GetSettings().SortClassesType == SortClassesOptions.OnBuild)
+        if (_tailwindSettings.EnableTailwindCss && _tailwindSettings.SortClassesType == SortClassesOptions.OnBuild)
         {
-            ThreadHelper.JoinableTaskFactory.RunAsync(SortAllAsync).FireAndForget();
+            ThreadHelper.JoinableTaskFactory.RunAsync(SortAllAsync).FileAndForget(nameof(TailwindCSSIntellisense) + "/ClassSorter/OnBuild");
         }
     }
 
@@ -123,7 +144,10 @@ internal sealed class ClassSorter : IDisposable
         {
             return;
         }
-        if (GetSettings().EnableTailwindCss && GetSettings().SortClassesType != SortClassesOptions.None)
+
+        await InitializeAsync();
+
+        if (_tailwindSettings.EnableTailwindCss && _tailwindSettings.SortClassesType != SortClassesOptions.None)
         {
             string fileContent;
             Encoding encoding;
@@ -135,7 +159,7 @@ internal sealed class ClassSorter : IDisposable
                 fileContent = await reader.ReadToEndAsync();
             }
 
-            var sorted = Sorter.Sort(path, fileContent);
+            var sorted = await Sorter.SortAsync(path, fileContent);
 
             if (sorted != fileContent)
             {
@@ -161,15 +185,10 @@ internal sealed class ClassSorter : IDisposable
         }
     }
 
-    private TailwindSettings GetSettings()
-    {
-        _tailwindSettings ??= ThreadHelper.JoinableTaskFactory.Run(SettingsProvider.GetSettingsAsync);
-        return _tailwindSettings;
-    }
-
-    private void ConfigurationChanged()
+    private Task ConfigurationChangedAsync()
     {
         _sorted.Clear();
+        return Task.CompletedTask;
     }
 
     private Task OnSettingsChangedAsync(TailwindSettings settings)
@@ -183,6 +202,6 @@ internal sealed class ClassSorter : IDisposable
         VS.Events.DocumentEvents.Saved -= DocumentSaved;
         VS.Events.BuildEvents.SolutionBuildStarted -= OnBuild;
         SettingsProvider.OnSettingsChanged -= OnSettingsChangedAsync;
-        CompletionConfiguration.ConfigurationUpdated -= ConfigurationChanged;
+        CompletionConfiguration.ConfigurationUpdated -= ConfigurationChangedAsync;
     }
 }

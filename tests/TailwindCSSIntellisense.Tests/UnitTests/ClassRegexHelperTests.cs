@@ -55,6 +55,18 @@ public class ClassRegexHelperTests : IDisposable
         Assert.Equal("bg-blue-500 md:hover:text-white", ClassRegexHelper.GetClassTextGroup(matches[0]).Value);
     }
 
+
+    [Fact]
+    public void GetClassesRazor_ComplexCase()
+    {
+        var input = "\n<div class=\"@(\"hi\") bg-[''] bg-white @Func('h') @A.B(test ? \"test\" : \"foo\")\"></div>";
+
+        var matches = ClassRegexHelper.GetClassesRazor(input, input).ToList();
+
+        Assert.Single(matches);
+        Assert.Equal("@(\"hi\") bg-[''] bg-white @Func('h') @A.B(test ? \"test\" : \"foo\")", ClassRegexHelper.GetClassTextGroup(matches[0]).Value);
+    }
+
     [Fact]
     public void CustomRegexOverride_UsesConfiguredRegex()
     {

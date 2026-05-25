@@ -15,6 +15,6 @@ internal class RazorErrorListListener : ErrorListListener
 {
     protected override Validator GetValidator(ITextView view)
     {
-        return RazorValidator.Create(view.TextBuffer, _linterUtilities, _projectConfigurationManager);
+        return RazorValidator.Create(view.TextBuffer, _linterUtilities, _projectConfigurationManager, _completionConfiguration);
     }
 }
