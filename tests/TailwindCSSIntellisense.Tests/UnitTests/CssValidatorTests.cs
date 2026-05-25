@@ -1,8 +1,4 @@
-using Microsoft.VisualStudio.Text;
 using System.Reflection;
-using TailwindCSSIntellisense.Completions;
-using TailwindCSSIntellisense.Configuration;
-using TailwindCSSIntellisense.Linting;
 using TailwindCSSIntellisense.Linting.Validators;
 
 namespace TailwindCSSIntellisense.Tests.UnitTests;
@@ -15,9 +11,7 @@ public class CssValidatorTests
     [InlineData("fontSize.sm", new[] { "fontSize", "sm" })]
     public void TokenizeTheme_SplitsDotNotationAndBracketSegments(string input, string[] expected)
     {
-        var validator = CreateUninitializedValidator();
-
-        var tokens = InvokePrivate<List<string>>(validator, "TokenizeTheme", input);
+        var tokens = InvokePrivateStatic<List<string>>(typeof(CssValidator), "TokenizeTheme", input);
 
         Assert.Equal(expected, tokens);
     }
@@ -28,37 +22,19 @@ public class CssValidatorTests
     [InlineData("@media screen(sm){}", "@screen", false)]
     public void HasOnlyOneDirective_DetectsSingleOccurrence(string text, string directive, bool expected)
     {
-        var validator = CreateUninitializedValidator();
-
-        var result = InvokePrivate<bool>(validator, "HasOnlyOneDirective", text, directive);
+        var result = InvokePrivateStatic<bool>(typeof(CssValidator), "HasOnlyOneDirective", text, directive);
 
         Assert.Equal(expected, result);
     }
 
-    private static CssValidator CreateUninitializedValidator()
+    private static T InvokePrivateStatic<T>(Type type, string methodName, params object[] args)
     {
-        var ctor = typeof(CssValidator).GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic).SingleOrDefault();
-        Assert.NotNull(ctor);
-
-        var projectManager = new ProjectConfigurationManager();
-        projectManager.SeedDefault(new ProjectCompletionValues());
-
-        return (CssValidator)ctor!.Invoke(
-        [
-            new FakeTextBuffer("@tailwind utilities;"),
-            new LinterUtilities(),
-            projectManager,
-            new CompletionConfiguration()
-        ]);
-    }
-
-    private static T InvokePrivate<T>(object instance, string methodName, params object[] args)
-    {
-        var method = instance.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
+        var method = type.GetMethod(methodName, BindingFlags.Static | BindingFlags.NonPublic);
         Assert.NotNull(method);
 
-        var result = method!.Invoke(instance, args);
+        var result = method!.Invoke(null, args);
         Assert.NotNull(result);
+
         return (T)result!;
     }
 }
