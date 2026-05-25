@@ -1,7 +1,7 @@
 ﻿# Tailwind CSS for Visual Studio
 
-![version](https://vsmarketplacebadges.dev/version-short/TheronWang.TailwindCSSIntellisense.svg)
-![installs](https://vsmarketplacebadges.dev/installs-short/TheronWang.TailwindCSSIntellisense.svg)
+![version](https://vsmarketplacebadges.dev/version-short/TheronWang.TailwindCSSIntellisense.jpg)
+![installs](https://vsmarketplacebadges.dev/installs-short/TheronWang.TailwindCSSIntellisense.jpg)
 
 Bring IntelliSense, linting, class sorting, build tools, and more to Tailwind CSS in Visual Studio 2026 and 2022.
 
