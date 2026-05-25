@@ -71,13 +71,8 @@ internal sealed class DirectiveCssTaggerProvider : IViewTaggerProvider
             ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
                 _tailwindSettings = await _settingsProvider.GetSettingsAsync();
+                await SettingsChangedAsync(_tailwindSettings);
             }).FileAndForget(nameof(TailwindCSSIntellisense) + "/CssDirectiveTagger/InitializeSettings");
-        }
-
-        private Task SettingsChangedAsync(TailwindSettings settings)
-        {
-            _tailwindSettings = settings;
-            return Task.CompletedTask;
         }
 
         private void OnBufferChanged(object sender, TextContentChangedEventArgs e)
@@ -111,6 +106,7 @@ internal sealed class DirectiveCssTaggerProvider : IViewTaggerProvider
         {
             _buffer.Changed -= OnBufferChanged;
             General.Saved -= GeneralSettingsChanged;
+            _settingsProvider.OnSettingsChanged -= SettingsChangedAsync;
         }
 
         /// <summary>
@@ -164,6 +160,19 @@ internal sealed class DirectiveCssTaggerProvider : IViewTaggerProvider
         {
             _generalOptions = general;
             TagsChanged?.Invoke(this, new SnapshotSpanEventArgs(new SnapshotSpan(_buffer.CurrentSnapshot, 0, _buffer.CurrentSnapshot.Length)));
+        }
+
+        private Task SettingsChangedAsync(TailwindSettings settings)
+        {
+            var first = _tailwindSettings is null;
+            _tailwindSettings = settings;
+
+            // Settings changed can happen a lot; only reload if it's the first time from null to non-null
+            if (first && _tailwindSettings != null)
+            {
+                TagsChanged?.Invoke(this, new SnapshotSpanEventArgs(new SnapshotSpan(_buffer.CurrentSnapshot, 0, _buffer.CurrentSnapshot.Length)));
+            }
+            return Task.CompletedTask;
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "Not expensive")]

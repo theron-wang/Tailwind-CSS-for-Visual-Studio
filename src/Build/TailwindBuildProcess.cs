@@ -153,6 +153,7 @@ internal sealed class TailwindBuildProcess : IDisposable
     /// <summary>
     /// Reloads if package.json has been modified + starts build process (OnBuild)
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync", Justification = "FileAndForget ok")]
     private void OnFileSave(string filePath)
     {
         if (Path.GetFileName(filePath).Equals("package.json", StringComparison.InvariantCultureIgnoreCase) && !string.IsNullOrWhiteSpace(_settings.BuildScript))
@@ -167,23 +168,27 @@ internal sealed class TailwindBuildProcess : IDisposable
             if (AreProcessesActive())
             {
                 EndAllProcesses();
-                ThreadHelper.JoinableTaskFactory.Run(() => BuildAllAsync(BuildBehavior.Default));
+                ThreadHelper.JoinableTaskFactory.RunAsync(() => BuildAllAsync(BuildBehavior.Default)).FileAndForget(nameof(TailwindCSSIntellisense) + "/TailwindBuildProcess/OnFileSave");
             }
         }
 
         var extension = Path.GetExtension(filePath);
         if (_settings.BuildType == BuildProcessOptions.OnSave && _settings.OnSaveTriggerFileExtensions.Contains(extension))
         {
-            ThreadHelper.JoinableTaskFactory.Run(() => WriteToBuildPaneAsync("Tailwind CSS: Building..."));
-            ThreadHelper.JoinableTaskFactory.Run(() => BuildAllAsync(BuildBehavior.Default));
+            ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+            {
+                await WriteToBuildPaneAsync("Tailwind CSS: Building...");
+                await BuildAllAsync(BuildBehavior.Default);
+            }).FileAndForget(nameof(TailwindCSSIntellisense) + "/TailwindBuildProcess/OnFileSave");
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync", Justification = "FileAndForget ok")]
     private void OnBuild(Project? project = null)
     {
         if (_settings.BuildType != BuildProcessOptions.Manual && _settings.BuildType != BuildProcessOptions.ManualJIT)
         {
-            ThreadHelper.JoinableTaskFactory.Run(() => BuildAllAsync(BuildBehavior.Default));
+            ThreadHelper.JoinableTaskFactory.RunAsync(() => BuildAllAsync(BuildBehavior.Default)).FileAndForget(nameof(TailwindCSSIntellisense) + "/TailwindBuildProcess/OnBuild");
         }
     }
 
@@ -224,7 +229,7 @@ internal sealed class TailwindBuildProcess : IDisposable
 
     private async Task BuildOneAsync(string input, string output, bool minify = false)
     {
-        ProjectCompletionValues config;
+        ProjectCompletionValues? config;
         try
         {
             // V4
@@ -233,6 +238,11 @@ internal sealed class TailwindBuildProcess : IDisposable
         catch
         {
             config = await ProjectConfigurationManager.GetCompletionConfigurationByFilePathAsync(input);
+        }
+
+        if (config is null)
+        {
+            return;
         }
 
         var hasScript = false;

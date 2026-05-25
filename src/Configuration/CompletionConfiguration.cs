@@ -115,6 +115,11 @@ public sealed partial class CompletionConfiguration
 
                 var projectCompletionValues = await ProjectConfigurationManager.GetCompletionConfigurationByConfigFilePathAsync(configurationFile.Path);
 
+                if (projectCompletionValues is null)
+                {
+                    return false;
+                }
+
                 projectCompletionValues.ApplicablePaths = [.. config.ContentPaths.Where(c => !c.StartsWith("!"))];
                 projectCompletionValues.NotApplicablePaths = [.. config.ContentPaths.Where(c => c.StartsWith("!")).Select(c => c.Trim('!'))];
 

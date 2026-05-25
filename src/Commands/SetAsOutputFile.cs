@@ -30,7 +30,7 @@ internal sealed class SetAsOutputFile : BaseCommand<SetAsOutputFile>
     {
         var filePath = SolutionExplorerSelection.CurrentSelectedItemFullPath;
 
-        var settings = Package.JoinableTaskFactory.Run(SettingsProvider.GetSettingsAsync);
+        var settings = ThreadHelper.JoinableTaskFactory.Run(SettingsProvider.GetSettingsAsync);
 
         if (!settings.EnableTailwindCss || Path.GetExtension(filePath) != ".css" || settings.BuildFiles is null || settings.BuildFiles.Count == 0 ||
             settings.BuildFiles.Any(f => f.Input.Equals(filePath, StringComparison.InvariantCultureIgnoreCase) ||
@@ -81,7 +81,7 @@ internal sealed class SetAsOutputFile : BaseCommand<SetAsOutputFile>
         if (command.Properties.Contains("path"))
         {
             var path = (string)command.Properties["path"];
-            var settings = Package.JoinableTaskFactory.Run(SettingsProvider.GetSettingsAsync);
+            var settings = ThreadHelper.JoinableTaskFactory.Run(SettingsProvider.GetSettingsAsync);
 
             var buildFile = settings.BuildFiles.FirstOrDefault(b => b.Input.Equals(path, StringComparison.InvariantCultureIgnoreCase));
             var isNew = buildFile is null;
@@ -96,7 +96,7 @@ internal sealed class SetAsOutputFile : BaseCommand<SetAsOutputFile>
                 settings.BuildFiles.Add(buildFile);
             }
 
-            Package.JoinableTaskFactory.Run(async delegate
+            ThreadHelper.JoinableTaskFactory.Run(async delegate
             {
                 await SettingsProvider.OverrideSettingsAsync(settings);
             });

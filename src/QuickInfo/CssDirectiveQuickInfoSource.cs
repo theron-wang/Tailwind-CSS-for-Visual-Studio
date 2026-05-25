@@ -14,7 +14,6 @@ namespace TailwindCSSIntellisense.QuickInfo;
 internal class CssDirectiveQuickInfoSource : IAsyncQuickInfoSource
 {
     protected ITextBuffer _textBuffer;
-    private readonly string _file;
     private readonly DirectoryVersionFinder _directoryVersionFinder;
     private readonly SettingsProvider _settingsProvider;
     private readonly ITextStructureNavigator _textStructureNavigator;
@@ -23,7 +22,6 @@ internal class CssDirectiveQuickInfoSource : IAsyncQuickInfoSource
     public CssDirectiveQuickInfoSource(ITextBuffer textBuffer, DirectoryVersionFinder directoryVersionFinder, SettingsProvider settingsProvider, ITextStructureNavigatorSelectorService textStructureNavigatorSelectorService)
     {
         _textBuffer = textBuffer;
-        _file = textBuffer.GetFileNameSafe();
         _directoryVersionFinder = directoryVersionFinder;
         _settingsProvider = settingsProvider;
         _textStructureNavigator = textStructureNavigatorSelectorService.GetTextStructureNavigator(_textBuffer);
@@ -56,7 +54,7 @@ internal class CssDirectiveQuickInfoSource : IAsyncQuickInfoSource
             if (text == "@apply")
             {
             }
-            else if (await _directoryVersionFinder.GetTailwindVersionAsync(_file, await _settingsProvider.GetSettingsAsync()) == TailwindVersion.V3 && (text == "@tailwind" || text == "@config"))
+            else if (await _directoryVersionFinder.GetTailwindVersionAsync(_textBuffer.GetFileNameSafe(), await _settingsProvider.GetSettingsAsync()) == TailwindVersion.V3 && (text == "@tailwind" || text == "@config"))
             {
             }
             else if (text == "@theme" || text == "@source" || text == "@utility" || text == "@custom-variant" || text == "@config" || text == "@plugin" || text == "@variant" || text.StartsWith("@slot"))

@@ -115,12 +115,8 @@ internal class RazorSorter : Sorter
                 .Select(v => v.v), file
             )).Select(c =>
             {
-                if (unescapedToEscaped.ContainsKey(c))
-                {
-                    return unescapedToEscaped[c];
-                }
-                return c;
-            });
+                return unescapedToEscaped.TryGetValue(c, out var value) ? value : c;
+            }).ToList();
 
         int lastIndex = -1;
         int start = 0;

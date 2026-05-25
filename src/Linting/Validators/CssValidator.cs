@@ -416,12 +416,12 @@ internal class CssValidator : Validator
         return buffer.Properties.GetOrCreateSingletonProperty<Validator>(() => new CssValidator(buffer, linterUtils, completionUtilities, completionConfiguration));
     }
 
-    private bool HasOnlyOneDirective(string text, string directive)
+    private static bool HasOnlyOneDirective(string text, string directive)
     {
         return text.Contains(directive) && text.IndexOf(directive, text.IndexOf(directive) + 1) == -1;
     }
 
-    private string GetFullScope(SnapshotSpan span, string text)
+    private static string GetFullScope(SnapshotSpan span, string text)
     {
         var start = span.Span.Start;
         var length = span.Span.Length;
@@ -435,7 +435,7 @@ internal class CssValidator : Validator
         return text;
     }
 
-    private List<string> TokenizeTheme(string input)
+    private static List<string> TokenizeTheme(string input)
     {
         List<string> segments = [];
         int startIndex = 0;

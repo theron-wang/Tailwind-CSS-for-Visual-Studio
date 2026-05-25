@@ -100,8 +100,8 @@ internal abstract class Sorter
     {
         var projectCompletionValues = await ProjectConfigurationManager.GetCompletionConfigurationByFilePathAsync(filePath);
 
-        var classOrder = await ClassSortUtilities.GetClassOrderAsync(projectCompletionValues);
-        var variantOrder = await ClassSortUtilities.GetVariantOrderAsync(projectCompletionValues);
+        var classOrder = await ClassSortUtilities.GetClassOrderAsync(projectCompletionValues.Version);
+        var variantOrder = await ClassSortUtilities.GetVariantOrderAsync(projectCompletionValues.Version);
 
         var result = classes
             .OrderBy(className =>

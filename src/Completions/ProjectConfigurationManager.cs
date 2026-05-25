@@ -28,6 +28,8 @@ public sealed class ProjectConfigurationManager
     internal DirectoryVersionFinder DirectoryVersionFinder { get; set; } = null!;
     [Import]
     internal ProjectConfigurationInitializer ProjectConfigurationInitializer { get; set; } = null!;
+    [Import]
+    internal SettingsProvider SettingsProvider { get; set; } = null!;
 
     internal static ImageSource TailwindLogo { get; private set; } = new BitmapImage(new Uri(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "Resources", "tailwindlogo.png"), UriKind.Relative));
 
@@ -45,11 +47,10 @@ public sealed class ProjectConfigurationManager
     /// <summary>
     /// Returns the ProjectCompletionValues for the given configuration file path.
     /// </summary>
-    public async Task<ProjectCompletionValues> GetCompletionConfigurationByConfigFilePathAsync(string configFile)
+    public async Task<ProjectCompletionValues?> GetCompletionConfigurationByConfigFilePathAsync(string configFile)
     {
         await ProjectConfigurationInitializer.InitializeAsync();
-
-        return _projectCompletionConfiguration[configFile.ToLower()];
+        return _projectCompletionConfiguration.TryGetValue(configFile.ToLower(), out var value) ? value : null;
     }
 
     /// <summary>
@@ -64,10 +65,6 @@ public sealed class ProjectConfigurationManager
             if (_defaultProjectCompletionConfiguration is not null)
             {
                 return _defaultProjectCompletionConfiguration;
-            }
-            else if (ProjectConfigurationInitializer.GetAllUnsetCompletionConfigurations().Any())
-            {
-                return ProjectConfigurationInitializer.GetAllUnsetCompletionConfigurations().First().Value;
             }
             else
             {
@@ -172,14 +169,7 @@ public sealed class ProjectConfigurationManager
             }
         }
 
-        if (ProjectConfigurationInitializer.GetAllUnsetCompletionConfigurations().Any())
-        {
-            return ProjectConfigurationInitializer.GetAllUnsetCompletionConfigurations().First().Value;
-        }
-        else
-        {
-            return await ProjectConfigurationInitializer.GetUnsetCompletionConfigurationAsync(TailwindVersion.LATEST);
-        }
+        return await ProjectConfigurationInitializer.GetUnsetCompletionConfigurationAsync(TailwindVersion.LATEST);
     }
 
     public async Task<IEnumerable<ProjectCompletionValues>> GetAllProjectCompletionValuesAsync()
@@ -190,6 +180,7 @@ public sealed class ProjectConfigurationManager
     public async Task OnSettingsChangedAsync(TailwindSettings settings)
     {
         _defaultProjectCompletionConfiguration = null;
+        _filePathToProjectConfigurationCache.Clear();
 
         // V4 uses BuildFiles as ConfigurationFiles. Since existing code already uses ConfigurationFiles, it's easier to just
         // populate it here rather than rewrite everything to account for BuildFiles.

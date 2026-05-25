@@ -77,7 +77,7 @@ internal class JavaScriptAsyncCompletionSource(ITextBuffer buffer, ProjectConfig
     {
         if (item.Properties.TryGetProperty("description-text", out string description))
         {
-            return _descriptionGenerator.GetDescription(description, await _projectCompletionManager.GetCompletionConfigurationByFilePathAsync(_file)) ?? "";
+            return _descriptionGenerator.GetDescription(description, await _projectCompletionManager.GetCompletionConfigurationByFilePathAsync(_textBuffer.GetFileNameSafe())) ?? "";
         }
         return "";
     }

@@ -223,9 +223,9 @@ internal class ClassRegexHelper
 
                 while (_razorQuotePairRegex.Match(expandedSearchText, lastQuoteMatchIndex, Math.Max(0, classContent.Index + classContent.Length - lastQuoteMatchIndex)) is Match quoteMatch && quoteMatch.Success)
                 {
-                    lastQuoteMatchIndex = quoteMatch.Index + quoteMatch.Length;
+                    lastQuoteMatchIndex = quoteMatch.Index + classContent.Length;
 
-                    var localIndex = quoteMatch.Index - match.Index;
+                    var localIndex = quoteMatch.Index - GetClassTextGroup(match).Index;
 
                     // If this quote pair match is inside a razor block, we also want to ignore it
                     if (!razorSyntaxLocations.Any(r => r.Index <= localIndex && r.Index + r.Length >= localIndex))
@@ -333,9 +333,9 @@ internal class ClassRegexHelper
 
                     while (_razorQuotePairRegex.Match(text, lastQuoteMatchIndex, Math.Min(text.Length - lastQuoteMatchIndex, match.Length)) is Match quoteMatch && quoteMatch.Success)
                     {
-                        lastQuoteMatchIndex = quoteMatch.Index + quoteMatch.Length;
+                        lastQuoteMatchIndex = quoteMatch.Index + classText.Length;
 
-                        var localIndex = quoteMatch.Index - match.Index;
+                        var localIndex = quoteMatch.Index - GetClassTextGroup(match).Index;
 
                         // If this quote pair match is inside a razor block, we also want to ignore it
                         if (!razorSyntaxLocations.Any(r => r.Index <= localIndex && r.Index + r.Length >= localIndex))

@@ -254,7 +254,7 @@ public sealed class SettingsProvider : IDisposable
             // Yes, this is horrible, but we need to call this as a fire and forget in case some caller of GetSettingsAsync must 
             // be synchronous.
             ThreadHelper.JoinableTaskFactory.RunAsync(() => ProjectConfigurationManager.OnSettingsChangedAsync(returnSettings))
-                .FileAndForget(nameof(TailwindCSSIntellisense) + "/");
+                .FileAndForget(nameof(TailwindCSSIntellisense) + "/SettingsProvider/SettingsChanged");
 #pragma warning restore VSSDK007 // ThreadHelper.JoinableTaskFactory.RunAsync
 
             _cachedSettings = returnSettings;
@@ -266,7 +266,7 @@ public sealed class SettingsProvider : IDisposable
             // Yes, this is horrible, but we need to call this as a fire and forget in case some caller of GetSettingsAsync must 
             // be synchronous.
             ThreadHelper.JoinableTaskFactory.RunAsync(() => OverrideSettingsAsync(returnSettings))
-                .FileAndForget(nameof(TailwindCSSIntellisense) + "/");
+                .FileAndForget(nameof(TailwindCSSIntellisense) + "/SettingsProvider/OverrideSettings");
 #pragma warning restore VSSDK007 // ThreadHelper.JoinableTaskFactory.RunAsync
         }
 
@@ -515,12 +515,16 @@ public sealed class SettingsProvider : IDisposable
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync", Justification = "FileAndForget ok")]
     private void GeneralSettingsChanged(General settings)
     {
-#pragma warning disable VSTHRD102 // Implement internal logic asynchronously
-        // Must be sync here, but this method will be called very infrequently so not a big deal
-        var origSettings = ThreadHelper.JoinableTaskFactory.Run(GetSettingsAsync);
-#pragma warning restore VSTHRD102 // Implement internal logic asynchronously
+        ThreadHelper.JoinableTaskFactory.RunAsync(() => GeneralSettingsChangedAsync(settings))
+            .FileAndForget(nameof(TailwindCSSIntellisense) + "/SettingsProvider/GeneralSettingsChanged");
+    }
+
+    private async Task GeneralSettingsChangedAsync(General settings)
+    {
+        var origSettings = await GetSettingsAsync();
 
         if (settings.UseTailwindCss != origSettings.EnableTailwindCss ||
             settings.TailwindOutputFileName != origSettings.DefaultOutputCssName ||
@@ -544,10 +548,7 @@ public sealed class SettingsProvider : IDisposable
 
             if (OnSettingsChanged is not null)
             {
-#pragma warning disable VSSDK007 // ThreadHelper.JoinableTaskFactory.RunAsync
-                // FileAndForget ok
-                ThreadHelper.JoinableTaskFactory.RunAsync(() => OnSettingsChanged(origSettings)).FileAndForget(nameof(TailwindCSSIntellisense) + "/SettingsProvider/GeneralSettingsChanged");
-#pragma warning restore VSSDK007 // ThreadHelper.JoinableTaskFactory.RunAsync
+                await OnSettingsChanged(origSettings);
             }
         }
 

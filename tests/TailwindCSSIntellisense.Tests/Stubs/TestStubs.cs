@@ -254,9 +254,9 @@ namespace TailwindCSSIntellisense.ClassSort
             _variantOrders = variantOrders;
         }
 
-        public async Task<Dictionary<string, int>> GetClassOrderAsync(ProjectCompletionValues project)
+        public async Task<Dictionary<string, int>> GetClassOrderAsync(TailwindVersion version)
         {
-            if (_classOrders.TryGetValue(project.Version, out var classOrder))
+            if (_classOrders.TryGetValue(version, out var classOrder))
             {
                 return classOrder;
             }
@@ -264,9 +264,9 @@ namespace TailwindCSSIntellisense.ClassSort
             return _classOrders.Values.FirstOrDefault() ?? [];
         }
 
-        public async Task<Dictionary<string, int>> GetVariantOrderAsync(ProjectCompletionValues project)
+        public async Task<Dictionary<string, int>> GetVariantOrderAsync(TailwindVersion version)
         {
-            if (_variantOrders.TryGetValue(project.Version, out var variantOrder))
+            if (_variantOrders.TryGetValue(version, out var variantOrder))
             {
                 return variantOrder;
             }

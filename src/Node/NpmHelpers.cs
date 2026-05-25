@@ -1,4 +1,5 @@
 ﻿using Microsoft.VisualStudio.Threading;
+using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
 
@@ -17,7 +18,7 @@ internal static class NpmHelpers
     {
         var processStartInfo = GetCmdProcessStartInfo("npm root -g");
 
-        using Process process = Process.Start(processStartInfo)!;
+        using Process process = Process.Start(processStartInfo) ?? throw new InvalidOperationException("Failed to start npm process.");
 
         var output = await process.StandardOutput.ReadToEndAsync();
 
@@ -39,7 +40,7 @@ internal static class NpmHelpers
         var processStartInfo = GetCmdProcessStartInfo("npm root");
         processStartInfo.WorkingDirectory = workingDir;
 
-        using Process process = Process.Start(processStartInfo)!;
+        using Process process = Process.Start(processStartInfo) ?? throw new InvalidOperationException("Failed to start npm process.");
 
         var output = await process.StandardOutput.ReadToEndAsync();
 
@@ -61,7 +62,7 @@ internal static class NpmHelpers
         processStartInfo.WorkingDirectory = workingDir;
 
         string relativePath;
-        using (Process process = Process.Start(processStartInfo)!)
+        using (Process process = Process.Start(processStartInfo) ?? throw new InvalidOperationException("Failed to start npm process."))
         {
             relativePath = await process.StandardOutput.ReadToEndAsync();
 

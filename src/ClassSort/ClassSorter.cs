@@ -40,12 +40,12 @@ internal sealed class ClassSorter : IDisposable
     {
         if (!_initialized)
         {
+            _tailwindSettings = await SettingsProvider.GetSettingsAsync();
+
             VS.Events.DocumentEvents.Saved += DocumentSaved;
             VS.Events.BuildEvents.SolutionBuildStarted += OnBuild;
             SettingsProvider.OnSettingsChanged += OnSettingsChangedAsync;
             CompletionConfiguration.ConfigurationUpdated += ConfigurationChangedAsync;
-
-            _tailwindSettings = await SettingsProvider.GetSettingsAsync();
 
             _initialized = true;
         }

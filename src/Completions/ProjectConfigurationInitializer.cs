@@ -3,6 +3,7 @@ using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Threading;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.ComponentModel.Composition;
 using System.Linq;
 using System.Threading;
@@ -28,24 +29,23 @@ public sealed class ProjectConfigurationInitializer
     private readonly Dictionary<TailwindVersion, UnsetProjectCompletionValues> _unsetProjectCompletionConfigurations = [];
 
     private readonly SemaphoreSlim _initializeLock = new(1, 1);
+    private readonly SemaphoreSlim _unsetConfigsLock = new(1, 1);
+    private Task? _initializationTask;
 
     public async Task InitializeAsync()
     {
-        // Ensure only ONE initialize method is running at a time. If this method is called multiple times in
-        // quick succession, this method is only run once.
-        if (!await _initializeLock.WaitAsync(0))
-        {
-            return;
-        }
+        await _initializeLock.WaitAsync();
 
         try
         {
-            await InitializeImplAsync();
+            _initializationTask ??= InitializeImplAsync();
         }
         finally
         {
             _initializeLock.Release();
         }
+
+        await _initializationTask;
     }
 
     private async Task<bool> InitializeImplAsync()
@@ -80,17 +80,21 @@ public sealed class ProjectConfigurationInitializer
     {
         await InitializeAsync();
 
-        if (!_unsetProjectCompletionConfigurations.ContainsKey(version))
+        await _unsetConfigsLock.WaitAsync();
+
+        try
         {
-            await LoadClassesAsync(version);
+            if (!_unsetProjectCompletionConfigurations.ContainsKey(version))
+            {
+                await LoadClassesAsync(version);
+            }
+
+            return _unsetProjectCompletionConfigurations[version];
         }
-
-        return _unsetProjectCompletionConfigurations[version];
-    }
-
-    public Dictionary<TailwindVersion, UnsetProjectCompletionValues> GetAllUnsetCompletionConfigurations()
-    {
-        return _unsetProjectCompletionConfigurations;
+        finally
+        {
+            _unsetConfigsLock.Release();
+        }
     }
 
     private async Task<bool> ShouldInitializeAsync()

@@ -940,7 +940,6 @@ internal static class ConfigFileParser
             await ex.LogAsync();
         }
 
-
         try
         {
             if (obj["corePlugins"] is not null)
@@ -981,11 +980,16 @@ internal static class ConfigFileParser
         // Search for the node_modules folder in the project; start from the configuration file and
         // go up the directory tree (stopping at the project root) until the node_modules folder is found.
 
-        var currentDirectory = Path.GetDirectoryName(configPath)!.ToLower();
+        var currentDirectory = Path.GetDirectoryName(configPath)?.ToLowerInvariant();
+        var endDirectory = Path.GetDirectoryName(project.FullPath)?.ToLowerInvariant();
 
-        var endDirectory = Path.GetDirectoryName(project.FullPath)!.ToLower();
+        if (string.IsNullOrEmpty(currentDirectory) || string.IsNullOrEmpty(endDirectory))
+        {
+            return null;
+        }
 
-        while (currentDirectory.StartsWith(endDirectory))
+
+        while (currentDirectory!.StartsWith(endDirectory))
         {
             var nodeModulesPath = Path.Combine(currentDirectory, "node_modules");
 
@@ -994,7 +998,12 @@ internal static class ConfigFileParser
                 return nodeModulesPath;
             }
 
-            currentDirectory = Path.GetDirectoryName(currentDirectory)!.ToLower();
+            var parent = Path.GetDirectoryName(currentDirectory);
+            if (string.IsNullOrEmpty(parent))
+            {
+                break;
+            }
+            currentDirectory = parent.ToLowerInvariant();
         }
 
         return null;

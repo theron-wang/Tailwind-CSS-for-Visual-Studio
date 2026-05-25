@@ -20,7 +20,6 @@ internal abstract class ClassCompletionGenerator : IDisposable
     protected readonly SettingsProvider _settingsProvider;
     private readonly CompletionConfiguration _completionConfiguration;
     protected readonly ITextBuffer _textBuffer;
-    protected readonly string _file;
 
     protected bool? _showAutocomplete;
     protected TailwindSettings? _settings;
@@ -37,7 +36,6 @@ internal abstract class ClassCompletionGenerator : IDisposable
         _settingsProvider.OnSettingsChanged += SettingsChangedAsync;
         _completionConfiguration.ConfigurationUpdated += ReloadProjectCompletionValuesAsync;
         _projectCompletionInit = projectCompletionInit;
-        _file = _textBuffer.GetFileNameSafe();
 
         // Set _projectConfigurationValues without blocking
         ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
@@ -594,7 +592,7 @@ internal abstract class ClassCompletionGenerator : IDisposable
 
     private async Task ReloadProjectCompletionValuesAsync()
     {
-        _projectCompletionValues = await _projectCompletionManager.GetCompletionConfigurationByFilePathAsync(_file);
+        _projectCompletionValues = await _projectCompletionManager.GetCompletionConfigurationByFilePathAsync(_textBuffer.GetFileNameSafe());
         await OnConfigurationUpdatedAsync();
     }
 }

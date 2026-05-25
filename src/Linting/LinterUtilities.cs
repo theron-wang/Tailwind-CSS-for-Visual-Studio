@@ -21,6 +21,7 @@ namespace TailwindCSSIntellisense.Linting;
 [PartCreationPolicy(CreationPolicy.Shared)]
 internal sealed class LinterUtilities : IDisposable
 {
+    private readonly object _cacheLock = new();
     private readonly ProjectConfigurationManager _projectConfigurationManager;
     private readonly DescriptionGenerator _descriptionGenerator;
     private readonly ClassSortUtilities _classSortUtilities;
@@ -29,7 +30,7 @@ internal sealed class LinterUtilities : IDisposable
 
     private Linter? _linterOptions;
     private General? _generalOptions;
-    private readonly Dictionary<ProjectCompletionValues, Dictionary<string, int>> _classOrderCache = [];
+    private readonly Dictionary<TailwindVersion, Dictionary<string, int>> _classOrderCache = [];
 
     [ImportingConstructor]
     public LinterUtilities(ProjectConfigurationManager completionUtilities, DescriptionGenerator descriptionGenerator, ClassSortUtilities classSortUtilities, CompletionConfiguration completionConfiguration)
@@ -50,9 +51,19 @@ internal sealed class LinterUtilities : IDisposable
     /// <returns>A list of Tuples containing the class name and error message</returns>
     public IEnumerable<Tuple<string, string>> CheckForClassDuplicates(IEnumerable<string> classes, ProjectCompletionValues projectCompletionValues)
     {
-        if (!_classOrderCache.TryGetValue(projectCompletionValues, out var classOrder))
+        Dictionary<string, int> classOrder;
+        lock (_cacheLock)
         {
-            yield break;
+            if (!_classOrderCache.TryGetValue(projectCompletionValues.Version, out classOrder))
+            {
+
+#pragma warning disable VSTHRD102 // Implement internal logic asynchronously
+                // For most cases, this will be fine since it'll likely be populated in advance by the ConfigurationUpdatedAsync method.
+                // In the case it isn't, it's better to block and get the correct result than to return an incorrect result by continuing without it.
+                _classOrderCache[projectCompletionValues.Version] = classOrder = ThreadHelper.JoinableTaskFactory.Run(
+                    () => _classSortUtilities.GetClassOrderAsync(projectCompletionValues.Version));
+#pragma warning restore VSTHRD102 // Implement internal logic asynchronously
+            }
         }
 
         var cssAttributes = new Dictionary<string, string>();
@@ -67,24 +78,27 @@ internal sealed class LinterUtilities : IDisposable
 
             // Do not handle prefix here; DescriptionGenerator.GetDescription already does
 
-            if (_cacheCssAttributes.TryGetValue(projectCompletionValues, out var dict) == false || !dict.ContainsKey(classTrimmed))
+            lock (_cacheLock)
             {
-                var desc = _descriptionGenerator.GetDescription(classTrimmed, projectCompletionValues, shouldFormat: false);
-
-                if (string.IsNullOrWhiteSpace(desc) || desc == ";")
+                if (_cacheCssAttributes.TryGetValue(projectCompletionValues, out var dict) == false || !dict.ContainsKey(classTrimmed))
                 {
-                    continue;
+                    var desc = _descriptionGenerator.GetDescription(classTrimmed, projectCompletionValues, shouldFormat: false);
+
+                    if (string.IsNullOrWhiteSpace(desc) || desc == ";")
+                    {
+                        continue;
+                    }
+
+                    if (dict is null)
+                    {
+                        _cacheCssAttributes[projectCompletionValues] = [];
+                    }
+
+                    _cacheCssAttributes[projectCompletionValues][classTrimmed] = string.Join(",", desc!.Split([';'], StringSplitOptions.RemoveEmptyEntries).Select(a => a.Split(':')[0].Trim()).OrderBy(x => x));
                 }
 
-                if (dict is null)
-                {
-                    _cacheCssAttributes[projectCompletionValues] = [];
-                }
-
-                _cacheCssAttributes[projectCompletionValues][classTrimmed] = string.Join(",", desc!.Split([';'], StringSplitOptions.RemoveEmptyEntries).Select(a => a.Split(':')[0].Trim()).OrderBy(x => x));
+                cssAttributes[c] = _cacheCssAttributes[projectCompletionValues][classTrimmed];
             }
-
-            cssAttributes[c] = _cacheCssAttributes[projectCompletionValues][classTrimmed];
         }
 
         foreach (var group in cssAttributes.GroupBy(x => x.Value, x => x.Key))
@@ -160,14 +174,26 @@ internal sealed class LinterUtilities : IDisposable
 
     private async Task ConfigurationUpdatedAsync()
     {
-        _classOrderCache.Clear();
+        var versionsToFind = (await _projectConfigurationManager.GetAllProjectCompletionValuesAsync())
+            .Select(p => p.Version)
+            .Distinct()
+            .Where(v => !_classOrderCache.ContainsKey(v));
 
-        foreach (var proj in await _projectConfigurationManager.GetAllProjectCompletionValuesAsync())
+
+        var toAdd = new Dictionary<TailwindVersion, Dictionary<string, int>>();
+        foreach (var version in versionsToFind)
         {
-            _classOrderCache[proj] = await _classSortUtilities.GetClassOrderAsync(proj);
+            toAdd[version] = await _classSortUtilities.GetClassOrderAsync(version);
         }
 
-        _cacheCssAttributes.Clear();
+        lock (_cacheLock)
+        {
+            foreach (var kv in toAdd)
+            {
+                _classOrderCache[kv.Key] = kv.Value;
+            }
+            _cacheCssAttributes.Clear();
+        }
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "Not expensive")]
@@ -219,6 +245,6 @@ internal sealed class LinterUtilities : IDisposable
     public void Dispose()
     {
         Linter.Saved -= LinterSettingsChanged;
-        _projectConfigurationManager.Configuration.ConfigurationUpdated -= ConfigurationUpdatedAsync;
+        _completionConfiguration.ConfigurationUpdated -= ConfigurationUpdatedAsync;
     }
 }

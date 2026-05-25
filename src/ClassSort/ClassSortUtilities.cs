@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.ComponentModel.Composition;
+using System.Threading;
 using System.Threading.Tasks;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Initialization;
@@ -13,6 +14,9 @@ internal sealed class ClassSortUtilities
     private readonly Dictionary<TailwindVersion, Dictionary<string, int>> _classOrders = [];
     private readonly Dictionary<TailwindVersion, Dictionary<string, int>> _variantOrders = [];
 
+    private readonly SemaphoreSlim _classOrderLock = new(1, 1);
+    private readonly SemaphoreSlim _variantOrderLock = new(1, 1);
+
     private async Task InitializeClassOrderAsync(TailwindVersion version)
     {
         if (_classOrders.ContainsKey(version))
@@ -20,15 +24,28 @@ internal sealed class ClassSortUtilities
             return;
         }
 
-        var order = await ResourcesLoader.LoadOrderForVersionAsync(version);
-
-        var classToOrderIndex = new Dictionary<string, int>();
-        for (int i = 0; i < order.Count; i++)
+        await _classOrderLock.WaitAsync();
+        try
         {
-            classToOrderIndex[order[i]] = i;
-        }
+            if (_classOrders.ContainsKey(version))
+            {
+                return;
+            }
 
-        _classOrders[version] = classToOrderIndex;
+            var order = await ResourcesLoader.LoadOrderForVersionAsync(version);
+
+            var classToOrderIndex = new Dictionary<string, int>();
+            for (int i = 0; i < order.Count; i++)
+            {
+                classToOrderIndex[order[i]] = i;
+            }
+
+            _classOrders[version] = classToOrderIndex;
+        }
+        finally
+        {
+            _classOrderLock.Release();
+        }
     }
 
     private async Task InitializeVariantOrderAsync(TailwindVersion version)
@@ -38,41 +55,50 @@ internal sealed class ClassSortUtilities
             return;
         }
 
-        var order = await ResourcesLoader.LoadOrderForVersionAsync(version, true);
-
-        var variantToOrderIndex = new Dictionary<string, int>();
-        for (int i = 0; i < order.Count; i++)
+        await _variantOrderLock.WaitAsync();
+        try
         {
-            // Multiply by 100 so that containers/breakpoints have flexibility
-            variantToOrderIndex[order[i]] = i * 100;
-        }
+            if (_variantOrders.ContainsKey(version))
+            {
+                return;
+            }
 
-        _variantOrders[version] = variantToOrderIndex;
+            var order = await ResourcesLoader.LoadOrderForVersionAsync(version, true);
+
+            var variantToOrderIndex = new Dictionary<string, int>();
+            for (int i = 0; i < order.Count; i++)
+            {
+                // Multiply by 100 so that containers/breakpoints have flexibility
+                variantToOrderIndex[order[i]] = i * 100;
+            }
+
+            _variantOrders[version] = variantToOrderIndex;
+        }
+        finally
+        {
+            _variantOrderLock.Release();
+        }
     }
 
-    public async Task<Dictionary<string, int>> GetClassOrderAsync(ProjectCompletionValues project)
+    public async Task<Dictionary<string, int>> GetClassOrderAsync(TailwindVersion version)
     {
-        if (_classOrders.TryGetValue(project.Version, out var classOrder))
+        if (_classOrders.TryGetValue(version, out var classOrder))
         {
             return classOrder;
         }
-        else
-        {
-            await InitializeClassOrderAsync(project.Version);
-            return _classOrders[project.Version];
-        }
+
+        await InitializeClassOrderAsync(version);
+        return _classOrders[version];
     }
 
-    public async Task<Dictionary<string, int>> GetVariantOrderAsync(ProjectCompletionValues project)
+    public async Task<Dictionary<string, int>> GetVariantOrderAsync(TailwindVersion version)
     {
-        if (_variantOrders.TryGetValue(project.Version, out var variantOrder))
+        if (_variantOrders.TryGetValue(version, out var variantOrder))
         {
             return variantOrder;
         }
-        else
-        {
-            await InitializeVariantOrderAsync(project.Version);
-            return _variantOrders[project.Version];
-        }
+
+        await InitializeVariantOrderAsync(version);
+        return _variantOrders[version];
     }
 }

@@ -39,14 +39,14 @@ internal abstract class QuickInfoSource : IAsyncQuickInfoSource
             return null;
         }
 
-        var projectConfigurationValues = await _projectConfigurationManager.GetCompletionConfigurationByFilePathAsync(_textBuffer.GetFileNameSafe());
-
         var triggerPoint = session.GetTriggerPoint(_textBuffer.CurrentSnapshot);
 
         if (triggerPoint != null && IsInClassScope(session, out var classSpan) && classSpan != null)
         {
             var fullText = classSpan.Value.GetText();
             var unescapedFullText = UnescapeClass(fullText);
+
+            var projectConfigurationValues = await _projectConfigurationManager.GetCompletionConfigurationByFilePathAsync(_textBuffer.GetFileNameSafe());
 
             if (!projectConfigurationValues.IsClassAllowed(unescapedFullText))
             {
