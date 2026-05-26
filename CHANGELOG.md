@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.13.11 (May 26th, 2026)
+
+- Fix incorrect cmd format when building with the standalone CLI ([#146](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/issues/146))
+
 ## 1.13.10 (May 24th, 2026)
 
 - Fix a bug where class lists with single quotes in arbitrary classes (i.e., `before:content-['']`) would cause an error

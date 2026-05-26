@@ -398,7 +398,7 @@ internal sealed class TailwindBuildProcess : IDisposable
 
                     process = CreateAndStartProcess(processInfo);
 
-                    OutputDataReceived(process, $"Build started in {processInfo.WorkingDirectory}: `{(watch ? "powershell" : "cmd")} {processInfo.Arguments} {(watch ? "" : "& exit")}`");
+                    OutputDataReceived(process, $"Build started in {processInfo.WorkingDirectory}: `{(watch ? "powershell" : "cmd")} {processInfo.Arguments}`");
 
                     PostSetupProcess(process);
 
@@ -524,7 +524,7 @@ internal sealed class TailwindBuildProcess : IDisposable
                 return $"npx @tailwindcss/cli {args}{suffix}";
             }
         }
-        return powershell ? $"\"& '{_settings.TailwindCliPath}' {args.Replace('\"', '\'')}\"{suffix}" : $"\"{_settings.TailwindCliPath}\" {args}{suffix}";
+        return powershell ? $"\"& '{_settings.TailwindCliPath}' {args.Replace('\"', '\'')}\"{suffix}" : $"\"\"{_settings.TailwindCliPath}\" {args}{suffix}\"";
     }
 
     /// <summary>
