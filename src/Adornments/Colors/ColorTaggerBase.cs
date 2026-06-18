@@ -220,7 +220,7 @@ internal abstract class ColorTaggerBase : ITagger<IntraTextAdornmentTag>, IDispo
             {
                 color = segments[segments.Count - 1];
             }
-            var stem = text.Replace(color, "{0}");
+            var stem = text.ReplaceLastOccurrence(color, "{0}");
 
             var opacityText = color.Split('/').Last();
             int opacity = 100;

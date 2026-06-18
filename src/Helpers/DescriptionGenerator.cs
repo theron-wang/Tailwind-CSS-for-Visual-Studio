@@ -296,7 +296,7 @@ internal sealed class DescriptionGenerator : IDisposable
             {
                 color = segments[segments.Count - 1];
             }
-            var stem = className.Replace(color.Replace(' ', '_'), "{0}");
+            var stem = className.ReplaceLastOccurrence(color.Replace(' ', '_'), "{0}");
 
             var modifier = color.Split('/').Last();
             int? opacity = null;
@@ -326,7 +326,7 @@ internal sealed class DescriptionGenerator : IDisposable
             }
 
             var last = segments.Last();
-            stem = className.Replace(last.Replace(' ', '_'), "{0}");
+            stem = className.ReplaceLastOccurrence(last.Replace(' ', '_'), "{0}");
 
             description = GetDescriptionForParenthesisClass(stem.Replace("{0}", "{a}"), last, projectCompletionValues, shouldFormat: shouldFormat);
 

@@ -102,6 +102,7 @@
     <Compile Include="Completions\TailwindVersion.cs" />
     <Compile Include="Completions\TCss\TCssFileAndContentTypeDeclaration.cs" />
     <Compile Include="Helpers\ITextBufferExtensions.cs" />
+    <Compile Include="Helpers\StringHelpers.cs" />
     <Compile Include="Initialization\ClassSubType.cs" />
     <Compile Include="Configuration\CompletionConfiguration.cs" />
     <Compile Include="Completions\Controllers\CssCompletionController.cs" />

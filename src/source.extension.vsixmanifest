@@ -1,32 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
-    <Metadata>
-        <Identity Id="TailwindCSSIntellisense.b29696d4-76a4-43d1-a203-c8e692368847" Version="1.13.11" Language="en-US" Publisher="Theron Wang" />
-        <DisplayName>Tailwind CSS for Visual Studio</DisplayName>
-        <Description xml:space="preserve">Unofficial extension for Tailwind CSS IntelliSense, linting, sorting, and more in Visual Studio 2026 and 2022.</Description>
-        <MoreInfo>https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio</MoreInfo>
-        <License>..\LICENSE</License>
-        <GettingStartedGuide>https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/blob/main/Getting-Started.md</GettingStartedGuide>
-        <ReleaseNotes>https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/blob/main/CHANGELOG.md</ReleaseNotes>
-        <Icon>Resources\icon.png</Icon>
-        <PreviewImage>Resources\icon.png</PreviewImage>
-        <Tags>tailwind, tailwind css, css, html, cshtml, razor, blazor, intellisense, auto-completion</Tags>
-    </Metadata>
-    <Installation>
-        <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[17.0, 19.0)">
-            <ProductArchitecture>amd64</ProductArchitecture>
-        </InstallationTarget>
-        <InstallationTarget Version="[17.0,19.0)" Id="Microsoft.VisualStudio.Community">
-            <ProductArchitecture>arm64</ProductArchitecture>
-        </InstallationTarget>
-    </Installation>
-    <Dependencies>
-    </Dependencies>
-    <Prerequisites>
-        <Prerequisite Id="Microsoft.VisualStudio.Component.CoreEditor" Version="[17.0,19.0)" DisplayName="Visual Studio core editor" />
-    </Prerequisites>
-    <Assets>
-        <Asset Type="Microsoft.VisualStudio.VsPackage" d:Source="Project" d:ProjectName="%CurrentProject%" Path="|%CurrentProject%;PkgdefProjectOutputGroup|" />
-        <Asset Type="Microsoft.VisualStudio.MefComponent" d:Source="Project" d:ProjectName="%CurrentProject%" Path="|%CurrentProject%|" />
-    </Assets>
+  <Metadata>
+    <Identity Id="TailwindCSSIntellisense.b29696d4-76a4-43d1-a203-c8e692368847" Version="1.13.12" Language="en-US" Publisher="Theron Wang" />
+    <DisplayName>Tailwind CSS for Visual Studio</DisplayName>
+    <Description xml:space="preserve">Unofficial extension for Tailwind CSS IntelliSense, linting, sorting, and more in Visual Studio 2026 and 2022.</Description>
+    <MoreInfo>https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio</MoreInfo>
+    <License>..\LICENSE</License>
+    <GettingStartedGuide>https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/blob/main/Getting-Started.md</GettingStartedGuide>
+    <ReleaseNotes>https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/blob/main/CHANGELOG.md</ReleaseNotes>
+    <Icon>Resources\icon.png</Icon>
+    <PreviewImage>Resources\icon.png</PreviewImage>
+    <Tags>tailwind, tailwind css, css, html, cshtml, razor, blazor, intellisense, auto-completion</Tags>
+  </Metadata>
+  <Installation>
+    <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[17.0, 19.0)">
+      <ProductArchitecture>amd64</ProductArchitecture>
+    </InstallationTarget>
+    <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[17.0,19.0)">
+      <ProductArchitecture>arm64</ProductArchitecture>
+    </InstallationTarget>
+  </Installation>
+  <Prerequisites>
+    <Prerequisite Id="Microsoft.VisualStudio.Component.CoreEditor" DisplayName="Visual Studio core editor" Version="[17.0,19.0)" />
+  </Prerequisites>
+  <Assets>
+    <Asset Type="Microsoft.VisualStudio.VsPackage" Path="|%CurrentProject%;PkgdefProjectOutputGroup|" d:Source="Project" d:ProjectName="%CurrentProject%" />
+    <Asset Type="Microsoft.VisualStudio.MefComponent" Path="|%CurrentProject%|" d:Source="Project" d:ProjectName="%CurrentProject%" />
+  </Assets>
 </PackageManifest>
