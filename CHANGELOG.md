@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.13.12 (June 19th, 2026)
+
+- Set source directory to be directory of the configuration file even when `@import "tailwindcss"` is not present ([#147](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/issues/147))
+- Properly configure `source()` and `config()` on alternative forms of Tailwind imports (i.e., `@import "tailwindcss/utilities" source(...);`)
+
 ## 1.13.11 (May 26th, 2026)
 
 - Fix incorrect cmd format when building with the standalone CLI ([#146](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/issues/146))
