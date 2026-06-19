@@ -21,7 +21,7 @@ namespace TailwindCSSIntellisense.Completions;
 /// </summary>
 [Export]
 [PartCreationPolicy(CreationPolicy.Shared)]
-public sealed class ProjectConfigurationManager
+public sealed class ProjectConfigurationManager : IDisposable
 {
     [Import]
     internal CompletionConfiguration Configuration { get; set; } = null!;
@@ -29,8 +29,6 @@ public sealed class ProjectConfigurationManager
     internal DirectoryVersionFinder DirectoryVersionFinder { get; set; } = null!;
     [Import]
     internal ProjectConfigurationInitializer ProjectConfigurationInitializer { get; set; } = null!;
-    [Import]
-    internal SettingsProvider SettingsProvider { get; set; } = null!;
 
     internal static ImageSource TailwindLogo { get; private set; } = new BitmapImage(new Uri(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "Resources", "tailwindlogo.png"), UriKind.Relative));
 
@@ -51,12 +49,41 @@ public sealed class ProjectConfigurationManager
     /// SemaphoreSlim(1,1) is used instead of lock because the critical sections contain awaits.
     /// </summary>
     private readonly SemaphoreSlim _configLock = new SemaphoreSlim(1, 1);
+    private readonly object _subscriptionLock = new object();
+
+    private bool _hasSubscribedToConfigurationChangedEvent = false;
+
+    private void InitializeEventSubscriptions()
+    {
+        lock (_subscriptionLock)
+        {
+            if (!_hasSubscribedToConfigurationChangedEvent)
+            {
+                Configuration.ConfigurationUpdated += ConfigurationUpdatedAsync;
+                _hasSubscribedToConfigurationChangedEvent = true;
+            }
+        }
+    }
+
+    private async Task ConfigurationUpdatedAsync()
+    {
+        await _configLock.WaitAsync();
+        try
+        {
+            _filePathToProjectConfigurationCache.Clear();
+        }
+        finally
+        {
+            _configLock.Release();
+        }
+    }
 
     /// <summary>
     /// Returns the ProjectCompletionValues for the given configuration file path.
     /// </summary>
     public async Task<ProjectCompletionValues?> GetCompletionConfigurationByConfigFilePathAsync(string configFile)
     {
+        InitializeEventSubscriptions();
         await ProjectConfigurationInitializer.InitializeAsync();
 
         await _configLock.WaitAsync();
@@ -75,6 +102,7 @@ public sealed class ProjectConfigurationManager
     /// </summary>
     public async Task<ProjectCompletionValues> GetCompletionConfigurationByFilePathAsync(string? filePath)
     {
+        InitializeEventSubscriptions();
         await ProjectConfigurationInitializer.InitializeAsync();
 
         await _configLock.WaitAsync();
@@ -342,5 +370,16 @@ public sealed class ProjectConfigurationManager
         }
 
         await Configuration.ReloadCustomAttributesAsync(settings);
+    }
+
+    public void Dispose()
+    {
+        lock (_subscriptionLock)
+        {
+            if (_hasSubscribedToConfigurationChangedEvent)
+            {
+                Configuration.ConfigurationUpdated -= ConfigurationUpdatedAsync;
+            }
+        }
     }
 }
