@@ -140,6 +140,8 @@ internal static class ConfigFileParser
 
         var prefix = "";
 
+        bool isSourceSpecified = false;
+
         for (int i = 0; i < fullText.Length; i++)
         {
             var current = fullText[i];
@@ -243,6 +245,7 @@ internal static class ConfigFileParser
                         {
                             if (directiveParameter.IndexOf("source(", secondQuote) is int index && index != -1)
                             {
+                                isSourceSpecified = true;
                                 if (directiveParameter.Substring(index + 7).Trim().StartsWith("none"))
                                 {
                                     continue;
@@ -260,11 +263,6 @@ internal static class ConfigFileParser
 
                                 source = PathHelpers.GetAbsolutePath(Path.GetDirectoryName(path)!, source)!;
                                 content.Add(source);
-                            }
-                            else
-                            {
-                                // If unset, the source path is the directory of the configuration file
-                                content.Add(Path.GetDirectoryName(path)!);
                             }
 
                             if (directiveParameter.IndexOf("prefix(", secondQuote) is int prefixIndex && prefixIndex != -1)
@@ -444,6 +442,12 @@ internal static class ConfigFileParser
                     variants[directiveParameter] += current.ToString();
                 }
             }
+        }
+
+        if (!isSourceSpecified)
+        {
+            // If no source(), the source path is the directory of the configuration file
+            content.Add(Path.GetDirectoryName(path)!);
         }
 
         var themeValuePairs = CssConfigSplitter.Split(themeTrimmed.ToString())
