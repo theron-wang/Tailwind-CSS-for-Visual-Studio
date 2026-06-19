@@ -224,7 +224,9 @@ internal static class ConfigFileParser
                         // Handle these cases:
                         // @import url("https://fonts.googleapis.com/css2?family=Roboto&display=swap");
                         // @import "some-plugin";
-                        if (import != "tailwindcss" && !directiveParameter.StartsWith("url"))
+                        // But not:
+                        // @import "tailwindcss/utilities";
+                        if (!import.Contains("tailwindcss") && !directiveParameter.StartsWith("url"))
                         {
                             var importPath = PathHelpers.GetAbsolutePath(Path.GetDirectoryName(path)!, import.EndsWith(".css") ? import : import + ".css");
 
@@ -241,9 +243,13 @@ internal static class ConfigFileParser
                             }
                         }
                         // Handle @import "tailwindcss" plus optional source(...) and prefix(...)
-                        else if (import == "tailwindcss")
+                        else if (import.Contains("tailwindcss"))
                         {
-                            if (directiveParameter.IndexOf("source(", secondQuote) is int index && index != -1)
+                            // source is applied on tailwindcss, tailwindcss/index, tailwindcss/utilities (which may
+                            // also be specified as ./node_modules/tailwindcss/utilities, etc.
+                            if ((import == "tailwindcss" || import.Contains("tailwindcss/index") ||
+                                import.Contains("tailwindcss/utilities")) &&
+                                directiveParameter.IndexOf("source(", secondQuote) is int index && index != -1)
                             {
                                 isSourceSpecified = true;
                                 if (directiveParameter.Substring(index + 7).Trim().StartsWith("none"))
@@ -265,7 +271,9 @@ internal static class ConfigFileParser
                                 content.Add(source);
                             }
 
-                            if (directiveParameter.IndexOf("prefix(", secondQuote) is int prefixIndex && prefixIndex != -1)
+                            // Either on the main import or theme
+                            if ((import == "tailwindcss" || import.Contains("tailwindcss/index") || import.Contains("tailwindcss/theme")) &&
+                                directiveParameter.IndexOf("prefix(", secondQuote) is int prefixIndex && prefixIndex != -1)
                             {
                                 var endParen = directiveParameter.IndexOf(')', prefixIndex);
 

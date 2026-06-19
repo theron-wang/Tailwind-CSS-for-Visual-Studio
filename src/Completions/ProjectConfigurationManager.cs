@@ -49,22 +49,33 @@ public sealed class ProjectConfigurationManager : IDisposable
     /// SemaphoreSlim(1,1) is used instead of lock because the critical sections contain awaits.
     /// </summary>
     private readonly SemaphoreSlim _configLock = new SemaphoreSlim(1, 1);
+    private readonly object _subscriptionLock = new object();
 
-    private bool hasSubscribedToConfigurationChangedEvent = false;
+    private bool _hasSubscribedToConfigurationChangedEvent = false;
 
     private void InitializeEventSubscriptions()
     {
-        if (!hasSubscribedToConfigurationChangedEvent)
+        lock (_subscriptionLock)
         {
-            Configuration.ConfigurationUpdated += ConfigurationUpdatedAsync;
-            hasSubscribedToConfigurationChangedEvent = true;
+            if (!_hasSubscribedToConfigurationChangedEvent)
+            {
+                Configuration.ConfigurationUpdated += ConfigurationUpdatedAsync;
+                _hasSubscribedToConfigurationChangedEvent = true;
+            }
         }
     }
 
-    private Task ConfigurationUpdatedAsync()
+    private async Task ConfigurationUpdatedAsync()
     {
-        _filePathToProjectConfigurationCache.Clear();
-        return Task.CompletedTask;
+        await _configLock.WaitAsync();
+        try
+        {
+            _filePathToProjectConfigurationCache.Clear();
+        }
+        finally
+        {
+            _configLock.Release();
+        }
     }
 
     /// <summary>
@@ -363,9 +374,12 @@ public sealed class ProjectConfigurationManager : IDisposable
 
     public void Dispose()
     {
-        if (hasSubscribedToConfigurationChangedEvent)
+        lock (_subscriptionLock)
         {
-            Configuration.ConfigurationUpdated -= ConfigurationUpdatedAsync;
+            if (_hasSubscribedToConfigurationChangedEvent)
+            {
+                Configuration.ConfigurationUpdated -= ConfigurationUpdatedAsync;
+            }
         }
     }
 }
