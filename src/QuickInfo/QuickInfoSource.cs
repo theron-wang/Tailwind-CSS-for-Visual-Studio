@@ -1,40 +1,53 @@
-﻿using Microsoft.VisualStudio.Language.Intellisense;
-using Microsoft.VisualStudio.Text;
-using Microsoft.VisualStudio.Text.Adornments;
-using System;
+﻿using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.VisualStudio.Language.Intellisense;
+using Microsoft.VisualStudio.Text;
+using Microsoft.VisualStudio.Text.Adornments;
 using TailwindCSSIntellisense.Completions;
-using TailwindCSSIntellisense.Configuration;
+using TailwindCSSIntellisense.Settings;
 
 namespace TailwindCSSIntellisense.QuickInfo;
 
 internal abstract class QuickInfoSource : IAsyncQuickInfoSource
 {
-    protected ITextBuffer _textBuffer;
-    protected DescriptionGenerator _descriptionGenerator;
+    protected readonly ITextBuffer _textBuffer;
+    protected readonly DescriptionGenerator _descriptionGenerator;
     private readonly ProjectConfigurationManager _projectConfigurationManager;
-    private readonly CompletionConfiguration _completionConfiguration;
+    private readonly SettingsProvider _settingsProvider;
 
     private const string PropertyKey = "tailwindintellisensequickinfoadded";
 
-    public QuickInfoSource(ITextBuffer textBuffer, DescriptionGenerator descriptionGenerator, ProjectConfigurationManager projectConfigurationManager, CompletionConfiguration completionConfiguration)
+    public QuickInfoSource(
+        ITextBuffer textBuffer,
+        DescriptionGenerator descriptionGenerator,
+        ProjectConfigurationManager projectConfigurationManager,
+        SettingsProvider settingsProvider
+    )
     {
         _textBuffer = textBuffer;
         _descriptionGenerator = descriptionGenerator;
         _projectConfigurationManager = projectConfigurationManager;
-        _completionConfiguration = completionConfiguration;
+        _settingsProvider = settingsProvider;
     }
 
-    public void Dispose()
-    {
-    }
+    public void Dispose() { }
 
-    public async Task<QuickInfoItem?> GetQuickInfoItemAsync(IAsyncQuickInfoSession session, CancellationToken cancellationToken)
+    public async Task<QuickInfoItem?> GetQuickInfoItemAsync(
+        IAsyncQuickInfoSession session,
+        CancellationToken cancellationToken
+    )
     {
         // session.Properties is to ensure that quick info is only added once (measure for #17)
-        if (session.Content is null || session.Content.Any() || session.State == QuickInfoSessionState.Visible || session.State == QuickInfoSessionState.Dismissed || session.Properties.ContainsProperty(PropertyKey))
+        if (
+            session.Content is null
+            || session.Content.Any()
+            || session.State == QuickInfoSessionState.Visible
+            || session.State == QuickInfoSessionState.Dismissed
+            || session.Properties.ContainsProperty(PropertyKey)
+            || (await _settingsProvider.GetSettingsAsync()).ConfigurationFiles.Count == 0
+        )
         {
             return null;
         }
@@ -46,37 +59,57 @@ internal abstract class QuickInfoSource : IAsyncQuickInfoSource
             var fullText = classSpan.Value.GetText();
             var unescapedFullText = UnescapeClass(fullText);
 
-            var projectConfigurationValues = await _projectConfigurationManager.GetCompletionConfigurationByFilePathAsync(_textBuffer.GetFileNameSafe());
+            var projectConfigurationValues =
+                await _projectConfigurationManager.GetCompletionConfigurationByFilePathAsync(
+                    _textBuffer.GetFileNameSafe()
+                );
 
             if (!projectConfigurationValues.IsClassAllowed(unescapedFullText))
             {
                 return null;
             }
 
-            var desc = _descriptionGenerator.GetDescription(unescapedFullText, projectConfigurationValues);
+            var desc = _descriptionGenerator.GetDescription(
+                unescapedFullText,
+                projectConfigurationValues
+            );
 
-            var span = _textBuffer.CurrentSnapshot.CreateTrackingSpan(classSpan.Value, SpanTrackingMode.EdgeInclusive);
+            var span = _textBuffer.CurrentSnapshot.CreateTrackingSpan(
+                classSpan.Value,
+                SpanTrackingMode.EdgeInclusive
+            );
 
             if (string.IsNullOrEmpty(desc) == false)
             {
                 session.Properties.AddProperty(PropertyKey, true);
 
-                var totalVariant = unescapedFullText.Contains(':') ?
-                    _descriptionGenerator.GetTotalVariantDescription(unescapedFullText.Substring(0, unescapedFullText.LastIndexOf(':')), projectConfigurationValues) :
-                    [];
+                var totalVariant = unescapedFullText.Contains(':')
+                    ? _descriptionGenerator.GetTotalVariantDescription(
+                        unescapedFullText.Substring(0, unescapedFullText.LastIndexOf(':')),
+                        projectConfigurationValues
+                    )
+                    : [];
 
                 ContainerElement descriptionFormatted;
 
                 if (projectConfigurationValues.Version == TailwindVersion.V3)
                 {
-                    descriptionFormatted = DescriptionUIHelper.GetDescriptionAsUIFormatted(fullText,
-                            totalVariant.LastOrDefault(),
-                            totalVariant.Length > 1 ? [.. totalVariant.Take(totalVariant.Length - 1)] : [],
-                            desc!);
+                    descriptionFormatted = DescriptionUIHelper.GetDescriptionAsUIFormatted(
+                        fullText,
+                        totalVariant.LastOrDefault(),
+                        totalVariant.Length > 1
+                            ? [.. totalVariant.Take(totalVariant.Length - 1)]
+                            : [],
+                        desc!
+                    );
                 }
                 else
                 {
-                    descriptionFormatted = DescriptionUIHelper.GetDescriptionAsUIFormattedV4(fullText, totalVariant.FirstOrDefault(), desc!);
+                    descriptionFormatted = DescriptionUIHelper.GetDescriptionAsUIFormattedV4(
+                        fullText,
+                        totalVariant.FirstOrDefault(),
+                        desc!
+                    );
                 }
 
                 return new QuickInfoItem(span, descriptionFormatted);

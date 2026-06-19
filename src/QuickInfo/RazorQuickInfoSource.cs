@@ -1,12 +1,17 @@
 ﻿using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.Text;
 using TailwindCSSIntellisense.Completions;
-using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Parsers;
+using TailwindCSSIntellisense.Settings;
 
 namespace TailwindCSSIntellisense.QuickInfo;
 
-internal class RazorQuickInfoSource(ITextBuffer textBuffer, DescriptionGenerator descriptionGenerator, ProjectConfigurationManager completionUtilities, CompletionConfiguration completionConfiguration) : QuickInfoSource(textBuffer, descriptionGenerator, completionUtilities, completionConfiguration)
+internal class RazorQuickInfoSource(
+    ITextBuffer textBuffer,
+    DescriptionGenerator descriptionGenerator,
+    ProjectConfigurationManager completionUtilities,
+    SettingsProvider settingsProvider
+) : QuickInfoSource(textBuffer, descriptionGenerator, completionUtilities, settingsProvider)
 {
     protected override bool IsInClassScope(IAsyncQuickInfoSession session, out SnapshotSpan? span)
     {

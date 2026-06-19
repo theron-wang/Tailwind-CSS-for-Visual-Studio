@@ -1,12 +1,17 @@
-﻿using Microsoft.VisualStudio.Language.Intellisense;
+﻿using System.Linq;
+using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.Text;
-using System.Linq;
 using TailwindCSSIntellisense.Completions;
-using TailwindCSSIntellisense.Configuration;
+using TailwindCSSIntellisense.Settings;
 
 namespace TailwindCSSIntellisense.QuickInfo;
 
-internal class CssQuickInfoSource(ITextBuffer textBuffer, DescriptionGenerator descriptionGenerator, ProjectConfigurationManager completionUtilities, CompletionConfiguration completionConfiguration) : QuickInfoSource(textBuffer, descriptionGenerator, completionUtilities, completionConfiguration)
+internal class CssQuickInfoSource(
+    ITextBuffer textBuffer,
+    DescriptionGenerator descriptionGenerator,
+    ProjectConfigurationManager completionUtilities,
+    SettingsProvider settingsProvider
+) : QuickInfoSource(textBuffer, descriptionGenerator, completionUtilities, settingsProvider)
 {
     protected override bool IsInClassScope(IAsyncQuickInfoSession session, out SnapshotSpan? span)
     {
@@ -37,11 +42,19 @@ internal class CssQuickInfoSource(ITextBuffer textBuffer, DescriptionGenerator d
                 while (char.IsWhiteSpace(last) == false && last != ';' && last != '}')
                 {
                     length++;
-                    searchSnapshot = new SnapshotSpan(_textBuffer.CurrentSnapshot, startIndex, length);
+                    searchSnapshot = new SnapshotSpan(
+                        _textBuffer.CurrentSnapshot,
+                        startIndex,
+                        length
+                    );
                     last = searchSnapshot.GetText().Last();
                 }
 
-                searchSnapshot = new SnapshotSpan(_textBuffer.CurrentSnapshot, startIndex, length - 1);
+                searchSnapshot = new SnapshotSpan(
+                    _textBuffer.CurrentSnapshot,
+                    startIndex,
+                    length - 1
+                );
 
                 span = searchSnapshot;
 

@@ -1,13 +1,14 @@
-﻿using Microsoft.VisualStudio.Text;
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel.Composition;
+using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Text.Tagging;
 using Microsoft.VisualStudio.Utilities;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.Composition;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Parsers;
+using TailwindCSSIntellisense.Settings;
 
 namespace TailwindCSSIntellisense.Adornments.Colors;
 
@@ -20,19 +21,48 @@ namespace TailwindCSSIntellisense.Adornments.Colors;
 internal sealed class ColorCssTaggerProvider : IViewTaggerProvider
 {
     [Import]
-    internal ProjectConfigurationManager ProjectConfigurationManager { get; set; } = null!;
-    [Import]
-    public CompletionConfiguration CompletionConfiguration { get; set; } = null!;
+    private readonly ProjectConfigurationManager _projectConfigurationManager = null!;
 
-    public ITagger<T> CreateTagger<T>(ITextView textView, ITextBuffer buffer) where T : ITag
+    [Import]
+    private readonly CompletionConfiguration _completionConfiguration = null!;
+
+    [Import]
+    private readonly SettingsProvider _settingsProvider = null!;
+
+    public ITagger<T> CreateTagger<T>(ITextView textView, ITextBuffer buffer)
+        where T : ITag
     {
-        return (ITagger<T>)buffer.Properties.GetOrCreateSingletonProperty(() => new ColorCssTagger(buffer, textView, ProjectConfigurationManager, CompletionConfiguration));
+        return (ITagger<T>)
+            buffer.Properties.GetOrCreateSingletonProperty(() =>
+                new ColorCssTagger(
+                    buffer,
+                    textView,
+                    _projectConfigurationManager,
+                    _completionConfiguration,
+                    _settingsProvider
+                )
+            );
     }
 
-    private class ColorCssTagger(ITextBuffer buffer, ITextView view, ProjectConfigurationManager completionUtilities, CompletionConfiguration completionConfiguration)
-        : ColorTaggerBase(buffer, view, completionUtilities, completionConfiguration)
+    private class ColorCssTagger(
+        ITextBuffer buffer,
+        ITextView view,
+        ProjectConfigurationManager completionUtilities,
+        CompletionConfiguration completionConfiguration,
+        SettingsProvider settingsProvider
+    )
+        : ColorTaggerBase(
+            buffer,
+            view,
+            completionUtilities,
+            completionConfiguration,
+            settingsProvider
+        )
     {
-        protected override IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span, ITextSnapshot snapshot)
+        protected override IEnumerable<SnapshotSpan> GetScopes(
+            SnapshotSpan span,
+            ITextSnapshot snapshot
+        )
         {
             foreach (var scope in CssParser.GetScopes(span, snapshot))
             {
@@ -62,7 +92,11 @@ internal sealed class ColorCssTaggerProvider : IViewTaggerProvider
                     // Keep track of index to account for duplicate classes
                     index = text.IndexOf(@class, index + 1);
 
-                    yield return new SnapshotSpan(snapshot, scope.Start + offset + index, @class.Length);
+                    yield return new SnapshotSpan(
+                        snapshot,
+                        scope.Start + offset + index,
+                        @class.Length
+                    );
                 }
             }
         }

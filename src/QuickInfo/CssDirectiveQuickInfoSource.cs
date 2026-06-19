@@ -1,11 +1,11 @@
-﻿using Microsoft.VisualStudio.Language.Intellisense;
+﻿using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.Language.StandardClassification;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Adornments;
 using Microsoft.VisualStudio.Text.Operations;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Settings;
 
@@ -18,22 +18,35 @@ internal class CssDirectiveQuickInfoSource : IAsyncQuickInfoSource
     private readonly SettingsProvider _settingsProvider;
     private readonly ITextStructureNavigator _textStructureNavigator;
 
-
-    public CssDirectiveQuickInfoSource(ITextBuffer textBuffer, DirectoryVersionFinder directoryVersionFinder, SettingsProvider settingsProvider, ITextStructureNavigatorSelectorService textStructureNavigatorSelectorService)
+    public CssDirectiveQuickInfoSource(
+        ITextBuffer textBuffer,
+        DirectoryVersionFinder directoryVersionFinder,
+        SettingsProvider settingsProvider,
+        ITextStructureNavigatorSelectorService textStructureNavigatorSelectorService
+    )
     {
         _textBuffer = textBuffer;
         _directoryVersionFinder = directoryVersionFinder;
         _settingsProvider = settingsProvider;
-        _textStructureNavigator = textStructureNavigatorSelectorService.GetTextStructureNavigator(_textBuffer);
+        _textStructureNavigator = textStructureNavigatorSelectorService.GetTextStructureNavigator(
+            _textBuffer
+        );
     }
 
-    public void Dispose()
-    {
-    }
+    public void Dispose() { }
 
-    public async Task<QuickInfoItem?> GetQuickInfoItemAsync(IAsyncQuickInfoSession session, CancellationToken cancellationToken)
+    public async Task<QuickInfoItem?> GetQuickInfoItemAsync(
+        IAsyncQuickInfoSession session,
+        CancellationToken cancellationToken
+    )
     {
-        if (session.Content is null || session.Content.Any() || session.State == QuickInfoSessionState.Visible || session.State == QuickInfoSessionState.Dismissed)
+        if (
+            session.Content is null
+            || session.Content.Any()
+            || session.State == QuickInfoSessionState.Visible
+            || session.State == QuickInfoSessionState.Dismissed
+            || (await _settingsProvider.GetSettingsAsync()).ConfigurationFiles.Count == 0
+        )
         {
             return null;
         }
@@ -51,15 +64,24 @@ internal class CssDirectiveQuickInfoSource : IAsyncQuickInfoSource
         {
             var text = extent.Span.GetText();
 
-            if (text == "@apply")
-            {
-            }
-            else if ((text == "@tailwind" || text == "@config") && await _directoryVersionFinder.GetTailwindVersionAsync(_textBuffer.GetFileNameSafe(), await _settingsProvider.GetSettingsAsync()) == TailwindVersion.V3)
-            {
-            }
-            else if (text == "@theme" || text == "@source" || text == "@utility" || text == "@custom-variant" || text == "@config" || text == "@plugin" || text == "@variant" || text.StartsWith("@slot"))
-            {
-            }
+            if (text == "@apply") { }
+            else if (
+                (text == "@tailwind" || text == "@config")
+                && await _directoryVersionFinder.GetTailwindVersionAsync(
+                    _textBuffer.GetFileNameSafe(),
+                    await _settingsProvider.GetSettingsAsync()
+                ) == TailwindVersion.V3
+            ) { }
+            else if (
+                text == "@theme"
+                || text == "@source"
+                || text == "@utility"
+                || text == "@custom-variant"
+                || text == "@config"
+                || text == "@plugin"
+                || text == "@variant"
+                || text.StartsWith("@slot")
+            ) { }
             else
             {
                 return null;
@@ -68,13 +90,18 @@ internal class CssDirectiveQuickInfoSource : IAsyncQuickInfoSource
             var element = new ContainerElement(
                 ContainerElementStyle.Stacked,
                 new ClassifiedTextElement(
-                        new ClassifiedTextRun(
-                            PredefinedClassificationTypeNames.Type,
-                            $"{text} is a valid Tailwind directive. Please disregard the error.",
-                            ClassifiedTextRunStyle.Bold
-                )));
+                    new ClassifiedTextRun(
+                        PredefinedClassificationTypeNames.Type,
+                        $"{text} is a valid Tailwind directive. Please disregard the error.",
+                        ClassifiedTextRunStyle.Bold
+                    )
+                )
+            );
 
-            var span = _textBuffer.CurrentSnapshot.CreateTrackingSpan(extent.Span, SpanTrackingMode.EdgeInclusive);
+            var span = _textBuffer.CurrentSnapshot.CreateTrackingSpan(
+                extent.Span,
+                SpanTrackingMode.EdgeInclusive
+            );
 
             return new QuickInfoItem(span, element);
         }
