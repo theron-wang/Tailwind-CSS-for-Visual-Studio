@@ -60,10 +60,7 @@ internal sealed class ColorRazorTaggerProvider : IViewTaggerProvider
             settingsProvider
         )
     {
-        protected override IEnumerable<SnapshotSpan> GetScopes(
-            SnapshotSpan span,
-            ITextSnapshot snapshot
-        )
+        protected override IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span)
         {
             foreach (var classAttributeSpan in RazorParser.GetClassAttributeValues(span))
             {
@@ -72,7 +69,7 @@ internal sealed class ColorRazorTaggerProvider : IViewTaggerProvider
                 foreach (var split in ClassRegexHelper.SplitRazorClasses(text))
                 {
                     yield return new SnapshotSpan(
-                        snapshot,
+                        span.Snapshot,
                         classAttributeSpan.Start + split.Index,
                         split.Value.Length
                     );

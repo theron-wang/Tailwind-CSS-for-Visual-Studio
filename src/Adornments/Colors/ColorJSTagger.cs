@@ -59,10 +59,7 @@ internal sealed class ColorJSTaggerProvider : IViewTaggerProvider
             settingsProvider
         )
     {
-        protected override IEnumerable<SnapshotSpan> GetScopes(
-            SnapshotSpan span,
-            ITextSnapshot snapshot
-        )
+        protected override IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span)
         {
             foreach (var classAttributeSpan in JSParser.GetClassAttributeValues(span))
             {
@@ -71,7 +68,7 @@ internal sealed class ColorJSTaggerProvider : IViewTaggerProvider
                 foreach (var split in ClassRegexHelper.SplitNonRazorClasses(text))
                 {
                     yield return new SnapshotSpan(
-                        snapshot,
+                        span.Snapshot,
                         classAttributeSpan.Start + split.Index,
                         split.Value.Length
                     );

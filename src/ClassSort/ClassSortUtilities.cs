@@ -43,7 +43,7 @@ internal sealed class ClassSortUtilities
         }
     }
 
-    private async Task InitializeVariantOrderAsync(TailwindVersion version)
+    public async Task InitializeVariantOrderAsync(TailwindVersion version)
     {
         await _variantOrderLock.WaitAsync();
         try

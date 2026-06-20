@@ -1,6 +1,6 @@
-﻿using Microsoft.VisualStudio.Text.Editor;
+﻿using System.ComponentModel.Composition;
+using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Utilities;
-using System.ComponentModel.Composition;
 using TailwindCSSIntellisense.Linting.Validators;
 
 namespace TailwindCSSIntellisense.Linting.ErrorList;
@@ -21,6 +21,12 @@ internal class HtmlErrorListListener : ErrorListListener
 
     protected override Validator GetValidator(ITextView view)
     {
-        return HtmlValidator.Create(view.TextBuffer, _linterUtilities, _projectConfigurationManager, _completionConfiguration);
+        return HtmlValidator.Create(
+            view.TextBuffer,
+            _linterUtilities,
+            _projectConfigurationManager,
+            _completionConfiguration,
+            _diagnosticsAggregator
+        );
     }
 }

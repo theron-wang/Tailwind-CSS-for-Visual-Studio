@@ -1,10 +1,10 @@
-﻿using Community.VisualStudio.Toolkit;
-using Microsoft.VisualStudio.Shell;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Community.VisualStudio.Toolkit;
+using Microsoft.VisualStudio.Shell;
 using TailwindCSSIntellisense.Settings;
 
 namespace TailwindCSSIntellisense.Helpers;
@@ -13,10 +13,31 @@ internal class ClassRegexHelper
 {
     // To get the match value, get capture group 'content'
     // https://regex101.com/r/Odcyjx/3
-    private static readonly Regex _classRegex = new(@"[cC]lass\s*=\s*(['""])\s*(?<content>(?:\n.|(?!\1).)*)?\s*(\1|$)", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
-    private static readonly Regex _javaScriptClassRegex = new(@"[cC]lassName\s*=\s*(['""])\s*(?<content>(?:\n.|(?!\1).)*)?\s*(\1|$)", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
-    private static readonly Regex _razorClassRegex = new(@"[cC]lass(?:es)?\s*=\s*([""'])(?<content>(?:[^""'\\@]|\\.|@(?:[a-zA-Z0-9.]+)?\((?>\((?<c>)|[^()]+|\)(?<-c>))*(?(c)(?!))\)|(?:(?!\1)[^\\]|\\$|\\.)|\([^)]*\))*)(\1|$)", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
-    private static readonly Regex _razorSplitClassRegex = new(@"(?:(?:@@|@\(""@""\)|[^\s@])+|@[\w.]*\((?>\((?<c>)|[^()]+|\)(?<-c>))*(?(c)(?!))\)|@[\w.]+)+", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
+    private static readonly Regex _cssRegex = new(
+        @"@apply\s+(?<content>[^;}]+?)\s*[;}]",
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(1)
+    );
+    private static readonly Regex _classRegex = new(
+        @"[cC]lass\s*=\s*(['""])\s*(?<content>(?:\n.|(?!\1).)*)?\s*(\1|$)",
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(1)
+    );
+    private static readonly Regex _javaScriptClassRegex = new(
+        @"[cC]lassName\s*=\s*(['""])\s*(?<content>(?:\n.|(?!\1).)*)?\s*(\1|$)",
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(1)
+    );
+    private static readonly Regex _razorClassRegex = new(
+        @"[cC]lass(?:es)?\s*=\s*([""'])(?<content>(?:[^""'\\@]|\\.|@(?:[a-zA-Z0-9.]+)?\((?>\((?<c>)|[^()]+|\)(?<-c>))*(?(c)(?!))\)|(?:(?!\1)[^\\]|\\$|\\.)|\([^)]*\))*)(\1|$)",
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(1)
+    );
+    private static readonly Regex _razorSplitClassRegex = new(
+        @"(?:(?:@@|@\(""@""\)|[^\s@])+|@[\w.]*\((?>\((?<c>)|[^()]+|\)(?<-c>))*(?(c)(?!))\)|@[\w.]+)+",
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(1)
+    );
     private static readonly Regex _splitClassRegex = new(@"([^\s]+)", RegexOptions.Compiled);
 
     // For use on the content capture group of class regexes. No match if there are no single quote pairs.
@@ -24,8 +45,16 @@ internal class ClassRegexHelper
     // This is mainly used to support libraries like Alpine.JS, which use single quotes of classes within class attributes.
     // We avoid selecting single quote pairs within square brackets, though, since that could represent an arbitrary attribute
     // or class (like before:content-[''])
-    private static readonly Regex _razorQuotePairRegex = new(@"(?<!@\((?>\((?<c>)|[^()]+|\)(?<-c>))*(?(c)(?!)))(?<!\[\s*)'(?<content>[^\]](?:@\((?>\((?<c>)|[^()]+|\)(?<-c>))*(?(c)(?!))\)|(?:(?!')[^\\]|\\.))*)'", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
-    private static readonly Regex _normalQuotePairRegex = new(@"(?<!\[\s*)'(?<content>[^\]](?:[^'\\]|\\.)*)'", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
+    private static readonly Regex _razorQuotePairRegex = new(
+        @"(?<!@\((?>\((?<c>)|[^()]+|\)(?<-c>))*(?(c)(?!)))(?<!\[\s*)'(?<content>[^\]](?:@\((?>\((?<c>)|[^()]+|\)(?<-c>))*(?(c)(?!))\)|(?:(?!')[^\\]|\\.))*)'",
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(1)
+    );
+    private static readonly Regex _normalQuotePairRegex = new(
+        @"(?<!\[\s*)'(?<content>[^\]](?:[^'\\]|\\.)*)'",
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(1)
+    );
 
     private static List<Regex>? _customRazorRegexes;
     private static List<Regex>? _customNormalRegexes;
@@ -38,7 +67,11 @@ internal class ClassRegexHelper
     private static TailwindSettings? _settingsCache;
     public static Func<Task<TailwindSettings>>? GetTailwindSettings;
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "GetTailwindSettings is only non-null when some sort of settings is already cached")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Usage",
+        "VSTHRD102:Implement internal logic asynchronously",
+        Justification = "GetTailwindSettings is only non-null when some sort of settings is already cached"
+    )]
     private static void UpdateTailwindSettingsIfNeeded()
     {
         if (GetTailwindSettings is not null)
@@ -79,7 +112,9 @@ internal class ClassRegexHelper
 
                     if (newRegex.GetGroupNames().Contains("content") is false)
                     {
-                        VS.MessageBox.ShowError($"Invalid custom regex: {value}. The regex must contain a capture group named 'content'.");
+                        VS.MessageBox.ShowError(
+                            $"Invalid custom regex: {value}. The regex must contain a capture group named 'content'."
+                        );
                         ResetCustomRegex();
                         return;
                     }
@@ -99,7 +134,9 @@ internal class ClassRegexHelper
 
                     if (newRegex.GetGroupNames().Contains("content") is false)
                     {
-                        VS.MessageBox.ShowError($"Invalid custom regex: {value}. The regex must contain a capture group named 'content'.");
+                        VS.MessageBox.ShowError(
+                            $"Invalid custom regex: {value}. The regex must contain a capture group named 'content'."
+                        );
                         ResetCustomRegex();
                         return;
                     }
@@ -119,7 +156,9 @@ internal class ClassRegexHelper
 
                     if (newRegex.GetGroupNames().Contains("content") is false)
                     {
-                        VS.MessageBox.ShowError($"Invalid custom regex: {value}. The regex must contain a capture group named 'content'.");
+                        VS.MessageBox.ShowError(
+                            $"Invalid custom regex: {value}. The regex must contain a capture group named 'content'."
+                        );
                         ResetCustomRegex();
                         return;
                     }
@@ -133,7 +172,9 @@ internal class ClassRegexHelper
         catch (Exception ex)
         {
             ex.Log("Tailwind CSS: Setting custom regex failed.");
-            VS.MessageBox.ShowError("Invalid custom regex. Please check the output window for more details.");
+            VS.MessageBox.ShowError(
+                "Invalid custom regex. Please check the output window for more details."
+            );
             ResetCustomRegex();
         }
     }
@@ -149,138 +190,210 @@ internal class ClassRegexHelper
     }
 
     /// <summary>
+    /// Gets all class matches in a CSS context.
+    /// </summary>
+    /// <param name="text">The text to search for class matches.</param>
+    /// <returns>An enumerable collection of match objects.</returns>
+    public static IEnumerable<Match> GetClassesCss(string text)
+    {
+        return _cssRegex.Matches(CommentRemover.StripCssComments(text)).Cast<Match>();
+    }
+
+    /// <summary>
     /// Gets all class matches in a normal HTML context.
     /// Includes: class="...".
     /// </summary>
-    public static IEnumerable<Match> GetClassesNormal(string text, string expandedSearchText)
+    public static IEnumerable<Match> GetClassesNormal(string text)
     {
         UpdateTailwindSettingsIfNeeded();
 
         IEnumerable<Match> matches;
         if (!_overrideNormal || _customNormalRegexes is null || _customNormalRegexes.Count == 0)
         {
-            matches = ((_customNormalRegexes?.SelectMany(regex => regex.Matches(expandedSearchText).Cast<Match>())) ?? [])
-                .Concat(_classRegex.Matches(text).Cast<Match>());
+            matches = (
+                (_customNormalRegexes?.SelectMany(regex => regex.Matches(text).Cast<Match>())) ?? []
+            ).Concat(_classRegex.Matches(text).Cast<Match>());
         }
         else
         {
-            matches = _customNormalRegexes.SelectMany(regex => regex.Matches(expandedSearchText).Cast<Match>());
+            matches = _customNormalRegexes.SelectMany(regex => regex.Matches(text).Cast<Match>());
         }
 
-        return matches.SelectMany(match =>
-        {
-            var classContent = GetClassTextGroup(match);
-
-            if (_normalQuotePairRegex.IsMatch(classContent.Value))
-            {
-                var lastQuoteMatchIndex = classContent.Index;
-
-                List<Match> pairs = [];
-
-                while (_normalQuotePairRegex.Match(text, lastQuoteMatchIndex, Math.Max(0, classContent.Index + classContent.Length - lastQuoteMatchIndex)) is Match quoteMatch && quoteMatch.Success)
+        return matches.SelectMany(
+            (Func<Match, IEnumerable<Match>>)(
+                match =>
                 {
-                    lastQuoteMatchIndex = quoteMatch.Index + quoteMatch.Length;
-                    pairs.Add(quoteMatch);
+                    var classContent = GetClassTextGroup(match);
+
+                    if (_normalQuotePairRegex.IsMatch(classContent.Value))
+                    {
+                        var lastQuoteMatchIndex = classContent.Index;
+
+                        List<Match> pairs = [];
+
+                        while (
+                            _normalQuotePairRegex.Match(
+                                (string)text,
+                                lastQuoteMatchIndex,
+                                Math.Max(
+                                    0,
+                                    classContent.Index + classContent.Length - lastQuoteMatchIndex
+                                )
+                            )
+                                is Match quoteMatch
+                            && quoteMatch.Success
+                        )
+                        {
+                            lastQuoteMatchIndex = quoteMatch.Index + quoteMatch.Length;
+                            pairs.Add(quoteMatch);
+                        }
+
+                        return pairs;
+                    }
+
+                    return [match];
                 }
-
-                return pairs;
-            }
-
-            return [match];
-        });
+            )
+        );
     }
 
     /// <summary>
     /// Gets all class matches in a razor context.
     /// Includes: class="...".
     /// </summary>
-    public static IEnumerable<Match> GetClassesRazor(string text, string expandedSearchText)
+    public static IEnumerable<Match> GetClassesRazor(string text)
     {
         UpdateTailwindSettingsIfNeeded();
 
         IEnumerable<Match> matches;
         if (!_overrideRazor || _customRazorRegexes is null || _customRazorRegexes.Count == 0)
         {
-            matches = ((_customRazorRegexes?.SelectMany(regex => regex.Matches(expandedSearchText).Cast<Match>())) ?? [])
-                .Concat(_razorClassRegex.Matches(text).Cast<Match>());
+            matches = (
+                (_customRazorRegexes?.SelectMany(regex => regex.Matches(text).Cast<Match>())) ?? []
+            ).Concat(_razorClassRegex.Matches(text).Cast<Match>());
         }
         else
         {
-            matches = _customRazorRegexes.SelectMany(regex => regex.Matches(expandedSearchText).Cast<Match>());
+            matches = _customRazorRegexes.SelectMany(regex => regex.Matches(text).Cast<Match>());
         }
 
-        return matches.SelectMany(match =>
-        {
-            var classContent = GetClassTextGroup(match);
-
-            var razorSyntaxLocations = _razorSplitClassRegex.Matches(classContent.Value).Cast<Match>().Where(match => match.Value.Length > 0 && match.Value[0] == '@');
-
-            if (_razorQuotePairRegex.IsMatch(classContent.Value))
-            {
-                var lastQuoteMatchIndex = classContent.Index;
-
-                List<Match> pairs = [];
-
-                while (_razorQuotePairRegex.Match(expandedSearchText, lastQuoteMatchIndex, Math.Max(0, classContent.Index + classContent.Length - lastQuoteMatchIndex)) is Match quoteMatch && quoteMatch.Success)
+        return matches.SelectMany(
+            (Func<Match, IEnumerable<Match>>)(
+                match =>
                 {
-                    lastQuoteMatchIndex = quoteMatch.Index + quoteMatch.Length;
+                    var classContent = GetClassTextGroup(match);
 
-                    var localIndex = quoteMatch.Index - GetClassTextGroup(match).Index;
+                    var razorSyntaxLocations = _razorSplitClassRegex
+                        .Matches(classContent.Value)
+                        .Cast<Match>()
+                        .Where(match => match.Value.Length > 0 && match.Value[0] == '@');
 
-                    // If this quote pair match is inside a razor block, we also want to ignore it
-                    if (!razorSyntaxLocations.Any(r => r.Index <= localIndex && r.Index + r.Length >= localIndex))
+                    if (_razorQuotePairRegex.IsMatch(classContent.Value))
                     {
-                        pairs.Add(quoteMatch);
+                        var lastQuoteMatchIndex = classContent.Index;
+
+                        List<Match> pairs = [];
+
+                        while (
+                            _razorQuotePairRegex.Match(
+                                (string)text,
+                                lastQuoteMatchIndex,
+                                Math.Max(
+                                    0,
+                                    classContent.Index + classContent.Length - lastQuoteMatchIndex
+                                )
+                            )
+                                is Match quoteMatch
+                            && quoteMatch.Success
+                        )
+                        {
+                            lastQuoteMatchIndex = quoteMatch.Index + quoteMatch.Length;
+
+                            var localIndex = quoteMatch.Index - GetClassTextGroup(match).Index;
+
+                            // If this quote pair match is inside a razor block, we also want to ignore it
+                            if (
+                                !razorSyntaxLocations.Any(r =>
+                                    r.Index <= localIndex && r.Index + r.Length >= localIndex
+                                )
+                            )
+                            {
+                                pairs.Add(quoteMatch);
+                            }
+                        }
+
+                        return pairs;
                     }
+
+                    return [match];
                 }
-
-                return pairs;
-            }
-
-            return [match];
-        });
+            )
+        );
     }
 
     /// <summary>
     /// Gets all class matches in a JS context, such as with React.
     /// Includes: className="...".
     /// </summary>
-    public static IEnumerable<Match> GetClassesJavaScript(string text, string expandedSearchText)
+    public static IEnumerable<Match> GetClassesJavaScript(string text)
     {
         UpdateTailwindSettingsIfNeeded();
 
         IEnumerable<Match> matches;
-        if (!_overrideJavaScript || _customJavaScriptRegexes is null || _customJavaScriptRegexes.Count == 0)
+        if (
+            !_overrideJavaScript
+            || _customJavaScriptRegexes is null
+            || _customJavaScriptRegexes.Count == 0
+        )
         {
-            matches = ((_customJavaScriptRegexes?.SelectMany(regex => regex.Matches(expandedSearchText).Cast<Match>())) ?? [])
-                .Concat(_javaScriptClassRegex.Matches(text).Cast<Match>());
+            matches = (
+                (_customJavaScriptRegexes?.SelectMany(regex => regex.Matches(text).Cast<Match>()))
+                ?? []
+            ).Concat(_javaScriptClassRegex.Matches(text).Cast<Match>());
         }
         else
         {
-            matches = _customJavaScriptRegexes.SelectMany(regex => regex.Matches(expandedSearchText).Cast<Match>());
+            matches = _customJavaScriptRegexes.SelectMany(regex =>
+                regex.Matches(text).Cast<Match>()
+            );
         }
 
-        return matches.SelectMany(match =>
-        {
-            var classContent = GetClassTextGroup(match);
-
-            if (_normalQuotePairRegex.IsMatch(classContent.Value))
-            {
-                var lastQuoteMatchIndex = classContent.Index;
-
-                List<Match> pairs = [];
-
-                while (_normalQuotePairRegex.Match(text, lastQuoteMatchIndex, Math.Max(0, classContent.Index + classContent.Length - lastQuoteMatchIndex)) is Match quoteMatch && quoteMatch.Success)
+        return matches.SelectMany(
+            (Func<Match, IEnumerable<Match>>)(
+                match =>
                 {
-                    lastQuoteMatchIndex = quoteMatch.Index + quoteMatch.Length;
-                    pairs.Add(quoteMatch);
+                    var classContent = GetClassTextGroup(match);
+
+                    if (_normalQuotePairRegex.IsMatch(classContent.Value))
+                    {
+                        var lastQuoteMatchIndex = classContent.Index;
+
+                        List<Match> pairs = [];
+
+                        while (
+                            _normalQuotePairRegex.Match(
+                                (string)text,
+                                lastQuoteMatchIndex,
+                                Math.Max(
+                                    0,
+                                    classContent.Index + classContent.Length - lastQuoteMatchIndex
+                                )
+                            )
+                                is Match quoteMatch
+                            && quoteMatch.Success
+                        )
+                        {
+                            lastQuoteMatchIndex = quoteMatch.Index + quoteMatch.Length;
+                            pairs.Add(quoteMatch);
+                        }
+
+                        return pairs;
+                    }
+
+                    return [match];
                 }
-
-                return pairs;
-            }
-
-            return [match];
-        });
+            )
+        );
     }
 
     /// <summary>
@@ -304,7 +417,15 @@ internal class ClassRegexHelper
                 if (_razorQuotePairRegex.IsMatch(classText))
                 {
                     var lastQuoteMatchIndex = match.Index;
-                    while (_razorQuotePairRegex.Match(text, lastQuoteMatchIndex, Math.Min(text.Length - lastQuoteMatchIndex, match.Length)) is Match quoteMatch && quoteMatch.Success)
+                    while (
+                        _razorQuotePairRegex.Match(
+                            text,
+                            lastQuoteMatchIndex,
+                            Math.Min(text.Length - lastQuoteMatchIndex, match.Length)
+                        )
+                            is Match quoteMatch
+                        && quoteMatch.Success
+                    )
                     {
                         lastQuoteMatchIndex = quoteMatch.Index + quoteMatch.Length;
                         yield return quoteMatch;
@@ -325,20 +446,35 @@ internal class ClassRegexHelper
 
                 var classText = GetClassTextGroup(match).Value;
 
-                var razorSyntaxLocations = _razorSplitClassRegex.Matches(classText).Cast<Match>().Where(match => match.Value.Length > 0 && match.Value[0] == '@');
+                var razorSyntaxLocations = _razorSplitClassRegex
+                    .Matches(classText)
+                    .Cast<Match>()
+                    .Where(match => match.Value.Length > 0 && match.Value[0] == '@');
 
                 if (_razorQuotePairRegex.IsMatch(classText))
                 {
                     var lastQuoteMatchIndex = match.Index;
 
-                    while (_razorQuotePairRegex.Match(text, lastQuoteMatchIndex, Math.Min(text.Length - lastQuoteMatchIndex, match.Length)) is Match quoteMatch && quoteMatch.Success)
+                    while (
+                        _razorQuotePairRegex.Match(
+                            text,
+                            lastQuoteMatchIndex,
+                            Math.Min(text.Length - lastQuoteMatchIndex, match.Length)
+                        )
+                            is Match quoteMatch
+                        && quoteMatch.Success
+                    )
                     {
                         lastQuoteMatchIndex = quoteMatch.Index + quoteMatch.Length;
 
                         var localIndex = quoteMatch.Index - GetClassTextGroup(match).Index;
 
                         // If this quote pair match is inside a razor block, we also want to ignore it
-                        if (!razorSyntaxLocations.Any(r => r.Index <= localIndex && r.Index + r.Length >= localIndex))
+                        if (
+                            !razorSyntaxLocations.Any(r =>
+                                r.Index <= localIndex && r.Index + r.Length >= localIndex
+                            )
+                        )
                         {
                             yield return quoteMatch;
                         }
@@ -378,7 +514,15 @@ internal class ClassRegexHelper
                 {
                     var lastQuoteMatchIndex = match.Index;
 
-                    while (_normalQuotePairRegex.Match(text, lastQuoteMatchIndex, Math.Min(text.Length - lastQuoteMatchIndex, match.Length)) is Match quoteMatch && quoteMatch.Success)
+                    while (
+                        _normalQuotePairRegex.Match(
+                            text,
+                            lastQuoteMatchIndex,
+                            Math.Min(text.Length - lastQuoteMatchIndex, match.Length)
+                        )
+                            is Match quoteMatch
+                        && quoteMatch.Success
+                    )
                     {
                         lastQuoteMatchIndex = quoteMatch.Index + quoteMatch.Length;
                         yield return quoteMatch;
@@ -400,7 +544,15 @@ internal class ClassRegexHelper
                 if (_normalQuotePairRegex.IsMatch(classText))
                 {
                     var lastQuoteMatchIndex = match.Index;
-                    while (_normalQuotePairRegex.Match(text, lastQuoteMatchIndex, Math.Min(text.Length - lastQuoteMatchIndex, match.Length)) is Match quoteMatch && quoteMatch.Success)
+                    while (
+                        _normalQuotePairRegex.Match(
+                            text,
+                            lastQuoteMatchIndex,
+                            Math.Min(text.Length - lastQuoteMatchIndex, match.Length)
+                        )
+                            is Match quoteMatch
+                        && quoteMatch.Success
+                    )
                     {
                         lastQuoteMatchIndex = quoteMatch.Index + quoteMatch.Length;
                         yield return quoteMatch;
@@ -425,11 +577,17 @@ internal class ClassRegexHelper
     {
         UpdateTailwindSettingsIfNeeded();
 
-        if (!_overrideJavaScript || _customJavaScriptRegexes is null || _customJavaScriptRegexes.Count == 0)
+        if (
+            !_overrideJavaScript
+            || _customJavaScriptRegexes is null
+            || _customJavaScriptRegexes.Count == 0
+        )
         {
             var lastMatchIndex = 0;
 
-            while (_javaScriptClassRegex.Match(text, lastMatchIndex) is Match match && match.Success)
+            while (
+                _javaScriptClassRegex.Match(text, lastMatchIndex) is Match match && match.Success
+            )
             {
                 lastMatchIndex = match.Index + match.Length;
 
@@ -439,7 +597,15 @@ internal class ClassRegexHelper
                 {
                     var lastQuoteMatchIndex = match.Index;
 
-                    while (_normalQuotePairRegex.Match(text, lastQuoteMatchIndex, Math.Min(text.Length - lastQuoteMatchIndex, match.Length)) is Match quoteMatch && quoteMatch.Success)
+                    while (
+                        _normalQuotePairRegex.Match(
+                            text,
+                            lastQuoteMatchIndex,
+                            Math.Min(text.Length - lastQuoteMatchIndex, match.Length)
+                        )
+                            is Match quoteMatch
+                        && quoteMatch.Success
+                    )
                     {
                         lastQuoteMatchIndex = quoteMatch.Index + quoteMatch.Length;
                         yield return quoteMatch;
@@ -461,7 +627,15 @@ internal class ClassRegexHelper
                 if (_normalQuotePairRegex.IsMatch(classText))
                 {
                     var lastQuoteMatchIndex = match.Index;
-                    while (_normalQuotePairRegex.Match(text, lastQuoteMatchIndex, Math.Min(text.Length - lastQuoteMatchIndex, match.Length)) is Match quoteMatch && quoteMatch.Success)
+                    while (
+                        _normalQuotePairRegex.Match(
+                            text,
+                            lastQuoteMatchIndex,
+                            Math.Min(text.Length - lastQuoteMatchIndex, match.Length)
+                        )
+                            is Match quoteMatch
+                        && quoteMatch.Success
+                    )
                     {
                         lastQuoteMatchIndex = quoteMatch.Index + quoteMatch.Length;
                         yield return quoteMatch;
@@ -488,9 +662,9 @@ internal class ClassRegexHelper
 
     /// <summary>
     /// Splits the class attribute into individual classes; should be called on each Match
-    /// from GetClassesRazor
+    /// from GetClasses___ (but not GetClassesRazor, since that should use SplitRazorClasses)
     /// </summary>
-    /// <param name="text">An individual razor class context (the ... in class="...")</param>
+    /// <param name="text">An individual non-Razor class context (the ... in class="...")</param>
     public static IEnumerable<Match> SplitNonRazorClasses(string text)
     {
         var matches = _splitClassRegex.Matches(text).Cast<Match>();

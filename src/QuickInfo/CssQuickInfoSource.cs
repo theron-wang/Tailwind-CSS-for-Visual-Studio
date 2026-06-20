@@ -1,5 +1,4 @@
-﻿using System.Linq;
-using Microsoft.VisualStudio.Language.Intellisense;
+﻿using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.Text;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Settings;
@@ -15,61 +14,60 @@ internal class CssQuickInfoSource(
 {
     protected override bool IsInClassScope(IAsyncQuickInfoSession session, out SnapshotSpan? span)
     {
-        var startPos = new SnapshotPoint(_textBuffer.CurrentSnapshot, 0);
-        var searchPos = session.GetTriggerPoint(_textBuffer).GetPoint(_textBuffer.CurrentSnapshot);
+        span = null;
 
-        var searchSnapshot = new SnapshotSpan(startPos, searchPos);
-        var text = searchSnapshot.GetText();
+        var snapshot = _textBuffer.CurrentSnapshot;
+        var triggerPoint = session.GetTriggerPoint(_textBuffer).GetPoint(snapshot);
 
-        var lastIndexOfSemicolon = text.LastIndexOf(";");
-        var lastIndexOfAt = text.LastIndexOf('@');
+        var textBeforeCursor = new SnapshotSpan(snapshot, 0, triggerPoint.Position).GetText();
 
-        if (lastIndexOfAt != -1 && lastIndexOfAt > lastIndexOfSemicolon)
+        var lastSemicolon = textBeforeCursor.LastIndexOf(';');
+        var lastAt = textBeforeCursor.LastIndexOf('@');
+
+        if (lastAt == -1 || lastAt < lastSemicolon)
         {
-            var directive = text.Substring(lastIndexOfAt).Split(' ')[0];
-
-            if (directive == "@apply" && text.EndsWith("@apply") == false)
-            {
-                text = text.Substring(lastIndexOfAt).Replace("@apply", "").Trim();
-
-                var startIndex = lastIndexOfAt + "@apply".Length + 1;
-                startIndex += text.LastIndexOf(' ') == -1 ? 0 : text.LastIndexOf(' ') + 1;
-                var length = 1;
-
-                searchSnapshot = new SnapshotSpan(_textBuffer.CurrentSnapshot, startIndex, length);
-                var last = searchSnapshot.GetText().Last();
-
-                while (char.IsWhiteSpace(last) == false && last != ';' && last != '}')
-                {
-                    length++;
-                    searchSnapshot = new SnapshotSpan(
-                        _textBuffer.CurrentSnapshot,
-                        startIndex,
-                        length
-                    );
-                    last = searchSnapshot.GetText().Last();
-                }
-
-                searchSnapshot = new SnapshotSpan(
-                    _textBuffer.CurrentSnapshot,
-                    startIndex,
-                    length - 1
-                );
-
-                span = searchSnapshot;
-
-                return true;
-            }
-            else
-            {
-                span = null;
-                return false;
-            }
-        }
-        else
-        {
-            span = null;
             return false;
         }
+
+        var afterAt = textBeforeCursor.Substring(lastAt);
+        var directive = afterAt.Split(' ')[0];
+
+        if (directive != "@apply")
+        {
+            return false;
+        }
+
+        // Find where the class token under the cursor starts
+        // afterAt is "@apply class1 class2..." — strip @apply and find the last word
+        var lastSpace = afterAt.LastIndexOf(' ');
+        var tokenStart = lastAt + lastSpace + 1;
+
+        var x = textBeforeCursor[tokenStart];
+
+        if (tokenStart >= snapshot.Length)
+        {
+            return false;
+        }
+
+        // Expand forward to find the end of the token
+        int tokenEnd = triggerPoint.Position;
+        while (tokenEnd < snapshot.Length)
+        {
+            char c = snapshot[tokenEnd];
+            if (char.IsWhiteSpace(c) || c == ';' || c == '}')
+            {
+                break;
+            }
+
+            tokenEnd++;
+        }
+
+        if (tokenEnd <= tokenStart)
+        {
+            return false;
+        }
+
+        span = new SnapshotSpan(snapshot, tokenStart, tokenEnd - tokenStart);
+        return true;
     }
 }

@@ -1,6 +1,4 @@
-﻿using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Threading;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.IO;
@@ -10,6 +8,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Threading;
 using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Node;
 using TailwindCSSIntellisense.Settings;
@@ -25,23 +25,39 @@ public sealed class ProjectConfigurationManager : IDisposable
 {
     [Import]
     internal CompletionConfiguration Configuration { get; set; } = null!;
+
     [Import]
     internal DirectoryVersionFinder DirectoryVersionFinder { get; set; } = null!;
+
     [Import]
     internal ProjectConfigurationInitializer ProjectConfigurationInitializer { get; set; } = null!;
 
-    internal static ImageSource TailwindLogo { get; private set; } = new BitmapImage(new Uri(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "Resources", "tailwindlogo.png"), UriKind.Relative));
+    internal static ImageSource TailwindLogo { get; private set; } =
+        new BitmapImage(
+            new Uri(
+                Path.Combine(
+                    Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+                    "Resources",
+                    "tailwindlogo.png"
+                ),
+                UriKind.Relative
+            )
+        );
 
     /// <summary>
     /// Completion settings for each project, keyed by configuration file paths.
     /// </summary>
-    private readonly Dictionary<string, ProjectCompletionValues> _projectCompletionConfiguration = [];
+    private readonly Dictionary<string, ProjectCompletionValues> _projectCompletionConfiguration =
+    [];
     private ProjectCompletionValues? _defaultProjectCompletionConfiguration;
 
     /// <summary>
     /// A cache of file paths to their corresponding project configuration, to speed up lookups for files that don't have an applicable path but are still part of the project.
     /// </summary>
-    private readonly Dictionary<string, ProjectCompletionValues> _filePathToProjectConfigurationCache = [];
+    private readonly Dictionary<
+        string,
+        ProjectCompletionValues
+    > _filePathToProjectConfigurationCache = [];
 
     /// <summary>
     /// Guards all reads and writes of _projectCompletionConfiguration,
@@ -81,7 +97,9 @@ public sealed class ProjectConfigurationManager : IDisposable
     /// <summary>
     /// Returns the ProjectCompletionValues for the given configuration file path.
     /// </summary>
-    public async Task<ProjectCompletionValues?> GetCompletionConfigurationByConfigFilePathAsync(string configFile)
+    public async Task<ProjectCompletionValues?> GetCompletionConfigurationByConfigFilePathAsync(
+        string configFile
+    )
     {
         InitializeEventSubscriptions();
         await ProjectConfigurationInitializer.InitializeAsync();
@@ -89,7 +107,9 @@ public sealed class ProjectConfigurationManager : IDisposable
         await _configLock.WaitAsync();
         try
         {
-            return _projectCompletionConfiguration.TryGetValue(configFile.ToLower(), out var value) ? value : null;
+            return _projectCompletionConfiguration.TryGetValue(configFile.ToLower(), out var value)
+                ? value
+                : null;
         }
         finally
         {
@@ -100,7 +120,9 @@ public sealed class ProjectConfigurationManager : IDisposable
     /// <summary>
     /// For IntelliSense; detect which configuration file this file belongs to and return the completion configuration for it. Has built-in caching.
     /// </summary>
-    public async Task<ProjectCompletionValues> GetCompletionConfigurationByFilePathAsync(string? filePath)
+    public async Task<ProjectCompletionValues> GetCompletionConfigurationByFilePathAsync(
+        string? filePath
+    )
     {
         InitializeEventSubscriptions();
         await ProjectConfigurationInitializer.InitializeAsync();
@@ -115,7 +137,12 @@ public sealed class ProjectConfigurationManager : IDisposable
                     return _defaultProjectCompletionConfiguration;
                 }
             }
-            else if (_filePathToProjectConfigurationCache.TryGetValue(filePath!.ToLower(), out var cached))
+            else if (
+                _filePathToProjectConfigurationCache.TryGetValue(
+                    filePath!.ToLower(),
+                    out var cached
+                )
+            )
             {
                 return cached;
             }
@@ -128,7 +155,9 @@ public sealed class ProjectConfigurationManager : IDisposable
         if (string.IsNullOrWhiteSpace(filePath))
         {
             // Default to v4 — no state access needed here
-            return await ProjectConfigurationInitializer.GetUnsetCompletionConfigurationAsync(TailwindVersion.LATEST);
+            return await ProjectConfigurationInitializer.GetUnsetCompletionConfigurationAsync(
+                TailwindVersion.LATEST
+            );
         }
 
         // Compute the result outside the lock (may await); snapshot the dictionary first.
@@ -136,20 +165,30 @@ public sealed class ProjectConfigurationManager : IDisposable
         await _configLock.WaitAsync();
         try
         {
-            snapshot = new Dictionary<string, ProjectCompletionValues>(_projectCompletionConfiguration);
+            snapshot = new Dictionary<string, ProjectCompletionValues>(
+                _projectCompletionConfiguration
+            );
         }
         finally
         {
             _configLock.Release();
         }
 
-        ProjectCompletionValues config = await GetCompletionConfigurationByFilePathImplAsync(filePath!, snapshot);
+        ProjectCompletionValues config = await GetCompletionConfigurationByFilePathImplAsync(
+            filePath!,
+            snapshot
+        );
 
         await _configLock.WaitAsync();
         try
         {
             // Re-check cache in case a concurrent call already populated it.
-            if (!_filePathToProjectConfigurationCache.TryGetValue(filePath!.ToLower(), out var existing))
+            if (
+                !_filePathToProjectConfigurationCache.TryGetValue(
+                    filePath!.ToLower(),
+                    out var existing
+                )
+            )
             {
                 _filePathToProjectConfigurationCache[filePath.ToLower()] = config;
             }
@@ -168,12 +207,15 @@ public sealed class ProjectConfigurationManager : IDisposable
 
     private async Task<ProjectCompletionValues> GetCompletionConfigurationByFilePathImplAsync(
         string filePath,
-        Dictionary<string, ProjectCompletionValues> projectCompletionConfiguration)
+        Dictionary<string, ProjectCompletionValues> projectCompletionConfiguration
+    )
     {
         ProjectCompletionValues? closest = null;
         var minDist = int.MaxValue;
 
-        var inputFileDirectories = Path.GetDirectoryName(filePath).ToLower().Split(Path.DirectorySeparatorChar);
+        var inputFileDirectories = Path.GetDirectoryName(filePath)
+            .ToLower()
+            .Split(Path.DirectorySeparatorChar);
 
         foreach (var k in projectCompletionConfiguration.Values)
         {
@@ -189,7 +231,11 @@ public sealed class ProjectConfigurationManager : IDisposable
 
             if (k.Version >= TailwindVersion.V4)
             {
-                if (k.NotApplicablePaths.Any(p => filePath.StartsWith(p, StringComparison.InvariantCultureIgnoreCase)))
+                if (
+                    k.NotApplicablePaths.Any(p =>
+                        filePath.StartsWith(p, StringComparison.InvariantCultureIgnoreCase)
+                    )
+                )
                 {
                     continue;
                 }
@@ -203,16 +249,28 @@ public sealed class ProjectConfigurationManager : IDisposable
             {
                 // Find the distance from this configuration file to filePath.
                 // i.e., find the number of subdirectories that differ between the two paths
-                var applicablePathDirectories = Path.GetDirectoryName(path).ToLower().Split(Path.DirectorySeparatorChar);
+                var applicablePathDirectories = Path.GetDirectoryName(path)
+                    .ToLower()
+                    .Split(Path.DirectorySeparatorChar);
 
                 int inCommon = 0;
 
-                while (inCommon < Math.Min(inputFileDirectories.Length, applicablePathDirectories.Length) && inputFileDirectories[inCommon].Equals(applicablePathDirectories[inCommon], StringComparison.InvariantCultureIgnoreCase))
+                while (
+                    inCommon
+                        < Math.Min(inputFileDirectories.Length, applicablePathDirectories.Length)
+                    && inputFileDirectories[inCommon]
+                        .Equals(
+                            applicablePathDirectories[inCommon],
+                            StringComparison.InvariantCultureIgnoreCase
+                        )
+                )
                 {
                     inCommon++;
                 }
 
-                return inputFileDirectories.Length + applicablePathDirectories.Length - 2 * inCommon;
+                return inputFileDirectories.Length
+                    + applicablePathDirectories.Length
+                    - 2 * inCommon;
             });
 
             if (distance < minDist)
@@ -237,12 +295,20 @@ public sealed class ProjectConfigurationManager : IDisposable
 
             if (k.Version >= TailwindVersion.V4)
             {
-                if (k.NotApplicablePaths.Any(p => filePath.StartsWith(p, StringComparison.InvariantCultureIgnoreCase)))
+                if (
+                    k.NotApplicablePaths.Any(p =>
+                        filePath.StartsWith(p, StringComparison.InvariantCultureIgnoreCase)
+                    )
+                )
                 {
                     continue;
                 }
 
-                if (k.ApplicablePaths.Any(p => filePath.StartsWith(p, StringComparison.InvariantCultureIgnoreCase)))
+                if (
+                    k.ApplicablePaths.Any(p =>
+                        filePath.StartsWith(p, StringComparison.InvariantCultureIgnoreCase)
+                    )
+                )
                 {
                     return k;
                 }
@@ -254,7 +320,9 @@ public sealed class ProjectConfigurationManager : IDisposable
             }
         }
 
-        return await ProjectConfigurationInitializer.GetUnsetCompletionConfigurationAsync(TailwindVersion.LATEST);
+        return await ProjectConfigurationInitializer.GetUnsetCompletionConfigurationAsync(
+            TailwindVersion.LATEST
+        );
     }
 
     public async Task<IEnumerable<ProjectCompletionValues>> GetAllProjectCompletionValuesAsync()
@@ -277,9 +345,16 @@ public sealed class ProjectConfigurationManager : IDisposable
         // acquiring the lock so we hold it only while mutating shared state.
         foreach (var buildFile in settings.BuildFiles)
         {
-            if (settings.ConfigurationFiles.All(cf => !cf.Path.Equals(buildFile.Input, StringComparison.InvariantCultureIgnoreCase)))
+            if (
+                settings.ConfigurationFiles.All(cf =>
+                    !cf.Path.Equals(buildFile.Input, StringComparison.InvariantCultureIgnoreCase)
+                )
+            )
             {
-                var version = await DirectoryVersionFinder.GetTailwindVersionAsync(buildFile.Input, settings);
+                var version = await DirectoryVersionFinder.GetTailwindVersionAsync(
+                    buildFile.Input,
+                    settings
+                );
 
                 if (version >= TailwindVersion.V4)
                 {
@@ -289,7 +364,9 @@ public sealed class ProjectConfigurationManager : IDisposable
         }
 
         // Pre-compute new configs outside the lock (these involve awaits).
-        var newConfigs = new Dictionary<string, ProjectCompletionValues>(StringComparer.OrdinalIgnoreCase);
+        var newConfigs = new Dictionary<string, ProjectCompletionValues>(
+            StringComparer.OrdinalIgnoreCase
+        );
 
         foreach (var file in settings.ConfigurationFiles)
         {
@@ -317,7 +394,11 @@ public sealed class ProjectConfigurationManager : IDisposable
                     DirectoryVersionFinder.ClearCacheForDirectory(Path.GetDirectoryName(file.Path));
                 }
 
-                projectConfig = (await ProjectConfigurationInitializer.GetUnsetCompletionConfigurationAsync(version)).Copy();
+                projectConfig = (
+                    await ProjectConfigurationInitializer.GetUnsetCompletionConfigurationAsync(
+                        version
+                    )
+                ).Copy();
             }
             else
             {
@@ -335,8 +416,8 @@ public sealed class ProjectConfigurationManager : IDisposable
             _defaultProjectCompletionConfiguration = null;
             _filePathToProjectConfigurationCache.Clear();
 
-            var toRemove = _projectCompletionConfiguration.Keys
-                .Except(newConfigs.Keys, StringComparer.OrdinalIgnoreCase)
+            var toRemove = _projectCompletionConfiguration
+                .Keys.Except(newConfigs.Keys, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             foreach (var key in toRemove)
@@ -354,14 +435,19 @@ public sealed class ProjectConfigurationManager : IDisposable
                 foreach (var config in settings.ConfigurationFiles)
                 {
                     var key = config.Path.ToLower();
-                    if (_projectCompletionConfiguration.TryGetValue(key, out var pcv) && pcv.ApplicablePaths.Count > 0)
+                    if (
+                        _projectCompletionConfiguration.TryGetValue(key, out var pcv)
+                        && pcv.ApplicablePaths.Count > 0
+                    )
                     {
                         _defaultProjectCompletionConfiguration = pcv;
                         break;
                     }
                 }
 
-                _defaultProjectCompletionConfiguration ??= _projectCompletionConfiguration[settings.ConfigurationFiles.First().Path.ToLower()];
+                _defaultProjectCompletionConfiguration ??= _projectCompletionConfiguration[
+                    settings.ConfigurationFiles.First().Path.ToLower()
+                ];
             }
         }
         finally

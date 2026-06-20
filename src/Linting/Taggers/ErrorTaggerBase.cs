@@ -1,12 +1,14 @@
-﻿using Microsoft.VisualStudio.Text;
-using Microsoft.VisualStudio.Text.Tagging;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.VisualStudio.Text;
+using Microsoft.VisualStudio.Text.Tagging;
 using TailwindCSSIntellisense.Linting.Validators;
 
 namespace TailwindCSSIntellisense.Linting.Taggers;
-internal abstract class ErrorTaggerBase(ITextBuffer buffer, LinterUtilities linterUtils) : ITagger<IErrorTag>
+
+internal abstract class ErrorTaggerBase(ITextBuffer buffer, LinterUtilities linterUtils)
+    : ITagger<IErrorTag>
 {
     protected readonly ITextBuffer _buffer = buffer;
     private readonly LinterUtilities _linterUtils = linterUtils;
@@ -16,6 +18,11 @@ internal abstract class ErrorTaggerBase(ITextBuffer buffer, LinterUtilities lint
 
     public IEnumerable<ITagSpan<IErrorTag>> GetTags(NormalizedSnapshotSpanCollection spans)
     {
+        if (!_linterUtils.LinterEnabled())
+        {
+            return [];
+        }
+
         var tags = new List<ITagSpan<IErrorTag>>();
 
         if (!spans.Any())
@@ -37,7 +44,11 @@ internal abstract class ErrorTaggerBase(ITextBuffer buffer, LinterUtilities lint
         {
             if (spans is null)
             {
-                var span = new SnapshotSpan(_buffer.CurrentSnapshot, 0, _buffer.CurrentSnapshot.Length);
+                var span = new SnapshotSpan(
+                    _buffer.CurrentSnapshot,
+                    0,
+                    _buffer.CurrentSnapshot.Length
+                );
                 TagsChanged(this, new(span));
             }
             else
@@ -52,31 +63,16 @@ internal abstract class ErrorTaggerBase(ITextBuffer buffer, LinterUtilities lint
 
     private IEnumerable<ITagSpan<IErrorTag>> GetErrors(SnapshotSpan span)
     {
-        if (_errorChecker.Errors.Any() && _errorChecker.Errors.First().Span.Snapshot != span.Snapshot)
+        foreach (var error in _errorChecker.GetErrors(span))
         {
-            foreach (var scope in _errorChecker.GetScopes(span))
+            var tagSpan = _linterUtils.CreateTagSpan(
+                error.Span.GetSpan(_buffer.CurrentSnapshot),
+                error.ErrorMessage,
+                error.ErrorType
+            );
+            if (tagSpan is not null)
             {
-                var errors = _errorChecker.GetErrors(scope, true);
-                foreach (var error in errors)
-                {
-                    var tagSpan = _linterUtils.CreateTagSpan(error.Span, error.ErrorMessage, error.ErrorType);
-                    if (tagSpan is not null)
-                    {
-                        yield return tagSpan;
-                    }
-                }
-            }
-        }
-        else
-        {
-            var errors = _errorChecker.Errors.Where(e => span.IntersectsWith(e.Span));
-            foreach (var error in errors)
-            {
-                var tagSpan = _linterUtils.CreateTagSpan(error.Span, error.ErrorMessage, error.ErrorType);
-                if (tagSpan is not null)
-                {
-                    yield return tagSpan;
-                }
+                yield return tagSpan;
             }
         }
     }

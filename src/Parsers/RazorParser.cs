@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 
 namespace TailwindCSSIntellisense.Parsers;
+
 internal static class RazorParser
 {
     /// <summary>
@@ -14,10 +15,9 @@ internal static class RazorParser
     /// <param name="fullClassScope">The output SnapshotSpan of the <b>entire</b> class scope</param>
     public static bool IsInClassScope(ITextSnapshot snapshot, SnapshotPoint trigger, out SnapshotSpan? fullClassScope)
     {
-        var text = snapshot.GetText(0, (int)trigger);
         var expandedSearchText = snapshot.GetText(0, Math.Min((int)trigger + 2000, snapshot.Length));
 
-        foreach (var match in ClassRegexHelper.GetClassesRazor(text, expandedSearchText))
+        foreach (var match in ClassRegexHelper.GetClassesRazor(expandedSearchText))
         {
             if (trigger.Position >= match.Index && trigger.Position <= match.Index + match.Length)
             {

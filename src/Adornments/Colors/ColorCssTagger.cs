@@ -59,12 +59,9 @@ internal sealed class ColorCssTaggerProvider : IViewTaggerProvider
             settingsProvider
         )
     {
-        protected override IEnumerable<SnapshotSpan> GetScopes(
-            SnapshotSpan span,
-            ITextSnapshot snapshot
-        )
+        protected override IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span)
         {
-            foreach (var scope in CssParser.GetScopes(span, snapshot))
+            foreach (var scope in CssParser.GetScopes(span))
             {
                 // Find offset (i.e. space to @apply)
                 var text = scope.GetText();
@@ -93,7 +90,7 @@ internal sealed class ColorCssTaggerProvider : IViewTaggerProvider
                     index = text.IndexOf(@class, index + 1);
 
                     yield return new SnapshotSpan(
-                        snapshot,
+                        scope.Snapshot,
                         scope.Start + offset + index,
                         @class.Length
                     );

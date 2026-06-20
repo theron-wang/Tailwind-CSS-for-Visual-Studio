@@ -30,11 +30,11 @@ public class IntelliSenseAndDetectionIntegrationTests : IDisposable
         const string html = "<div class=\"text-red-500 p-4\"></div>";
         const string jsx = "<button className=\"hover:text-blue-500 text-red-500\"></button>";
 
-        var htmlTokens = ClassRegexHelper.GetClassesNormal(html, html)
+        var htmlTokens = ClassRegexHelper.GetClassesNormal(html)
             .SelectMany(m => ClassRegexHelper.SplitNonRazorClasses(ClassRegexHelper.GetClassTextGroup(m).Value))
             .Select(m => m.Value);
 
-        var jsTokens = ClassRegexHelper.GetClassesJavaScript(jsx, jsx)
+        var jsTokens = ClassRegexHelper.GetClassesJavaScript(jsx)
             .SelectMany(m => ClassRegexHelper.SplitNonRazorClasses(ClassRegexHelper.GetClassTextGroup(m).Value))
             .Select(m => m.Value);
 

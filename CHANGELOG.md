@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.14.0 (June 19th, 2026)
+
+- Fix a bug where only the last item added to the blocklist is counted
+- Prevent color adornments, quick info tooltips, and linting errors from showing up in non-Tailwind projects
+- Fix a bug where extension features break when the wrong project is loaded first
+- Fix a bug where color classes are not recognized when the stem is the same name (i.e., `border-border`)
+- Add support for `deprecatedAtRule`, `usedBlocklistClass`, `invalidSource` linting rules ([#148](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/issues/148))
+- Add support for light bulb actions for many linter warnings ([#148](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/issues/148))
+
 ## 1.13.12 (June 19th, 2026)
 
 - Set source directory to be directory of the configuration file even when `@import "tailwindcss"` is not present ([#147](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/issues/147))

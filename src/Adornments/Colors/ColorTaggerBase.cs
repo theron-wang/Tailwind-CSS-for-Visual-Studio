@@ -109,10 +109,7 @@ internal abstract class ColorTaggerBase : ITagger<IntraTextAdornmentTag>, IDispo
     /// <summary>
     /// Gets the class="" / @apply scopes in the specified span.
     /// </summary>
-    protected abstract IEnumerable<SnapshotSpan> GetScopes(
-        SnapshotSpan span,
-        ITextSnapshot snapshot
-    );
+    protected abstract IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span);
 
     private void GeneralSettingsChanged(General general)
     {
@@ -175,7 +172,7 @@ internal abstract class ColorTaggerBase : ITagger<IntraTextAdornmentTag>, IDispo
 
     private IEnumerable<ITagSpan<IntraTextAdornmentTag>> GetAdornments(SnapshotSpan span)
     {
-        foreach (var scope in GetScopes(span, span.Snapshot))
+        foreach (var scope in GetScopes(span))
         {
             var color = GetRgbaFromClass(scope.GetText());
             if (color is null)

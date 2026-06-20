@@ -119,6 +119,12 @@ internal abstract class QuickInfoSource : IAsyncQuickInfoSource
         return null;
     }
 
+    /// <summary>
+    /// Determines whether the current session is in a scope where Tailwind CSS class names should be provided.
+    /// </summary>
+    /// <param name="session">The session</param>
+    /// <param name="span">The snapshot span representing the class token that the cursor is on, or null if not in a class context</param>
+    /// <returns>Whether the cursor is in a class scope</returns>
     protected abstract bool IsInClassScope(IAsyncQuickInfoSession session, out SnapshotSpan? span);
 
     protected virtual string UnescapeClass(string input)

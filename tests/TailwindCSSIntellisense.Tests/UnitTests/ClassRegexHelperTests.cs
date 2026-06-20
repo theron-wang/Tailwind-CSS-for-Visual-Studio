@@ -23,7 +23,7 @@ public class ClassRegexHelperTests : IDisposable
     {
         const string html = "<div class=\"px-4 text-red-500\"></div><span class='font-bold'></span>";
 
-        var matches = ClassRegexHelper.GetClassesNormal(html, html).ToList();
+        var matches = ClassRegexHelper.GetClassesNormal(html).ToList();
 
         Assert.Equal(2, matches.Count);
         Assert.Equal("px-4 text-red-500", ClassRegexHelper.GetClassTextGroup(matches[0]).Value);
@@ -35,7 +35,7 @@ public class ClassRegexHelperTests : IDisposable
     {
         const string html = "<div class=\"open ? 'px-2 text-red-500' : 'py-1 text-blue-500'\"></div>";
 
-        var matches = ClassRegexHelper.GetClassesNormal(html, html)
+        var matches = ClassRegexHelper.GetClassesNormal(html)
             .Select(m => ClassRegexHelper.GetClassTextGroup(m).Value)
             .ToList();
 
@@ -49,7 +49,7 @@ public class ClassRegexHelperTests : IDisposable
     {
         var input = new string('x', 6000) + "\n<div className=\"bg-blue-500 md:hover:text-white\"></div>";
 
-        var matches = ClassRegexHelper.GetClassesJavaScript(input, input).ToList();
+        var matches = ClassRegexHelper.GetClassesJavaScript(input).ToList();
 
         Assert.Single(matches);
         Assert.Equal("bg-blue-500 md:hover:text-white", ClassRegexHelper.GetClassTextGroup(matches[0]).Value);
@@ -61,7 +61,7 @@ public class ClassRegexHelperTests : IDisposable
     {
         var input = "\n<div class=\"@(\"hi\") bg-[''] bg-white @Func('h') @A.B(test ? \"test\" : \"foo\")\"></div>";
 
-        var matches = ClassRegexHelper.GetClassesRazor(input, input).ToList();
+        var matches = ClassRegexHelper.GetClassesRazor(input).ToList();
 
         Assert.Single(matches);
         Assert.Equal("@(\"hi\") bg-[''] bg-white @Func('h') @A.B(test ? \"test\" : \"foo\")", ClassRegexHelper.GetClassTextGroup(matches[0]).Value);
@@ -86,7 +86,7 @@ public class ClassRegexHelperTests : IDisposable
 
         try
         {
-            var matches = ClassRegexHelper.GetClassesNormal(html, html).ToList();
+            var matches = ClassRegexHelper.GetClassesNormal(html).ToList();
 
             Assert.Single(matches);
             Assert.Equal("p-4 text-sm", ClassRegexHelper.GetClassTextGroup(matches[0]).Value);
@@ -94,7 +94,7 @@ public class ClassRegexHelperTests : IDisposable
         finally
         {
             ClassRegexHelper.GetTailwindSettings = () => Task.FromResult(new TailwindSettings());
-            ClassRegexHelper.GetClassesNormal(html, html).ToList(); // Trigger reset of custom regex
+            ClassRegexHelper.GetClassesNormal(html).ToList(); // Trigger reset of custom regex
         }
     }
 }
