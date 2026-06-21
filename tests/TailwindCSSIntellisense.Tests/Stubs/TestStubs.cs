@@ -156,6 +156,8 @@ namespace Microsoft.VisualStudio.Text
         IEnumerator IEnumerable.GetEnumerator() => _values.GetEnumerator();
     }
 
+    public interface ITrackingSpan { }
+
     public readonly struct SnapshotSpan(ITextSnapshot snapshot, int start, int length)
     {
         public ITextSnapshot Snapshot { get; } = snapshot;
@@ -295,7 +297,7 @@ namespace TailwindCSSIntellisense.Parsers
 
     internal static class CssParser
     {
-        public static IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span, ITextSnapshot snapshot)
+        public static IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span)
         {
             return [span];
         }
