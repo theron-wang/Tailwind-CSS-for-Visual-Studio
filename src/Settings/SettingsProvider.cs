@@ -51,9 +51,10 @@ public sealed class SettingsProvider : IDisposable
     private Task? _fileWritingTask;
     private TailwindSettings? _cachedSettings;
 
-    private DateTime _lastInvalidateTime = DateTime.MinValue;
-    private readonly TimeSpan _invalidationInterval = TimeSpan.FromSeconds(10);
-    private readonly SemaphoreSlim _invalidationLock = new(1, 1);
+    private readonly TimeSpan _invalidationInterval = TimeSpan.FromSeconds(5);
+
+    private CancellationTokenSource _debounceCts = new();
+    private readonly SemaphoreSlim _invocationLock = new(1, 1);
 
     /// <summary>
     /// Event that is raised when the settings are changed.
@@ -570,8 +571,6 @@ public sealed class SettingsProvider : IDisposable
     {
         var projects = await VS.Solutions.GetAllProjectsAsync(ProjectStateFilter.All);
 
-        var solution = await VS.Solutions.GetCurrentSolutionAsync();
-
         if (projects == null || projects.Any() == false)
         {
             var miscProjectPath = await FileFinder.GetCurrentMiscellaneousProjectPathAsync();
@@ -692,27 +691,32 @@ public sealed class SettingsProvider : IDisposable
 
     private async Task InvalidateCacheAndSettingsChangedImplAsync()
     {
-        _cachedSettings = null;
-        if (OnSettingsChanged == null || !await _invalidationLock.WaitAsync(0))
+        _debounceCts.Cancel();
+        _debounceCts = new CancellationTokenSource();
+        var token = _debounceCts.Token;
+
+        try
+        {
+            await Task.Delay(_invalidationInterval, token);
+        }
+        catch (OperationCanceledException)
         {
             return;
         }
 
+        await _invocationLock.WaitAsync();
         try
         {
-            // Debounce
-            var timeSinceLast = DateTime.UtcNow - _lastInvalidateTime;
-            _lastInvalidateTime = DateTime.UtcNow;
+            _cachedSettings = null;
 
-            if (timeSinceLast < _invalidationInterval)
+            var snapshot = OnSettingsChanged;
+            if (snapshot == null)
             {
                 return;
             }
 
             var settings = await GetSettingsAsync();
-
-            // Cannot call OnSettingsChanged.Invoke() because that only calls the last subscriber
-            var tasks = OnSettingsChanged
+            var tasks = snapshot
                 .GetInvocationList()
                 .Cast<Func<TailwindSettings, Task>>()
                 .Select(d => d(settings));
@@ -721,7 +725,7 @@ public sealed class SettingsProvider : IDisposable
         }
         finally
         {
-            _invalidationLock.Release();
+            _invocationLock.Release();
         }
     }
 

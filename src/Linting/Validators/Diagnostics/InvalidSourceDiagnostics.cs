@@ -34,7 +34,7 @@ internal class InvalidSourceDiagnostics() : CssDiagnosticsChecker(ErrorType.Inva
 
     private static readonly Regex _hasDriveLetter = new(
         @"^[A-Z]:",
-        RegexOptions.Compiled,
+        RegexOptions.Compiled | RegexOptions.IgnoreCase,
         TimeSpan.FromSeconds(1)
     );
 

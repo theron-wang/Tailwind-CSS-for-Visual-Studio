@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -28,31 +27,82 @@
   <ItemGroup>
     <Compile Include="../../src/Usings.cs" Link="Source/Usings.cs" />
     <Compile Include="../../src/Helpers/BraceExpander.cs" Link="Source/Helpers/BraceExpander.cs" />
-    <Compile Include="../../src/Helpers/ClassRegexHelper.cs" Link="Source/Helpers/ClassRegexHelper.cs" />
-    <Compile Include="../../src/Helpers/CliUsageValidator.cs" Link="Source/Helpers/CliUsageValidator.cs" />
-    <Compile Include="../../src/Helpers/CssSizeConverter.cs" Link="Source/Helpers/CssSizeConverter.cs" />
-    <Compile Include="../../src/Helpers/CommentRemover.cs" Link="Source/Helpers/CommentRemover.cs" />
-    <Compile Include="../../src/Helpers/DictionaryHelpers.cs" Link="Source/Helpers/DictionaryHelpers.cs" />
-    <Compile Include="../../src/Helpers/ImportantModifierHelper.cs" Link="Source/Helpers/ImportantModifierHelper.cs" />
+    <Compile
+      Include="../../src/Helpers/ClassRegexHelper.cs"
+      Link="Source/Helpers/ClassRegexHelper.cs"
+    />
+    <Compile
+      Include="../../src/Helpers/CliUsageValidator.cs"
+      Link="Source/Helpers/CliUsageValidator.cs"
+    />
+    <Compile
+      Include="../../src/Helpers/CssSizeConverter.cs"
+      Link="Source/Helpers/CssSizeConverter.cs"
+    />
+    <Compile
+      Include="../../src/Helpers/CommentRemover.cs"
+      Link="Source/Helpers/CommentRemover.cs"
+    />
+    <Compile
+      Include="../../src/Helpers/ConfigurationThemeTokenizer.cs"
+      Link="Source/Helpers/ConfigurationThemeTokenizer.cs"
+    />
+    <Compile
+      Include="../../src/Helpers/DictionaryHelpers.cs"
+      Link="Source/Helpers/DictionaryHelpers.cs"
+    />
+    <Compile
+      Include="../../src/Helpers/ImportantModifierHelper.cs"
+      Link="Source/Helpers/ImportantModifierHelper.cs"
+    />
     <Compile Include="../../src/Helpers/StringHelpers.cs" Link="Source/Helpers/StringHelpers.cs" />
-    <Compile Include="../../src/Helpers/KnownModifiers.cs" Link="Source/Helpers/KnownModifiers.cs" />
+    <Compile
+      Include="../../src/Helpers/KnownModifiers.cs"
+      Link="Source/Helpers/KnownModifiers.cs"
+    />
     <Compile Include="../../src/Helpers/PathHelpers.cs" Link="Source/Helpers/PathHelpers.cs" />
-    <Compile Include="../../src/Configuration/ConfigFileParser.cs" Link="Source/Configuration/ConfigFileParser.cs" />
-    <Compile Include="../../src/Configuration/CssConfigSplitter.cs" Link="Source/Configuration/CssConfigSplitter.cs" />
-    <Compile Include="../../src/Configuration/ThemeVariableHelpers.cs" Link="Source/Configuration/ThemeVariableHelpers.cs" />
-    <Compile Include="../../src/Configuration/TailwindConfiguration.cs" Link="Source/Configuration/TailwindConfiguration.cs" />
+    <Compile
+      Include="../../src/Configuration/ConfigFileParser.cs"
+      Link="Source/Configuration/ConfigFileParser.cs"
+    />
+    <Compile
+      Include="../../src/Configuration/CssConfigSplitter.cs"
+      Link="Source/Configuration/CssConfigSplitter.cs"
+    />
+    <Compile
+      Include="../../src/Configuration/ThemeVariableHelpers.cs"
+      Link="Source/Configuration/ThemeVariableHelpers.cs"
+    />
+    <Compile
+      Include="../../src/Configuration/TailwindConfiguration.cs"
+      Link="Source/Configuration/TailwindConfiguration.cs"
+    />
     <Compile Include="../../src/ClassSort/Sorters/Sorter.cs" Link="Source/ClassSort/Sorter.cs" />
-    <Compile Include="../../src/ClassSort/Sorters/RazorSorter.cs" Link="Source/ClassSort/RazorSorter.cs" />
-    <Compile Include="../../src/Completions/ProjectCompletionValues.cs" Link="Source/Completions/ProjectCompletionValues.cs" />
-    <Compile Include="../../src/Completions/TailwindClass.cs" Link="Source/Completions/TailwindClass.cs" />
-    <Compile Include="../../src/Completions/TailwindVersion.cs" Link="Source/Completions/TailwindVersion.cs" />
+    <Compile
+      Include="../../src/ClassSort/Sorters/RazorSorter.cs"
+      Link="Source/ClassSort/RazorSorter.cs"
+    />
+    <Compile
+      Include="../../src/Completions/ProjectCompletionValues.cs"
+      Link="Source/Completions/ProjectCompletionValues.cs"
+    />
+    <Compile
+      Include="../../src/Completions/TailwindClass.cs"
+      Link="Source/Completions/TailwindClass.cs"
+    />
+    <Compile
+      Include="../../src/Completions/TailwindVersion.cs"
+      Link="Source/Completions/TailwindVersion.cs"
+    />
     <Compile Include="../../src/Linting/Error.cs" Link="Source/Linting/Error.cs" />
     <Compile Include="../../src/Linting/ErrorType.cs" Link="Source/Linting/ErrorType.cs" />
     <Compile Include="../../src/Linting/ErrorSeverity.cs" Link="Source/Linting/ErrorSeverity.cs" />
     <Compile Include="../../src/Linting/Suggestion.cs" Link="Source/Linting/Suggestion.cs" />
     <Compile Include="../../src/Linting/SuggestionFix.cs" Link="Source/Linting/SuggestionFix.cs" />
-    <Compile Include="../../src/Linting/Validators/CssValidator.cs" Link="Source/Linting/CssValidator.cs" />
-	<Compile Include="../../src/Node/NpmHelpers.cs" Link="Source/Node/NpmHelpers.cs" />
+    <Compile
+      Include="../../src/Linting/Validators/CssValidator.cs"
+      Link="Source/Linting/CssValidator.cs"
+    />
+    <Compile Include="../../src/Node/NpmHelpers.cs" Link="Source/Node/NpmHelpers.cs" />
   </ItemGroup>
-
 </Project>

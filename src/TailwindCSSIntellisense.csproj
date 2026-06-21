@@ -103,6 +103,7 @@
     <Compile Include="Completions\TCss\TCssFileAndContentTypeDeclaration.cs" />
     <Compile Include="Configuration\ThemeVariableHelpers.cs" />
     <Compile Include="Helpers\CommentRemover.cs" />
+    <Compile Include="Helpers\ConfigurationThemeTokenizer.cs" />
     <Compile Include="Helpers\ITextBufferExtensions.cs" />
     <Compile Include="Helpers\StringHelpers.cs" />
     <Compile Include="Initialization\ClassSubType.cs" />

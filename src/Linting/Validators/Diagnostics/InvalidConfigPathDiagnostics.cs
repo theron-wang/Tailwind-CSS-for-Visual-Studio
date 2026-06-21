@@ -20,7 +20,7 @@ internal class InvalidConfigPathDiagnostics() : CssDiagnosticsChecker(ErrorType.
 
     private static readonly Regex _themeRegex = new(
         @"(?<helper>theme|screen)\(\s*(?<path>[^)]+?)\s*\)",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase,
+        RegexOptions.Compiled,
         TimeSpan.FromSeconds(1)
     );
 
@@ -175,7 +175,7 @@ internal class InvalidConfigPathDiagnostics() : CssDiagnosticsChecker(ErrorType.
         ProjectCompletionValues projectCompletionValues
     )
     {
-        var segments = TokenizeTheme(themeValue);
+        var segments = ConfigurationThemeTokenizer.TokenizeTheme(themeValue);
 
         if (segments.Count == 0 || segments.Any(string.IsNullOrWhiteSpace))
         {
@@ -436,52 +436,5 @@ internal class InvalidConfigPathDiagnostics() : CssDiagnosticsChecker(ErrorType.
         }
 
         return values;
-    }
-
-    private static List<string> TokenizeTheme(string input)
-    {
-        List<string> segments = [];
-        int startIndex = 0;
-
-        for (int i = 0; i < input.Length; i++)
-        {
-            if (input[i] == '[')
-            {
-                int endIndex = input.IndexOf(']', i);
-
-                if (endIndex != -1)
-                {
-                    string segment = input.Substring(startIndex, i - startIndex).Trim();
-                    if (!string.IsNullOrEmpty(segment))
-                    {
-                        segments.Add(segment);
-                    }
-
-                    segment = input.Substring(i, endIndex - i + 1).Trim('[', ']');
-                    segments.Add(segment);
-
-                    startIndex = endIndex + 1;
-                    i = endIndex;
-                }
-            }
-            else if (input[i] == '.')
-            {
-                string segment = input.Substring(startIndex, i - startIndex).Trim();
-                if (!string.IsNullOrEmpty(segment))
-                {
-                    segments.Add(segment);
-                }
-
-                startIndex = i + 1;
-            }
-        }
-
-        string lastSegment = input.Substring(startIndex).Trim();
-        if (!string.IsNullOrEmpty(lastSegment))
-        {
-            segments.Add(lastSegment);
-        }
-
-        return segments;
     }
 }
