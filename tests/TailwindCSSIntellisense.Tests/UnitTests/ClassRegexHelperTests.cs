@@ -68,6 +68,146 @@ public class ClassRegexHelperTests : IDisposable
     }
 
     [Fact]
+    public void SplitNonRazorClasses_SimpleSpaceSeparated_ReturnsEachClass()
+    {
+        const string text = "px-4 text-red-500 font-bold";
+
+        var splits = ClassRegexHelper.SplitNonRazorClasses(text).ToList();
+
+        Assert.Equal(3, splits.Count);
+        Assert.Equal("px-4", splits[0].Value);
+        Assert.Equal("text-red-500", splits[1].Value);
+        Assert.Equal("font-bold", splits[2].Value);
+    }
+
+    [Fact]
+    public void SplitNonRazorClasses_MultipleSpacesBetweenClasses_IgnoresExtraWhitespace()
+    {
+        const string text = "px-4   text-red-500";
+
+        var splits = ClassRegexHelper.SplitNonRazorClasses(text).ToList();
+
+        Assert.Equal(2, splits.Count);
+        Assert.Equal("px-4", splits[0].Value);
+        Assert.Equal("text-red-500", splits[1].Value);
+    }
+
+    [Fact]
+    public void SplitNonRazorClasses_SingleClass_ReturnsSingleMatch()
+    {
+        const string text = "bg-white";
+
+        var splits = ClassRegexHelper.SplitNonRazorClasses(text).ToList();
+
+        Assert.Single(splits);
+        Assert.Equal("bg-white", splits[0].Value);
+    }
+
+    [Fact]
+    public void SplitNonRazorClasses_EmptyString_ReturnsNoMatches()
+    {
+        var splits = ClassRegexHelper.SplitNonRazorClasses("").ToList();
+
+        Assert.Empty(splits);
+    }
+
+    [Fact]
+    public void SplitNonRazorClasses_WhitespaceOnly_ReturnsNoMatches()
+    {
+        var splits = ClassRegexHelper.SplitNonRazorClasses("   ").ToList();
+
+        Assert.Empty(splits);
+    }
+
+    [Fact]
+    public void SplitNonRazorClasses_PreservesMatchIndices()
+    {
+        const string text = "px-4 text-sm";
+
+        var splits = ClassRegexHelper.SplitNonRazorClasses(text).ToList();
+
+        Assert.Equal(2, splits.Count);
+        Assert.Equal(0, splits[0].Index);
+        Assert.Equal(5, splits[1].Index);
+    }
+
+    [Fact]
+    public void SplitNonRazorClasses_ClassWithModifier_TreatedAsOneToken()
+    {
+        const string text = "hover:bg-red-500 md:text-lg";
+
+        var splits = ClassRegexHelper.SplitNonRazorClasses(text).ToList();
+
+        Assert.Equal(2, splits.Count);
+        Assert.Equal("hover:bg-red-500", splits[0].Value);
+        Assert.Equal("md:text-lg", splits[1].Value);
+    }
+
+    [Fact]
+    public void SplitNonRazorClasses_LeadingAndTrailingSpaces_ReturnsOnlyClasses()
+    {
+        const string text = "  bg-blue-500  ";
+
+        var splits = ClassRegexHelper.SplitNonRazorClasses(text).ToList();
+
+        Assert.Single(splits);
+        Assert.Equal("bg-blue-500", splits[0].Value);
+    }
+
+    [Fact]
+    public void SplitRazorClasses_SimpleNonRazorClasses_ReturnsEachClass()
+    {
+        const string text = "px-4 text-red-500";
+
+        var splits = ClassRegexHelper.SplitRazorClasses(text).ToList();
+
+        Assert.Equal(2, splits.Count);
+        Assert.Equal("px-4", splits[0].Value);
+        Assert.Equal("text-red-500", splits[1].Value);
+    }
+
+    [Fact]
+    public void SplitRazorClasses_EmptyString_ReturnsNoMatches()
+    {
+        var splits = ClassRegexHelper.SplitRazorClasses("").ToList();
+
+        Assert.Empty(splits);
+    }
+
+    [Fact]
+    public void SplitRazorClasses_SingleClass_ReturnsSingleMatch()
+    {
+        var splits = ClassRegexHelper.SplitRazorClasses("bg-white").ToList();
+
+        Assert.Single(splits);
+        Assert.Equal("bg-white", splits[0].Value);
+    }
+
+    [Fact]
+    public void SplitRazorClasses_RazorExpression_TreatedAsSingleToken()
+    {
+        // A Razor expression like @(Model.Class) should be treated as one token
+        const string text = "px-4 @(Model.Class) text-sm";
+
+        var splits = ClassRegexHelper.SplitRazorClasses(text).ToList();
+
+        // The razor split regex groups @(...) as one token
+        Assert.Contains(splits, s => s.Value.Contains("@(Model.Class)"));
+    }
+
+    [Fact]
+    public void SplitRazorClasses_ClassWithModifier_TreatedAsOneToken()
+    {
+        const string text = "hover:bg-red-500 focus:ring-2";
+
+        var splits = ClassRegexHelper.SplitRazorClasses(text).ToList();
+
+        Assert.Equal(2, splits.Count);
+        Assert.Equal("hover:bg-red-500", splits[0].Value);
+        Assert.Equal("focus:ring-2", splits[1].Value);
+    }
+
+    [Fact]
     public void CustomRegexOverride_UsesConfiguredRegex()
     {
         ClassRegexHelper.GetTailwindSettings = () => Task.FromResult(new TailwindSettings
