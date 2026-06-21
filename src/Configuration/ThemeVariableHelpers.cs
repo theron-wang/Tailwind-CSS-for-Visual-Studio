@@ -18,7 +18,7 @@ internal static class ThemeVariableHelpers
         {
             return "--font-";
         }
-        else if (variable.StartsWith("--text-shadow") && version >= TailwindVersion.V4_1)
+        else if (variable.StartsWith("--text-shadow-") && version >= TailwindVersion.V4_1)
         {
             return "--text-shadow-";
         }
@@ -198,7 +198,7 @@ internal static class ThemeVariableHelpers
         {
             return Stem("--font-", "fontFamily");
         }
-        else if (variable.StartsWith("--text-shadow") && version >= TailwindVersion.V4_1)
+        else if (variable.StartsWith("--text-shadow-") && version >= TailwindVersion.V4_1)
         {
             return Stem("--text-shadow-", "textShadow");
         }
@@ -217,6 +217,10 @@ internal static class ThemeVariableHelpers
         else if (variable.StartsWith("--breakpoint-"))
         {
             return Stem("--breakpoint-", "screens");
+        }
+        else if (variable.StartsWith("--container-"))
+        {
+            return Stem("--container-", "container");
         }
         else if (variable.StartsWith("--spacing-"))
         {

@@ -146,11 +146,17 @@ internal abstract class Validator : IDisposable
 
             var changedSpans = e.Changes.Select(c => c.OldSpan).ToList();
 
-            bool Overlaps(SnapshotSpan s) =>
-                changedSpans.Any(c => s.IntersectsWith(c) || (c.IsEmpty && s.Contains(c.Start)));
+            bool Intersects(SnapshotSpan s)
+            {
+                return changedSpans.Any(c =>
+                    s.IntersectsWith(c)
+                    || (c.IsEmpty && s.Contains(c.Start))
+                    || (s.IsEmpty && c.Contains(s.Start.Position))
+                );
+            }
 
-            _errors.RemoveAll(err => Overlaps(resolvedErrors[err]));
-            _checkedSpans.RemoveAll(s => Overlaps(resolvedChecked[s]));
+            _errors.RemoveAll(err => Intersects(resolvedErrors[err]));
+            _checkedSpans.RemoveAll(s => Intersects(resolvedChecked[s]));
 
             if (_snapshot is not null && _snapshot != e.After)
             {

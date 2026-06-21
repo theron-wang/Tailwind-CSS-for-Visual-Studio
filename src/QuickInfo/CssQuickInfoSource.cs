@@ -42,9 +42,8 @@ internal class CssQuickInfoSource(
         var lastSpace = afterAt.LastIndexOf(' ');
         var tokenStart = lastAt + lastSpace + 1;
 
-        var x = textBeforeCursor[tokenStart];
-
-        if (tokenStart >= snapshot.Length)
+        // tokenStart must point to an existing character before the trigger point
+        if (tokenStart < 0 || tokenStart >= triggerPoint.Position)
         {
             return false;
         }

@@ -6,7 +6,7 @@ namespace TailwindCSSIntellisense.Linting.Validators.Diagnostics;
 internal abstract class CssDiagnosticsChecker(ErrorType errorType)
     : DiagnosticsChecker(true, errorType)
 {
-    protected static string GetFullScopeWithoutCssComments(SnapshotSpan span)
+    protected static (int start, string text) GetFullScopeWithoutCssComments(SnapshotSpan span)
     {
         int start = span.Snapshot.Length;
         int end = 0;
@@ -26,9 +26,9 @@ internal abstract class CssDiagnosticsChecker(ErrorType errorType)
 
         if (end < start)
         {
-            return CommentRemover.StripCssComments(span.GetText());
+            return (span.Span.Start, CommentRemover.StripCssComments(span.GetText()));
         }
 
-        return CommentRemover.StripCssComments(span.Snapshot.GetText(start, end - start));
+        return (start, CommentRemover.StripCssComments(span.Snapshot.GetText(start, end - start)));
     }
 }

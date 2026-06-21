@@ -626,9 +626,16 @@ public sealed class SettingsProvider : IDisposable
         if (
             settings.UseTailwindCss != origSettings.EnableTailwindCss
             || settings.TailwindOutputFileName != origSettings.DefaultOutputCssName
-            || !settings.TailwindOnSaveTriggerFileExtensions.Equals(
-                origSettings.OnSaveTriggerFileExtensions
-            )
+            || !settings
+                .TailwindOnSaveTriggerFileExtensions.Split(
+                    [';'],
+                    StringSplitOptions.RemoveEmptyEntries
+                )
+                .Select(s => s.Trim())
+                .SequenceEqual(
+                    origSettings.OnSaveTriggerFileExtensions.Select(s => s.Trim()),
+                    StringComparer.InvariantCultureIgnoreCase
+                )
             || settings.BuildProcessType != origSettings.BuildType
             || settings.BuildScript != origSettings.BuildScript
             || settings.OverrideBuild != origSettings.OverrideBuild

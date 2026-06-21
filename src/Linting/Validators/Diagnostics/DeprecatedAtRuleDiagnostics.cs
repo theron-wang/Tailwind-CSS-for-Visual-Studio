@@ -27,7 +27,7 @@ internal class DeprecatedAtRuleDiagnostics() : CssDiagnosticsChecker(ErrorType.D
         Func<SnapshotSpan, bool> shouldNotAddErrors
     )
     {
-        var text = GetFullScopeWithoutCssComments(span);
+        var (start, text) = GetFullScopeWithoutCssComments(span);
 
         var errors = _regex.Matches(text);
 
@@ -36,7 +36,7 @@ internal class DeprecatedAtRuleDiagnostics() : CssDiagnosticsChecker(ErrorType.D
             var directive = match.Groups["directive"];
 
             var errorSpan = span.Snapshot.CreateTrackingSpan(
-                span.Start + directive.Index,
+                start + directive.Index,
                 directive.Length,
                 SpanTrackingMode.EdgeExclusive
             );

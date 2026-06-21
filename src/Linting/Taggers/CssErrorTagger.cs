@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.Composition;
+﻿using System;
+using System.ComponentModel.Composition;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Text.Tagging;
@@ -19,10 +20,10 @@ namespace TailwindCSSIntellisense.Linting.Taggers;
 internal class CssErrorTaggerProvider : ITaggerProvider
 {
     [Import]
-    public readonly LinterUtilities _linterUtilities = null!;
+    private readonly LinterUtilities _linterUtilities = null!;
 
     [Import]
-    public readonly ProjectConfigurationManager _projectConfigurationManager = null!;
+    private readonly ProjectConfigurationManager _projectConfigurationManager = null!;
 
     [Import]
     private readonly CompletionConfiguration _completionConfiguration = null!;
@@ -46,7 +47,7 @@ internal class CssErrorTaggerProvider : ITaggerProvider
                 );
     }
 
-    internal sealed class CssErrorTagger : ErrorTaggerBase
+    internal sealed class CssErrorTagger : ErrorTaggerBase, IDisposable
     {
         public CssErrorTagger(
             ITextBuffer buffer,

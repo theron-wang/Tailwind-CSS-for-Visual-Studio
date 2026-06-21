@@ -28,7 +28,7 @@ internal class InvalidScreenDiagnostics() : CssDiagnosticsChecker(ErrorType.Inva
         Func<SnapshotSpan, bool> shouldNotAddErrors
     )
     {
-        var text = GetFullScopeWithoutCssComments(span);
+        var (start, text) = GetFullScopeWithoutCssComments(span);
 
         foreach (var match in _regex.Matches(text).Cast<Match>())
         {
@@ -40,7 +40,7 @@ internal class InvalidScreenDiagnostics() : CssDiagnosticsChecker(ErrorType.Inva
             }
 
             var errorSpan = span.Snapshot.CreateTrackingSpan(
-                span.Span.Start + screenGroup.Index,
+                start + screenGroup.Index,
                 screenGroup.Length,
                 SpanTrackingMode.EdgeExclusive
             );

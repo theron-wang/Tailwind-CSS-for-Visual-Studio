@@ -29,7 +29,7 @@ internal class InvalidTailwindDirectiveDiagnostics()
         Func<SnapshotSpan, bool> shouldNotAddErrors
     )
     {
-        var text = GetFullScopeWithoutCssComments(span);
+        var (start, text) = GetFullScopeWithoutCssComments(span);
 
         foreach (var match in _regex.Matches(text).Cast<Match>())
         {
@@ -38,7 +38,7 @@ internal class InvalidTailwindDirectiveDiagnostics()
             var tailwindDirective = tailwindDirectiveGroup.Value;
 
             var errorSpan = span.Snapshot.CreateTrackingSpan(
-                span.Span.Start + tailwindDirectiveGroup.Index,
+                start + tailwindDirectiveGroup.Index,
                 tailwindDirectiveGroup.Length,
                 SpanTrackingMode.EdgeExclusive
             );
@@ -47,11 +47,11 @@ internal class InvalidTailwindDirectiveDiagnostics()
             {
                 if (tailwindDirective == "utilities")
                 {
-                    yield break;
+                    continue;
                 }
 
                 var replacementSpan = span.Snapshot.CreateTrackingSpan(
-                    span.Span.Start + match.Index,
+                    start + match.Index,
                     match.Length,
                     SpanTrackingMode.EdgeExclusive
                 );
@@ -77,7 +77,7 @@ internal class InvalidTailwindDirectiveDiagnostics()
                             ],
                         },
                     };
-                    yield break;
+                    continue;
                 }
 
                 if (
@@ -105,7 +105,7 @@ internal class InvalidTailwindDirectiveDiagnostics()
                             ],
                         },
                     };
-                    yield break;
+                    continue;
                 }
 
                 var parts = tailwindDirective.Split(
@@ -114,7 +114,7 @@ internal class InvalidTailwindDirectiveDiagnostics()
                 );
                 if (parts.Length > 1 && parts[0] == "utilities" && parts[1].StartsWith("source("))
                 {
-                    yield break;
+                    continue;
                 }
 
                 yield return new Error
@@ -123,7 +123,7 @@ internal class InvalidTailwindDirectiveDiagnostics()
                     ErrorMessage = $"'{tailwindDirective}' is not a valid value.",
                     ErrorType = ErrorType.InvalidTailwindDirective,
                 };
-                yield break;
+                continue;
             }
 
             var valid = new List<string>
@@ -137,7 +137,7 @@ internal class InvalidTailwindDirectiveDiagnostics()
 
             if (valid.Contains(tailwindDirective))
             {
-                yield break;
+                continue;
             }
 
             var message = $"'{tailwindDirective}' is not a valid value.";
@@ -152,14 +152,21 @@ internal class InvalidTailwindDirectiveDiagnostics()
                 Span = errorSpan,
                 ErrorMessage = message,
                 ErrorType = ErrorType.InvalidTailwindDirective,
-                Suggestion = new Suggestion
-                {
-                    Message = "Replace with 'base'",
-                    SuggestedFix =
-                    [
-                        new SuggestionFix { Replacement = "base", ApplicableTo = errorSpan },
-                    ],
-                },
+                Suggestion =
+                    tailwindDirective == "preflight"
+                        ? new Suggestion
+                        {
+                            Message = "Replace with 'base'",
+                            SuggestedFix =
+                            [
+                                new SuggestionFix
+                                {
+                                    Replacement = "base",
+                                    ApplicableTo = errorSpan,
+                                },
+                            ],
+                        }
+                        : null,
             };
         }
     }

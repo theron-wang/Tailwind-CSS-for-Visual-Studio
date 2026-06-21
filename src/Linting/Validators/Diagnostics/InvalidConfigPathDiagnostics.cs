@@ -20,7 +20,7 @@ internal class InvalidConfigPathDiagnostics() : CssDiagnosticsChecker(ErrorType.
 
     private static readonly Regex _themeRegex = new(
         @"(?<helper>theme|screen)\(\s*(?<path>[^)]+?)\s*\)",
-        RegexOptions.Compiled,
+        RegexOptions.Compiled | RegexOptions.IgnoreCase,
         TimeSpan.FromSeconds(1)
     );
 
@@ -32,7 +32,7 @@ internal class InvalidConfigPathDiagnostics() : CssDiagnosticsChecker(ErrorType.
         Func<SnapshotSpan, bool> shouldNotAddErrors
     )
     {
-        var text = GetFullScopeWithoutCssComments(span);
+        var (start, text) = GetFullScopeWithoutCssComments(span);
 
         foreach (var match in _themeRegex.Matches(text).Cast<Match>())
         {
@@ -40,7 +40,7 @@ internal class InvalidConfigPathDiagnostics() : CssDiagnosticsChecker(ErrorType.
             var rawPath = pathGroup.Value.Trim().Trim('"', '\'').Trim();
 
             var errorSpan = span.Snapshot.CreateTrackingSpan(
-                span.Span.Start + pathGroup.Index,
+                start + pathGroup.Index,
                 pathGroup.Length,
                 // Use edge inclusive here because suggestions with EdgeExclusive leaves a one-character space
                 // where the error is not invalidated
@@ -397,9 +397,7 @@ internal class InvalidConfigPathDiagnostics() : CssDiagnosticsChecker(ErrorType.
             }
 
             foreach (
-                var value in projectCompletionValues.Classes.Where(c =>
-                    c.Name.StartsWith(classType)
-                )
+                var value in projectCompletionValues.Classes.Where(c => c.Name.StartsWith(stem))
             )
             {
                 if (value.UseSpacing)

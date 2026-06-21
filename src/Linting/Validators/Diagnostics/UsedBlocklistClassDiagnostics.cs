@@ -74,6 +74,11 @@ internal class UsedBlocklistClassDiagnostics()
 
             foreach (var match in classesToLocations[@class])
             {
+                if (shouldNotAddErrors(match))
+                {
+                    continue;
+                }
+
                 var errorSpan = span.Snapshot.CreateTrackingSpan(
                     match,
                     SpanTrackingMode.EdgeExclusive

@@ -90,10 +90,10 @@ internal abstract class ColorTaggerBase : ITagger<IntraTextAdornmentTag>, IDispo
         }
     }
 
-    private Task LocalSettingsChangedAsync(TailwindSettings settings)
+    private async Task LocalSettingsChangedAsync(TailwindSettings settings)
     {
         _settings = settings;
-        return Task.CompletedTask;
+        await ConfigurationUpdatedAsync();
     }
 
     public event EventHandler<SnapshotSpanEventArgs>? TagsChanged;
@@ -320,10 +320,14 @@ internal abstract class ColorTaggerBase : ITagger<IntraTextAdornmentTag>, IDispo
                 }
                 else if (c.StartsWith("rgb"))
                 {
-                    var numbers = c.Substring(
-                            c.IndexOf('(') + 1,
-                            c.IndexOf(')') - c.IndexOf('(') - 1
-                        )
+                    var openParen = c.IndexOf('(');
+                    var closeParen = c.LastIndexOf(')');
+                    if (openParen < 0 || closeParen <= openParen + 1)
+                    {
+                        return null;
+                    }
+
+                    var numbers = c.Substring(openParen + 1, closeParen - openParen - 1)
                         .Split([' ', ',', '/'], StringSplitOptions.RemoveEmptyEntries);
 
                     var numbersAsBytes = numbers

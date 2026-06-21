@@ -46,7 +46,7 @@ internal class InvalidSourceDiagnostics() : CssDiagnosticsChecker(ErrorType.Inva
         Func<SnapshotSpan, bool> shouldNotAddErrors
     )
     {
-        var text = GetFullScopeWithoutCssComments(span);
+        var (start, text) = GetFullScopeWithoutCssComments(span);
 
         var matches = _importSourceRegex
             .Matches(text)
@@ -77,7 +77,7 @@ internal class InvalidSourceDiagnostics() : CssDiagnosticsChecker(ErrorType.Inva
             source = source.Trim();
 
             var errorSpan = span.Snapshot.CreateTrackingSpan(
-                span.Span.Start + sourceGroup.Index,
+                start + sourceGroup.Index,
                 sourceGroup.Length,
                 SpanTrackingMode.EdgeExclusive
             );
