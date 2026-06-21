@@ -1,5 +1,4 @@
 using TailwindCSSIntellisense.Configuration;
-using TailwindCSSIntellisense.Helpers;
 using TailwindCSSIntellisense.Settings;
 
 namespace TailwindCSSIntellisense.Tests.UnitTests;
@@ -56,9 +55,19 @@ public class UtilityHelpersTests
         var tempFile = Path.GetTempFileName();
         try
         {
-            Assert.True(CliUsageValidator.IsCliUsedCorrectly(new TailwindSettings { UseCli = false }));
-            Assert.True(CliUsageValidator.IsCliUsedCorrectly(new TailwindSettings { UseCli = true, TailwindCliPath = tempFile }));
-            Assert.False(CliUsageValidator.IsCliUsedCorrectly(new TailwindSettings { UseCli = true, TailwindCliPath = tempFile + ".missing" }));
+            Assert.True(
+                CliUsageValidator.IsCliUsedCorrectly(new TailwindSettings { UseCli = false })
+            );
+            Assert.True(
+                CliUsageValidator.IsCliUsedCorrectly(
+                    new TailwindSettings { UseCli = true, TailwindCliPath = tempFile }
+                )
+            );
+            Assert.False(
+                CliUsageValidator.IsCliUsedCorrectly(
+                    new TailwindSettings { UseCli = true, TailwindCliPath = tempFile + ".missing" }
+                )
+            );
         }
         finally
         {

@@ -25,7 +25,11 @@ internal static class ResourcesLoader
     /// <param name="classTypes">The list of class types included in the result. Cannot be null.</param>
     /// <param name="unsetProject">The unset project completion values associated with the result.</param>
     /// <param name="opacity">The list of opacity values included in the result. Cannot be null.</param>
-    public class Result(List<ClassTypeBase> classTypes, UnsetProjectCompletionValues unsetProject, List<int> opacity)
+    public class Result(
+        List<ClassTypeBase> classTypes,
+        UnsetProjectCompletionValues unsetProject,
+        List<int> opacity
+    )
     {
         public List<ClassTypeBase> ClassTypes { get; } = classTypes;
         public UnsetProjectCompletionValues UnsetProject { get; } = unsetProject;
@@ -58,9 +62,15 @@ internal static class ResourcesLoader
     /// <param name="forVariants">true to load the order for variant classes; otherwise, false to load the base class order. The default is false.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains a list of class names in the order
     /// defined for the specified version. The list will be empty if no order information is available.</returns>
-    public static async Task<List<string>> LoadOrderForVersionAsync(TailwindVersion version, bool forVariants = false)
+    public static async Task<List<string>> LoadOrderForVersionAsync(
+        TailwindVersion version,
+        bool forVariants = false
+    )
     {
-        var baseFolder = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "Resources");
+        var baseFolder = Path.Combine(
+            Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+            "Resources"
+        );
         var fileName = forVariants ? "variantorder.json" : "order.json";
         var majorVersionFolder = Path.Combine(baseFolder, version.GetMajorVersion().ToString());
         var majorVersionFile = Path.Combine(majorVersionFolder, fileName);
@@ -85,43 +95,83 @@ internal static class ResourcesLoader
     /// variants, project metadata, and opacity values for the specified version.</returns>
     private static async Task<Result> LoadMajorVersionAsync(TailwindVersion version)
     {
-        var baseFolder = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "Resources");
+        var baseFolder = Path.Combine(
+            Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+            "Resources"
+        );
         var versionFolder = Path.Combine(baseFolder, version.ToString());
 
-        var project = new UnsetProjectCompletionValues
-        {
-            Version = version
-        };
+        var project = new UnsetProjectCompletionValues { Version = version };
 
         List<ClassTypeBase> classTypes = [];
         List<int> opacity = [];
 
         var loadTasks = new List<Task>
         {
-            LoadJsonAsync<Dictionary<string, string>>(Path.Combine(versionFolder, "colors.json"), c => project.ColorMapper = c),
-            LoadJsonAsync<List<string>>(Path.Combine(baseFolder, "spacing.json"), spacing =>
-            {
-                project.SpacingMapper = [];
-                foreach (var s in spacing)
+            LoadJsonAsync<Dictionary<string, string>>(
+                Path.Combine(versionFolder, "colors.json"),
+                c => project.ColorMapper = c
+            ),
+            LoadJsonAsync<List<string>>(
+                Path.Combine(baseFolder, "spacing.json"),
+                spacing =>
                 {
-                    project.SpacingMapper[s] = s == "px" ? "1px" : $"{float.Parse(s, CultureInfo.InvariantCulture) / 4}rem";
+                    project.SpacingMapper = [];
+                    foreach (var s in spacing)
+                    {
+                        project.SpacingMapper[s] =
+                            s == "px"
+                                ? "1px"
+                                : $"{float.Parse(s, CultureInfo.InvariantCulture) / 4}rem";
+                    }
                 }
-            }),
+            ),
             LoadJsonAsync<List<int>>(Path.Combine(baseFolder, "opacity.json"), o => opacity = o),
-            LoadJsonAsync<Dictionary<string, List<string>>>(Path.Combine(baseFolder, "tailwindconfig.json"), c => project.ConfigurationValueToClassStems = c),
-            LoadJsonAsync<Dictionary<string, string>>(Path.Combine(versionFolder, "descriptions.json"), d => project.DescriptionMapper = d)
+            LoadJsonAsync<Dictionary<string, List<string>>>(
+                Path.Combine(baseFolder, "tailwindconfig.json"),
+                c => project.ConfigurationValueToClassStems = c
+            ),
+            LoadJsonAsync<Dictionary<string, string>>(
+                Path.Combine(versionFolder, "descriptions.json"),
+                d => project.DescriptionMapper = d
+            ),
         };
 
         if (version >= TailwindVersion.V4)
         {
-            loadTasks.Add(LoadJsonAsync<List<ClassType>>(Path.Combine(versionFolder, "classes.json"), v => classTypes = [.. v.Cast<ClassTypeBase>()]));
-            loadTasks.Add(LoadJsonAsync<Dictionary<string, string>>(Path.Combine(versionFolder, "theme.json"), d => project.CssVariables = d));
-            loadTasks.Add(LoadJsonAsync<Dictionary<string, string>>(Path.Combine(versionFolder, "variants.json"), d => project.VariantsToDescriptions = d));
+            loadTasks.Add(
+                LoadJsonAsync<List<ClassType>>(
+                    Path.Combine(versionFolder, "classes.json"),
+                    v => classTypes = [.. v.Cast<ClassTypeBase>()]
+                )
+            );
+            loadTasks.Add(
+                LoadJsonAsync<Dictionary<string, string>>(
+                    Path.Combine(versionFolder, "theme.json"),
+                    d => project.CssVariables = d
+                )
+            );
+            loadTasks.Add(
+                LoadJsonAsync<Dictionary<string, string>>(
+                    Path.Combine(versionFolder, "variants.json"),
+                    d => project.VariantsToDescriptions = d
+                )
+            );
         }
         else
         {
-            loadTasks.Add(LoadJsonAsync<List<ClassTypeV3>>(Path.Combine(versionFolder, "classes.json"), v => classTypes = [.. v.Cast<ClassTypeBase>()]));
-            loadTasks.Add(LoadJsonAsync<List<string>>(Path.Combine(versionFolder, "variants.json"), m => project.Variants = m));
+            loadTasks.Add(
+                LoadJsonAsync<List<ClassTypeV3>>(
+                    Path.Combine(versionFolder, "classes.json"),
+                    v => classTypes = [.. v.Cast<ClassTypeBase>()]
+                )
+            );
+            loadTasks.Add(
+                LoadJsonAsync<List<string>>(
+                    Path.Combine(versionFolder, "variants.json"),
+                    m => project.Variants = m
+                )
+            );
         }
 
         await Task.WhenAll(loadTasks);
@@ -142,89 +192,133 @@ internal static class ResourcesLoader
     /// variants, project configuration, and opacity values for the specified minor version.</returns>
     private static async Task<Result> LoadMinorVersionAsync(TailwindVersion minorVersion)
     {
-        var baseFolder = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "Resources");
-        var majorVersionFolder = Path.Combine(baseFolder, minorVersion.GetMajorVersion().ToString());
+        var baseFolder = Path.Combine(
+            Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+            "Resources"
+        );
+        var majorVersionFolder = Path.Combine(
+            baseFolder,
+            minorVersion.GetMajorVersion().ToString()
+        );
         var minorVersionFolder = Path.Combine(majorVersionFolder, minorVersion.ToString());
 
-        var project = new UnsetProjectCompletionValues
-        {
-            Version = minorVersion
-        };
+        var project = new UnsetProjectCompletionValues { Version = minorVersion };
 
         List<ClassTypeBase> classTypes = [];
         List<int> opacity = [];
 
         var loadTasks = new List<Task>
         {
-            LoadJsonAsync<List<string>>(Path.Combine(baseFolder, "spacing.json"), spacing =>
-            {
-                project.SpacingMapper = [];
-                foreach (var s in spacing)
+            LoadJsonAsync<List<string>>(
+                Path.Combine(baseFolder, "spacing.json"),
+                spacing =>
                 {
-                    project.SpacingMapper[s] = s == "px" ? "1px" : $"{float.Parse(s, CultureInfo.InvariantCulture) / 4}rem";
+                    project.SpacingMapper = [];
+                    foreach (var s in spacing)
+                    {
+                        project.SpacingMapper[s] =
+                            s == "px"
+                                ? "1px"
+                                : $"{float.Parse(s, CultureInfo.InvariantCulture) / 4}rem";
+                    }
                 }
-            }),
+            ),
             LoadJsonAsync<List<int>>(Path.Combine(baseFolder, "opacity.json"), o => opacity = o),
-            LoadJsonAsync<Dictionary<string, List<string>>>(Path.Combine(baseFolder, "tailwindconfig.json"), c => project.ConfigurationValueToClassStems = c)
+            LoadJsonAsync<Dictionary<string, List<string>>>(
+                Path.Combine(baseFolder, "tailwindconfig.json"),
+                c => project.ConfigurationValueToClassStems = c
+            ),
         };
 
         if (File.Exists(Path.Combine(minorVersionFolder, "classes.json")))
         {
-            loadTasks.Add(RevertKeyedArrayDiffAsync(Path.Combine(majorVersionFolder, "classes.json"), Path.Combine(minorVersionFolder, "classes.json"), "s").ThenAsync(result =>
-            {
-                if (minorVersion >= TailwindVersion.V4)
-                {
-                    classTypes = [.. result.Select(obj => obj.Deserialize<ClassType>()!)];
-                    return;
-                }
-                classTypes = [.. result.Select(obj => obj.Deserialize<ClassTypeV3>()!)];
-            }));
+            loadTasks.Add(
+                RevertKeyedArrayDiffAsync(
+                        Path.Combine(majorVersionFolder, "classes.json"),
+                        Path.Combine(minorVersionFolder, "classes.json"),
+                        "s"
+                    )
+                    .ThenAsync(result =>
+                    {
+                        if (minorVersion >= TailwindVersion.V4)
+                        {
+                            classTypes = [.. result.Select(obj => obj.Deserialize<ClassType>()!)];
+                            return;
+                        }
+                        classTypes = [.. result.Select(obj => obj.Deserialize<ClassTypeV3>()!)];
+                    })
+            );
         }
         else
         {
             if (minorVersion >= TailwindVersion.V4)
             {
-                loadTasks.Add(LoadJsonAsync<List<ClassType>>(Path.Combine(majorVersionFolder, "classes.json"), v => classTypes = [.. v.Cast<ClassTypeBase>()]));
+                loadTasks.Add(
+                    LoadJsonAsync<List<ClassType>>(
+                        Path.Combine(majorVersionFolder, "classes.json"),
+                        v => classTypes = [.. v.Cast<ClassTypeBase>()]
+                    )
+                );
             }
             else
             {
-                loadTasks.Add(LoadJsonAsync<List<ClassTypeV3>>(Path.Combine(majorVersionFolder, "classes.json"), v => classTypes = [.. v.Cast<ClassTypeBase>()]));
+                loadTasks.Add(
+                    LoadJsonAsync<List<ClassTypeV3>>(
+                        Path.Combine(majorVersionFolder, "classes.json"),
+                        v => classTypes = [.. v.Cast<ClassTypeBase>()]
+                    )
+                );
             }
         }
 
-        loadTasks.Add(LoadVersionedJsonAsync<Dictionary<string, string>>(
-            majorVersionFolder,
-            minorVersionFolder,
-            "colors.json",
-            c => project.ColorMapper = c));
+        loadTasks.Add(
+            LoadVersionedJsonAsync<Dictionary<string, string>>(
+                majorVersionFolder,
+                minorVersionFolder,
+                "colors.json",
+                c => project.ColorMapper = c
+            )
+        );
 
-        loadTasks.Add(LoadVersionedJsonAsync<Dictionary<string, string>>(
-            majorVersionFolder,
-            minorVersionFolder,
-            "descriptions.json",
-            d => project.DescriptionMapper = d));
+        loadTasks.Add(
+            LoadVersionedJsonAsync<Dictionary<string, string>>(
+                majorVersionFolder,
+                minorVersionFolder,
+                "descriptions.json",
+                d => project.DescriptionMapper = d
+            )
+        );
 
         if (minorVersion >= TailwindVersion.V4)
         {
-            loadTasks.Add(LoadVersionedJsonAsync<Dictionary<string, string>>(
-                majorVersionFolder,
-                minorVersionFolder,
-                "theme.json",
-                t => project.CssVariables = t));
+            loadTasks.Add(
+                LoadVersionedJsonAsync<Dictionary<string, string>>(
+                    majorVersionFolder,
+                    minorVersionFolder,
+                    "theme.json",
+                    t => project.CssVariables = t
+                )
+            );
 
-            loadTasks.Add(LoadVersionedJsonAsync<Dictionary<string, string>>(
-                majorVersionFolder,
-                minorVersionFolder,
-                "variants.json",
-                v => project.VariantsToDescriptions = v));
+            loadTasks.Add(
+                LoadVersionedJsonAsync<Dictionary<string, string>>(
+                    majorVersionFolder,
+                    minorVersionFolder,
+                    "variants.json",
+                    v => project.VariantsToDescriptions = v
+                )
+            );
         }
         else
         {
-            loadTasks.Add(LoadVersionedJsonAsync<List<string>>(
-                majorVersionFolder,
-                minorVersionFolder,
-                "variants.json",
-                v => project.Variants = v));
+            loadTasks.Add(
+                LoadVersionedJsonAsync<List<string>>(
+                    majorVersionFolder,
+                    minorVersionFolder,
+                    "variants.json",
+                    v => project.Variants = v
+                )
+            );
         }
 
         await Task.WhenAll(loadTasks);
@@ -248,7 +342,8 @@ internal static class ResourcesLoader
         string majorVersionFolder,
         string minorVersionFolder,
         string fileName,
-        Action<T> assign)
+        Action<T> assign
+    )
     {
         var minorPath = Path.Combine(minorVersionFolder, fileName);
         var majorPath = Path.Combine(majorVersionFolder, fileName);
@@ -274,7 +369,10 @@ internal static class ResourcesLoader
     /// <param name="originalPath">The file path to the original JSON object. Must not be null or empty.</param>
     /// <param name="diffPath">The file path to the JSON diff file describing changes to revert. Must not be null or empty.</param>
     /// <returns>A JsonObject representing the original object with the diff changes reverted.</returns>
-    private static async Task<JsonObject> RevertObjectDiffAsync(string originalPath, string diffPath)
+    private static async Task<JsonObject> RevertObjectDiffAsync(
+        string originalPath,
+        string diffPath
+    )
     {
         var original = await LoadJsonAsync<JsonObject>(originalPath);
         var diff = await LoadJsonAsync<JsonObject>(diffPath);
@@ -310,7 +408,11 @@ internal static class ResourcesLoader
     /// <param name="keyProperty">The property name used as the unique key for matching objects within the arrays. Must not be null or empty.</param>
     /// <returns>An ordered collection of JsonObject instances representing the original array after the diff has been reverted.
     /// The collection is ordered by the key property in ordinal order.</returns>
-    private static async Task<IEnumerable<JsonObject>> RevertKeyedArrayDiffAsync(string originalPath, string diffPath, string keyProperty)
+    private static async Task<IEnumerable<JsonObject>> RevertKeyedArrayDiffAsync(
+        string originalPath,
+        string diffPath,
+        string keyProperty
+    )
     {
         var original = await LoadJsonAsync<JsonArray>(originalPath);
         var diff = await LoadJsonAsync<JsonObject>(diffPath);
@@ -345,7 +447,9 @@ internal static class ResourcesLoader
             }
         }
 
-        return originalByKey.OrderBy(pair => pair.Key, StringComparer.Ordinal).Select(pair => pair.Value);
+        return originalByKey
+            .OrderBy(pair => pair.Key, StringComparer.Ordinal)
+            .Select(pair => pair.Value);
     }
 
     /// <summary>
@@ -357,7 +461,10 @@ internal static class ResourcesLoader
     /// <param name="diffPath">The path to the JSON file containing the diff describing additions and removals. Cannot be null or empty.</param>
     /// <returns>A list of strings representing the items in their original order after reverting the diff. The list will be
     /// empty if the original file contains no items.</returns>
-    private static async Task<List<string>> RevertOrderDiffAsync(string originalPath, string diffPath)
+    private static async Task<List<string>> RevertOrderDiffAsync(
+        string originalPath,
+        string diffPath
+    )
     {
         var result = await LoadJsonAsync<List<string>>(originalPath);
         var diff = await LoadJsonAsync<JsonObject>(diffPath);
@@ -384,7 +491,10 @@ internal static class ResourcesLoader
         return result;
     }
 
-    private static Dictionary<string, JsonObject> ToKeyedDictionary(JsonArray array, string keyProperty)
+    private static Dictionary<string, JsonObject> ToKeyedDictionary(
+        JsonArray array,
+        string keyProperty
+    )
     {
         Dictionary<string, JsonObject> result = [];
 
@@ -395,15 +505,17 @@ internal static class ResourcesLoader
                 throw new InvalidDataException("Expected a JSON object entry.");
             }
 
-            var key = obj[keyProperty]?.GetValue<string>()
-                ?? throw new InvalidDataException($"Expected property '{keyProperty}' to be present.");
+            var key =
+                obj[keyProperty]?.GetValue<string>()
+                ?? throw new InvalidDataException(
+                    $"Expected property '{keyProperty}' to be present."
+                );
 
             result[key] = obj;
         }
 
         return result;
     }
-
 
     private static async Task<T> LoadJsonAsync<T>(string path)
     {
@@ -417,6 +529,7 @@ internal static class ResourcesLoader
         var data = await JsonSerializer.DeserializeAsync<T>(fs);
         process(data!);
     }
+
     private static void DetachJsonNode(JsonNode node)
     {
         var parent = node.Parent;
@@ -431,9 +544,14 @@ internal static class ResourcesLoader
         }
     }
 }
+
 file static class TaskThenExtension
 {
-    [SuppressMessage("Usage", "VSTHRD003:Avoid awaiting foreign Tasks", Justification = "Not intended to be used where deadlocks are possible")]
+    [SuppressMessage(
+        "Usage",
+        "VSTHRD003:Avoid awaiting foreign Tasks",
+        Justification = "Not intended to be used where deadlocks are possible"
+    )]
     public static async Task ThenAsync<T>(this Task<T> task, Action<T> process)
     {
         process(await task);

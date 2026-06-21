@@ -23,7 +23,11 @@ internal class FontSizeDescriptionGenerator : DescriptionGenerator
             {
                 var list = array.ToList();
 
-                if (list[1].Contains("lineHeight") && list[1].Contains("letterSpacing") && list[1].Contains("fontWeight"))
+                if (
+                    list[1].Contains("lineHeight")
+                    && list[1].Contains("letterSpacing")
+                    && list[1].Contains("fontWeight")
+                )
                 {
                     var values = JsonSerializer.Deserialize<Dictionary<string, string>>(list[1]);
 
@@ -42,7 +46,12 @@ internal class FontSizeDescriptionGenerator : DescriptionGenerator
                     return $"font-size: {fontSize};line-height: {lineHeight};";
                 }
             }
-            else if (value is object[] tuple && tuple.Length == 2 && tuple[0] is string fontSize && tuple[1] is Dictionary<string, string> dict)
+            else if (
+                value is object[] tuple
+                && tuple.Length == 2
+                && tuple[0] is string fontSize
+                && tuple[1] is Dictionary<string, string> dict
+            )
             {
                 var result = $"font-size: {fontSize};";
 

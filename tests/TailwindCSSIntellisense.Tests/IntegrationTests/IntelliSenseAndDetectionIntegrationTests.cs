@@ -5,7 +5,9 @@ namespace TailwindCSSIntellisense.Tests.IntegrationTests;
 [Collection("Non-Parallel Tests")]
 public class IntelliSenseAndDetectionIntegrationTests : IDisposable
 {
-    private readonly Func<Task<TailwindCSSIntellisense.Settings.TailwindSettings>>? _originalSettingsDelegate;
+    private readonly Func<
+        Task<TailwindCSSIntellisense.Settings.TailwindSettings>
+    >? _originalSettingsDelegate;
 
     public IntelliSenseAndDetectionIntegrationTests()
     {
@@ -24,18 +26,24 @@ public class IntelliSenseAndDetectionIntegrationTests : IDisposable
         var values = new ProjectCompletionValues
         {
             Version = TailwindVersion.V3,
-            Blocklist = ["text-red-500"]
+            Blocklist = ["text-red-500"],
         };
 
         const string html = "<div class=\"text-red-500 p-4\"></div>";
         const string jsx = "<button className=\"hover:text-blue-500 text-red-500\"></button>";
 
-        var htmlTokens = ClassRegexHelper.GetClassesNormal(html, html)
-            .SelectMany(m => ClassRegexHelper.SplitNonRazorClasses(ClassRegexHelper.GetClassTextGroup(m).Value))
+        var htmlTokens = ClassRegexHelper
+            .GetClassesNormal(html)
+            .SelectMany(m =>
+                ClassRegexHelper.SplitNonRazorClasses(ClassRegexHelper.GetClassTextGroup(m).Value)
+            )
             .Select(m => m.Value);
 
-        var jsTokens = ClassRegexHelper.GetClassesJavaScript(jsx, jsx)
-            .SelectMany(m => ClassRegexHelper.SplitNonRazorClasses(ClassRegexHelper.GetClassTextGroup(m).Value))
+        var jsTokens = ClassRegexHelper
+            .GetClassesJavaScript(jsx)
+            .SelectMany(m =>
+                ClassRegexHelper.SplitNonRazorClasses(ClassRegexHelper.GetClassTextGroup(m).Value)
+            )
             .Select(m => m.Value);
 
         var allowed = htmlTokens.Concat(jsTokens).Where(values.IsClassAllowed).ToList();
@@ -48,13 +56,7 @@ public class IntelliSenseAndDetectionIntegrationTests : IDisposable
     [Fact]
     public void KnownModifierEligibility_UsesCssVariablesForLineHeightSuggestions()
     {
-        var values = new ProjectCompletionValues
-        {
-            CssVariables =
-            {
-                ["--text-sm"] = "14px"
-            }
-        };
+        var values = new ProjectCompletionValues { CssVariables = { ["--text-sm"] = "14px" } };
 
         Assert.True(KnownModifiers.IsEligibleForLineHeightModifier("text-sm", values));
         Assert.False(KnownModifiers.IsEligibleForLineHeightModifier("text-shadow-md", values));

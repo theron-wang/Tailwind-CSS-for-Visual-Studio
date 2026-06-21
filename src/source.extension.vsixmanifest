@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
   <Metadata>
-    <Identity Id="TailwindCSSIntellisense.b29696d4-76a4-43d1-a203-c8e692368847" Version="1.13.12" Language="en-US" Publisher="Theron Wang" />
+    <Identity Id="TailwindCSSIntellisense.b29696d4-76a4-43d1-a203-c8e692368847" Version="1.14.0" Language="en-US" Publisher="Theron Wang" />
     <DisplayName>Tailwind CSS for Visual Studio</DisplayName>
     <Description xml:space="preserve">Unofficial extension for Tailwind CSS IntelliSense, linting, sorting, and more in Visual Studio 2026 and 2022.</Description>
     <MoreInfo>https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio</MoreInfo>

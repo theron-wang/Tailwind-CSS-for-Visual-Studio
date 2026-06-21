@@ -1,7 +1,7 @@
-﻿using Microsoft.VisualStudio.Threading;
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using Microsoft.VisualStudio.Threading;
 
 namespace TailwindCSSIntellisense.Node;
 
@@ -18,7 +18,9 @@ internal static class NpmHelpers
     {
         var processStartInfo = GetCmdProcessStartInfo("npm root -g");
 
-        using Process process = Process.Start(processStartInfo) ?? throw new InvalidOperationException("Failed to start npm process.");
+        using Process process =
+            Process.Start(processStartInfo)
+            ?? throw new InvalidOperationException("Failed to start npm process.");
 
         var errorTask = process.StandardError.ReadToEndAsync();
         var outputTask = process.StandardOutput.ReadToEndAsync();
@@ -29,7 +31,9 @@ internal static class NpmHelpers
 
         if (process.ExitCode != 0)
         {
-            throw new InvalidOperationException($"npm root -g failed (exit {process.ExitCode}): {error.Trim()}");
+            throw new InvalidOperationException(
+                $"npm root -g failed (exit {process.ExitCode}): {error.Trim()}"
+            );
         }
 
         return output.Trim();
@@ -48,7 +52,9 @@ internal static class NpmHelpers
         var processStartInfo = GetCmdProcessStartInfo("npm root");
         processStartInfo.WorkingDirectory = workingDir;
 
-        using Process process = Process.Start(processStartInfo) ?? throw new InvalidOperationException("Failed to start npm process.");
+        using Process process =
+            Process.Start(processStartInfo)
+            ?? throw new InvalidOperationException("Failed to start npm process.");
 
         var errorTask = process.StandardError.ReadToEndAsync();
         var outputTask = process.StandardOutput.ReadToEndAsync();
@@ -59,7 +65,9 @@ internal static class NpmHelpers
 
         if (process.ExitCode != 0)
         {
-            throw new InvalidOperationException($"npm root failed (exit {process.ExitCode}): {error.Trim()}");
+            throw new InvalidOperationException(
+                $"npm root failed (exit {process.ExitCode}): {error.Trim()}"
+            );
         }
 
         return output.Trim();
@@ -78,7 +86,11 @@ internal static class NpmHelpers
         processStartInfo.WorkingDirectory = workingDir;
 
         string relativePath;
-        using (Process process = Process.Start(processStartInfo) ?? throw new InvalidOperationException("Failed to start npm process."))
+        using (
+            Process process =
+                Process.Start(processStartInfo)
+                ?? throw new InvalidOperationException("Failed to start npm process.")
+        )
         {
             var errorTask = process.StandardError.ReadToEndAsync();
             var outputTask = process.StandardOutput.ReadToEndAsync();
@@ -89,7 +101,9 @@ internal static class NpmHelpers
 
             if (process.ExitCode != 0)
             {
-                throw new InvalidOperationException($"npm view {package} style failed (exit {process.ExitCode}): {error.Trim()}");
+                throw new InvalidOperationException(
+                    $"npm view {package} style failed (exit {process.ExitCode}): {error.Trim()}"
+                );
             }
         }
 
@@ -117,7 +131,7 @@ internal static class NpmHelpers
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
-            CreateNoWindow = true
+            CreateNoWindow = true,
         };
     }
 }

@@ -1,10 +1,11 @@
-﻿using Community.VisualStudio.Toolkit;
-using Microsoft.VisualStudio.Shell;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using Community.VisualStudio.Toolkit;
+using Microsoft.VisualStudio.Shell;
 using TailwindCSSIntellisense.Settings;
 
 namespace TailwindCSSIntellisense.Configuration;
@@ -17,8 +18,10 @@ public sealed class ConfigurationFileReloader : IDisposable
 {
     [Import]
     internal ConfigFileScanner Scanner { get; set; } = null!;
+
     [Import]
     internal SettingsProvider SettingsProvider { get; set; } = null!;
+
     [Import]
     internal CompletionConfiguration CompletionConfiguration { get; set; } = null!;
 
@@ -26,7 +29,9 @@ public sealed class ConfigurationFileReloader : IDisposable
 
     private TailwindSettings _settings = null!;
 
-    private readonly Dictionary<string, HashSet<ConfigurationFile>> _importToConfigurationFiles = [];
+    private readonly SemaphoreSlim _importToConfigSemaphore = new(1, 1);
+    private readonly Dictionary<string, HashSet<ConfigurationFile>> _importToConfigurationFiles =
+    [];
 
     /// <summary>
     /// Initializes the class to subscribe to relevant events
@@ -46,38 +51,67 @@ public sealed class ConfigurationFileReloader : IDisposable
         await CompletionConfiguration.ReloadCustomAttributesAsync(_settings);
     }
 
-    public void AddImport(string import, ConfigurationFile config)
+    public async Task AddImportAsync(string import, ConfigurationFile config)
     {
-        if (_importToConfigurationFiles.TryGetValue(import.ToLower(), out var values))
+        await _importToConfigSemaphore.WaitAsync();
+
+        try
         {
-            values.Add(config);
+            if (_importToConfigurationFiles.TryGetValue(import.ToLower(), out var values))
+            {
+                values.Add(config);
+            }
+            else
+            {
+                _importToConfigurationFiles[import.ToLower()] = [config];
+            }
         }
-        else
+        finally
         {
-            _importToConfigurationFiles[import.ToLower()] = [config];
+            _importToConfigSemaphore.Release();
         }
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync", Justification = "RunAsync with FileAndForget is ok")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Reliability",
+        "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync",
+        Justification = "RunAsync with FileAndForget is ok"
+    )]
     private void OnFileSave(string file)
     {
         List<ConfigurationFile> configFiles = [];
 
-        var configFile = _settings.ConfigurationFiles.FirstOrDefault(c => c.Path.Equals(file, StringComparison.InvariantCultureIgnoreCase));
+        var configFile = _settings.ConfigurationFiles.FirstOrDefault(c =>
+            c.Path.Equals(file, StringComparison.InvariantCultureIgnoreCase)
+        );
 
         if (configFile is not null)
         {
             configFiles.Add(configFile);
         }
 
-        if (_importToConfigurationFiles.TryGetValue(file.ToLower(), out var values))
+        _importToConfigSemaphore.Wait();
+        try
         {
-            configFiles.AddRange(values);
+            if (_importToConfigurationFiles.TryGetValue(file.ToLower(), out var values))
+            {
+                configFiles.AddRange(values);
+            }
+        }
+        finally
+        {
+            _importToConfigSemaphore.Release();
         }
 
         foreach (var config in configFiles)
         {
-            ThreadHelper.JoinableTaskFactory.RunAsync(() => CompletionConfiguration.ReloadCustomAttributesAsync(config, _settings)).FileAndForget(nameof(TailwindCSSIntellisense) + "/ConfigurationFileReloader/OnFileSave");
+            ThreadHelper
+                .JoinableTaskFactory.RunAsync(() =>
+                    CompletionConfiguration.ReloadCustomAttributesAsync(config, _settings)
+                )
+                .FileAndForget(
+                    nameof(TailwindCSSIntellisense) + "/ConfigurationFileReloader/OnFileSave"
+                );
         }
     }
 
@@ -86,9 +120,18 @@ public sealed class ConfigurationFileReloader : IDisposable
         _settings = settings;
         var added = settings.ConfigurationFiles.Except(_settings.ConfigurationFiles).ToList();
 
-        foreach (var values in _importToConfigurationFiles.Values)
+        await _importToConfigSemaphore.WaitAsync();
+
+        try
         {
-            values.RemoveWhere(v => !settings.ConfigurationFiles.Contains(v));
+            foreach (var values in _importToConfigurationFiles.Values)
+            {
+                values.RemoveWhere(v => !settings.ConfigurationFiles.Contains(v));
+            }
+        }
+        finally
+        {
+            _importToConfigSemaphore.Release();
         }
 
         if (added.Count > 0)

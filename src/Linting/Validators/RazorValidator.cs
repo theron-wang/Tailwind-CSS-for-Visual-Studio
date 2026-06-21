@@ -1,30 +1,67 @@
-﻿using Microsoft.VisualStudio.Text;
-using System;
-using System.Collections.Generic;
-using System.Text.RegularExpressions;
+﻿using System.Collections.Generic;
+using Microsoft.VisualStudio.Text;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Configuration;
+using TailwindCSSIntellisense.Linting.Validators.Diagnostics;
 using TailwindCSSIntellisense.Parsers;
 
 namespace TailwindCSSIntellisense.Linting.Validators;
 
-internal class RazorValidator : HtmlLikeValidator
+internal class RazorValidator : Validator
 {
-    protected override Func<string, IEnumerable<Match>> ClassSplitter { get; set; } = ClassRegexHelper.SplitRazorClasses;
-    protected override Func<string, string, IEnumerable<Match>> ClassMatchGetter { get; set; } = ClassRegexHelper.GetClassesRazor;
+    protected RazorValidator(
+        ITextBuffer buffer,
+        LinterUtilities linterUtils,
+        ProjectConfigurationManager completionUtilities,
+        CompletionConfiguration completionConfiguration,
+        DiagnosticsAggregator diagnosticsAggregator
+    )
+        : base(
+            buffer,
+            linterUtils,
+            completionUtilities,
+            completionConfiguration,
+            diagnosticsAggregator
+        ) { }
 
-    protected RazorValidator(ITextBuffer buffer, LinterUtilities linterUtils, ProjectConfigurationManager completionUtilities, CompletionConfiguration completionConfiguration) : base(buffer, linterUtils, completionUtilities, completionConfiguration)
+    protected override IEnumerable<Error> ComputeErrors(SnapshotSpan span)
     {
+        if (_projectCompletionValues is null)
+        {
+            return [];
+        }
 
+        return _diagnosticsAggregator.GetErrors(
+            span,
+            false,
+            _projectCompletionValues,
+            ClassRegexHelper.GetClassesRazor,
+            ClassRegexHelper.SplitRazorClasses,
+            IsAlreadyChecked
+        );
     }
 
-    public override IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span)
+    protected override IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span)
     {
         return RazorParser.GetScopes(span);
     }
 
-    public static Validator Create(ITextBuffer buffer, LinterUtilities linterUtils, ProjectConfigurationManager completionUtilities, CompletionConfiguration completionConfiguration)
+    public static Validator Create(
+        ITextBuffer buffer,
+        LinterUtilities linterUtils,
+        ProjectConfigurationManager completionUtilities,
+        CompletionConfiguration completionConfiguration,
+        DiagnosticsAggregator diagnosticsAggregator
+    )
     {
-        return buffer.Properties.GetOrCreateSingletonProperty<Validator>(() => new RazorValidator(buffer, linterUtils, completionUtilities, completionConfiguration));
+        return buffer.Properties.GetOrCreateSingletonProperty<Validator>(() =>
+            new RazorValidator(
+                buffer,
+                linterUtils,
+                completionUtilities,
+                completionConfiguration,
+                diagnosticsAggregator
+            )
+        );
     }
 }

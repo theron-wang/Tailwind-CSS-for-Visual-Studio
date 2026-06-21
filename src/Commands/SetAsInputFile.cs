@@ -1,9 +1,9 @@
-﻿using Community.VisualStudio.Toolkit;
-using Microsoft.VisualStudio.Shell;
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Community.VisualStudio.Toolkit;
+using Microsoft.VisualStudio.Shell;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Settings;
 
@@ -23,29 +23,37 @@ internal sealed class SetAsInputFile : BaseCommand<SetAsInputFile>
     internal SettingsProvider SettingsProvider { get; set; } = null!;
     internal DirectoryVersionFinder DirectoryVersionFinder { get; set; } = null!;
 
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "No other choice + settings likely loaded by the time this command is queried")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Usage",
+        "VSTHRD102:Implement internal logic asynchronously",
+        Justification = "No other choice + settings likely loaded by the time this command is queried"
+    )]
     protected override void BeforeQueryStatus(EventArgs e)
     {
         var filePath = SolutionExplorerSelection.CurrentSelectedItemFullPath;
 
         var settings = ThreadHelper.JoinableTaskFactory.Run(SettingsProvider.GetSettingsAsync);
 
-        Command.Visible = settings.EnableTailwindCss &&
-            settings.BuildFiles is not null &&
-            settings.BuildFiles.All(f =>
-                !f.Input.Equals(filePath, StringComparison.InvariantCultureIgnoreCase) &&
-                (f.Output is null ||
-                !f.Output.Equals(filePath, StringComparison.InvariantCultureIgnoreCase))
-            ) &&
-            Path.GetExtension(filePath) == ".css";
+        Command.Visible =
+            settings.EnableTailwindCss
+            && settings.BuildFiles is not null
+            && settings.BuildFiles.All(f =>
+                !f.Input.Equals(filePath, StringComparison.InvariantCultureIgnoreCase)
+                && (
+                    f.Output is null
+                    || !f.Output.Equals(filePath, StringComparison.InvariantCultureIgnoreCase)
+                )
+            )
+            && Path.GetExtension(filePath) == ".css";
 
         if (!Command.Visible)
         {
             return;
         }
 
-        var version = ThreadHelper.JoinableTaskFactory.Run(() => DirectoryVersionFinder.GetTailwindVersionAsync(filePath, settings));
+        var version = ThreadHelper.JoinableTaskFactory.Run(() =>
+            DirectoryVersionFinder.GetTailwindVersionAsync(filePath, settings)
+        );
 
         if (version >= TailwindVersion.V4)
         {

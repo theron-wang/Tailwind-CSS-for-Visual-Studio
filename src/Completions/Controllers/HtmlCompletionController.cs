@@ -1,4 +1,8 @@
-﻿using Microsoft.VisualStudio;
+﻿using System;
+using System.ComponentModel.Composition;
+using System.Linq;
+using System.Runtime.InteropServices;
+using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Editor;
 using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.OLE.Interop;
@@ -7,10 +11,6 @@ using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.TextManager.Interop;
 using Microsoft.VisualStudio.Utilities;
-using System;
-using System.ComponentModel.Composition;
-using System.Linq;
-using System.Runtime.InteropServices;
 using TailwindCSSIntellisense.Parsers;
 
 namespace TailwindCSSIntellisense.Completions.Controllers;
@@ -41,7 +41,9 @@ internal sealed class HtmlCompletionController : IVsTextViewCreationListener
             return;
         }
 
-        view.Properties.GetOrCreateSingletonProperty(() => new HtmlCommandFilter(view, textViewAdapter, this));
+        view.Properties.GetOrCreateSingletonProperty(() =>
+            new HtmlCommandFilter(view, textViewAdapter, this)
+        );
     }
 }
 
@@ -53,7 +55,11 @@ internal sealed class HtmlCommandFilter : IOleCommandTarget
     private readonly IWpfTextView _textView;
     private readonly HtmlCompletionController _provider;
 
-    public HtmlCommandFilter(IWpfTextView textView, IVsTextView textViewAdapter, HtmlCompletionController provider)
+    public HtmlCommandFilter(
+        IWpfTextView textView,
+        IVsTextView textViewAdapter,
+        HtmlCompletionController provider
+    )
     {
         _currentSession = null;
 
@@ -69,7 +75,13 @@ internal sealed class HtmlCommandFilter : IOleCommandTarget
         return (char)(ushort)Marshal.GetObjectForNativeVariant(pvaIn);
     }
 
-    public int Exec(ref Guid pguidCmdGroup, uint nCmdID, uint nCmdexecopt, IntPtr pvaIn, IntPtr pvaOut)
+    public int Exec(
+        ref Guid pguidCmdGroup,
+        uint nCmdID,
+        uint nCmdexecopt,
+        IntPtr pvaIn,
+        IntPtr pvaOut
+    )
     {
         ThreadHelper.ThrowIfNotOnUIThread();
 
@@ -108,12 +120,18 @@ internal sealed class HtmlCommandFilter : IOleCommandTarget
         }
 
         // Is the caret in a class="" scope?
-        if (HtmlParser.IsCursorInClassScope(_textView, out var classSpan) == false || classSpan is null)
+        if (
+            HtmlParser.IsCursorInClassScope(_textView, out var classSpan) == false
+            || classSpan is null
+        )
         {
             return _next.Exec(pguidCmdGroup, nCmdID, nCmdexecopt, pvaIn, pvaOut);
         }
 
-        var truncatedClassSpan = new SnapshotSpan(classSpan.Value.Start, _textView.Caret.Position.BufferPosition);
+        var truncatedClassSpan = new SnapshotSpan(
+            classSpan.Value.Start,
+            _textView.Caret.Position.BufferPosition
+        );
         var classText = truncatedClassSpan.GetText();
 
         bool handled = false;
@@ -171,7 +189,16 @@ internal sealed class HtmlCommandFilter : IOleCommandTarget
                 {
                     case VSConstants.VSStd2KCmdID.TYPECHAR:
                         var character = GetTypeChar(pvaIn);
-                        if (_currentSession == null || character == ' ' || character == '/' || character == ':' || (!string.IsNullOrWhiteSpace(classText?.Split(' ')?.Last()) && character == '!'))
+                        if (
+                            _currentSession == null
+                            || character == ' '
+                            || character == '/'
+                            || character == ':'
+                            || (
+                                !string.IsNullOrWhiteSpace(classText?.Split(' ')?.Last())
+                                && character == '!'
+                            )
+                        )
                         {
                             _currentSession?.Dismiss();
                             StartSession();
@@ -192,7 +219,15 @@ internal sealed class HtmlCommandFilter : IOleCommandTarget
                         {
                             break;
                         }
-                        if (_currentSession == null || classText.EndsWith("/") || classText.EndsWith(":") || (classText.EndsWith("!") && !string.IsNullOrWhiteSpace(classText.Split(' ').Last())))
+                        if (
+                            _currentSession == null
+                            || classText.EndsWith("/")
+                            || classText.EndsWith(":")
+                            || (
+                                classText.EndsWith("!")
+                                && !string.IsNullOrWhiteSpace(classText.Split(' ').Last())
+                            )
+                        )
                         {
                             _currentSession?.Dismiss();
                             StartSession();
@@ -222,7 +257,9 @@ internal sealed class HtmlCommandFilter : IOleCommandTarget
     private void Filter()
     {
         if (_currentSession == null || _currentSession.SelectedCompletionSet == null)
+        {
             return;
+        }
 
         _currentSession?.SelectedCompletionSet?.Filter();
         _currentSession?.SelectedCompletionSet?.SelectBestMatch();
@@ -248,7 +285,9 @@ internal sealed class HtmlCommandFilter : IOleCommandTarget
     bool Cancel()
     {
         if (_currentSession == null || _currentSession.SelectedCompletionSet == null)
+        {
             return false;
+        }
 
         _currentSession.Dismiss();
 
@@ -260,7 +299,11 @@ internal sealed class HtmlCommandFilter : IOleCommandTarget
     /// </summary>
     bool Complete(bool force)
     {
-        if (_currentSession == null || _currentSession.SelectedCompletionSet == null || _currentSession.SelectedCompletionSet.SelectionStatus == null)
+        if (
+            _currentSession == null
+            || _currentSession.SelectedCompletionSet == null
+            || _currentSession.SelectedCompletionSet.SelectionStatus == null
+        )
         {
             return false;
         }
@@ -278,7 +321,11 @@ internal sealed class HtmlCommandFilter : IOleCommandTarget
             }
         }
 
-        var completionText = _currentSession.SelectedCompletionSet.SelectionStatus.Completion.InsertionText;
+        var completionText = _currentSession
+            .SelectedCompletionSet
+            .SelectionStatus
+            .Completion
+            .InsertionText;
         var moveOneBack = completionText.EndsWith("]");
         var moveTwoBack = completionText.EndsWith("]:");
         _currentSession.Commit();
@@ -301,13 +348,19 @@ internal sealed class HtmlCommandFilter : IOleCommandTarget
     bool StartSession()
     {
         if (_currentSession != null)
+        {
             return false;
+        }
 
         var caret = _textView.Caret.Position.Point.GetPoint(
-            textBuffer => !textBuffer.ContentType.IsOfType("projection"), PositionAffinity.Predecessor);
+            textBuffer => !textBuffer.ContentType.IsOfType("projection"),
+            PositionAffinity.Predecessor
+        );
 
         if (!caret.HasValue)
+        {
             return false;
+        }
 
         ITextSnapshot snapshot = caret.Value.Snapshot;
 
@@ -333,7 +386,11 @@ internal sealed class HtmlCommandFilter : IOleCommandTarget
         }
 
         DismissOtherSessions();
-        _currentSession = _broker.CreateCompletionSession(_textView, snapshot.CreateTrackingPoint(caret.Value.Position, PointTrackingMode.Positive), true);
+        _currentSession = _broker.CreateCompletionSession(
+            _textView,
+            snapshot.CreateTrackingPoint(caret.Value.Position, PointTrackingMode.Positive),
+            true
+        );
         _currentSession.Dismissed += OnSessionDismissed;
         _currentSession.Start();
 

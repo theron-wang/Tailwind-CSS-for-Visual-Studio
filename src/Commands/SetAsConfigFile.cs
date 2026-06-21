@@ -1,9 +1,9 @@
-﻿using Community.VisualStudio.Toolkit;
-using Microsoft.VisualStudio.Shell;
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Community.VisualStudio.Toolkit;
+using Microsoft.VisualStudio.Shell;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Settings;
 
@@ -23,8 +23,11 @@ internal sealed class SetAsConfigFile : BaseCommand<SetAsConfigFile>
     internal SettingsProvider SettingsProvider { get; set; } = null!;
     internal DirectoryVersionFinder DirectoryVersionFinder { get; set; } = null!;
 
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "No other choice + settings likely loaded by the time this command is queried")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Usage",
+        "VSTHRD102:Implement internal logic asynchronously",
+        Justification = "No other choice + settings likely loaded by the time this command is queried"
+    )]
     protected override void BeforeQueryStatus(EventArgs e)
     {
         var filePath = SolutionExplorerSelection.CurrentSelectedItemFullPath;
@@ -38,16 +41,23 @@ internal sealed class SetAsConfigFile : BaseCommand<SetAsConfigFile>
             return;
         }
 
-        var version = ThreadHelper.JoinableTaskFactory.Run(() => DirectoryVersionFinder.GetTailwindVersionAsync(filePath, settings));
+        var version = ThreadHelper.JoinableTaskFactory.Run(() =>
+            DirectoryVersionFinder.GetTailwindVersionAsync(filePath, settings)
+        );
 
         if (version == TailwindVersion.V3)
         {
-            Command.Visible = !settings.ConfigurationFiles.Any(c => c.Path.Equals(filePath, StringComparison.InvariantCultureIgnoreCase))
-                && DefaultConfigurationFileNames.Extensions.Contains(Path.GetExtension(filePath));
+            Command.Visible =
+                !settings.ConfigurationFiles.Any(c =>
+                    c.Path.Equals(filePath, StringComparison.InvariantCultureIgnoreCase)
+                ) && DefaultConfigurationFileNames.Extensions.Contains(Path.GetExtension(filePath));
         }
         else
         {
-            Command.Visible = !settings.BuildFiles.Any(b => b.Input.Equals(filePath, StringComparison.InvariantCultureIgnoreCase))
+            Command.Visible =
+                !settings.BuildFiles.Any(b =>
+                    b.Input.Equals(filePath, StringComparison.InvariantCultureIgnoreCase)
+                )
                 && Path.GetExtension(filePath) == ".css";
         }
     }

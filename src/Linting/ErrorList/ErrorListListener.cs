@@ -1,17 +1,18 @@
-﻿using Community.VisualStudio.Toolkit;
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel.Composition;
+using System.Linq;
+using Community.VisualStudio.Toolkit;
 using Microsoft.VisualStudio.Imaging;
 using Microsoft.VisualStudio.Imaging.Interop;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.Composition;
-using System.Linq;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Linting.Validators;
+using TailwindCSSIntellisense.Linting.Validators.Diagnostics;
 
 namespace TailwindCSSIntellisense.Linting.ErrorList;
 
@@ -21,10 +22,15 @@ internal abstract class ErrorListListener : ITextViewCreationListener, IDisposab
 
     [Import]
     protected LinterUtilities _linterUtilities = null!;
+
     [Import]
     protected ProjectConfigurationManager _projectConfigurationManager = null!;
+
     [Import]
     protected CompletionConfiguration _completionConfiguration = null!;
+
+    [Import]
+    protected DiagnosticsAggregator _diagnosticsAggregator = null!;
 
     private readonly Dictionary<ITextBuffer, ErrorListContext> _contexts = [];
 
@@ -43,7 +49,9 @@ internal abstract class ErrorListListener : ITextViewCreationListener, IDisposab
 
             var tableDataSource = new TableDataSource(Vsix.Name + file);
 
-            var project = ThreadHelper.JoinableTaskFactory.Run(() => PhysicalFile.FromFileAsync(file))?.ContainingProject;
+            var project = ThreadHelper
+                .JoinableTaskFactory.Run(() => PhysicalFile.FromFileAsync(file))
+                ?.ContainingProject;
 
             if (project is null)
             {
@@ -58,12 +66,16 @@ internal abstract class ErrorListListener : ITextViewCreationListener, IDisposab
                 File = file,
                 Project = project,
                 TableDataSource = tableDataSource,
-                Validator = validator
+                Validator = validator,
             };
         }
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "Not expensive")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Usage",
+        "VSTHRD102:Implement internal logic asynchronously",
+        Justification = "Not expensive"
+    )]
     private void UpdateErrorList(ITextBuffer buffer)
     {
         if (_contexts.TryGetValue(buffer, out var context))
@@ -75,7 +87,9 @@ internal abstract class ErrorListListener : ITextViewCreationListener, IDisposab
             }
             catch (ObjectDisposedException)
             {
-                var project = ThreadHelper.JoinableTaskFactory.Run(() => PhysicalFile.FromFileAsync(context.File))?.ContainingProject;
+                var project = ThreadHelper
+                    .JoinableTaskFactory.Run(() => PhysicalFile.FromFileAsync(context.File))
+                    ?.ContainingProject;
 
                 if (project is null)
                 {
@@ -85,17 +99,20 @@ internal abstract class ErrorListListener : ITextViewCreationListener, IDisposab
                 context.Project = project;
             }
 
-            var errorListItems = context.Validator.Errors.Where(e =>
-                    _linterUtilities.GetErrorSeverity(e.ErrorType) != ErrorSeverity.None)
+            var errorListItems = context
+                .Validator.GetAllErrors()
+                .Where(e => _linterUtilities.GetErrorSeverity(e.ErrorType) != ErrorSeverity.None)
                 .Select(e =>
                 {
-                    var line = e.Span.Snapshot.GetLineFromPosition(e.Span.Start);
+                    var start = e.Span.GetStartPoint(buffer.CurrentSnapshot);
+
+                    var line = buffer.CurrentSnapshot.GetLineFromPosition(start);
                     var severity = _linterUtilities.GetErrorSeverity(e.ErrorType);
 
                     return new ErrorListItem()
                     {
                         BuildTool = Vsix.Name,
-                        Column = e.Span.Start.Position - line.Start.Position,
+                        Column = start.Position - line.Start.Position,
                         ErrorCategory = _linterUtilities.GetErrorTagFromSeverity(severity),
                         FileName = context.File,
                         Icon = GetIconByErrorType(severity),
@@ -103,10 +120,9 @@ internal abstract class ErrorListListener : ITextViewCreationListener, IDisposab
                         Message = e.ErrorMessage,
                         ProjectName = context.Project.Name,
                         Severity = GetErrorCategory(severity),
-                        ErrorCode = e.ErrorType.ToString()
+                        ErrorCode = e.ErrorType.ToString(),
                     };
-                }
-            );
+                });
 
             context.TableDataSource.CleanAllErrors();
             context.TableDataSource.AddErrors(errorListItems);
@@ -120,12 +136,10 @@ internal abstract class ErrorListListener : ITextViewCreationListener, IDisposab
 
         if (_contexts.TryGetValue(view.TextBuffer, out var context))
         {
-#pragma warning disable CS8601 // Possible null reference assignment.
             if (context.Validator.BufferValidated is not null)
             {
                 context.Validator.BufferValidated -= UpdateErrorList;
             }
-#pragma warning restore CS8601 // Possible null reference assignment.
 
             context.TableDataSource.CleanAllErrors();
         }

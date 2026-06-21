@@ -1,4 +1,8 @@
-﻿using Microsoft.VisualStudio;
+﻿using System;
+using System.ComponentModel.Composition;
+using System.Linq;
+using System.Runtime.InteropServices;
+using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Editor;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
@@ -8,10 +12,6 @@ using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.TextManager.Interop;
 using Microsoft.VisualStudio.Utilities;
-using System;
-using System.ComponentModel.Composition;
-using System.Linq;
-using System.Runtime.InteropServices;
 using TailwindCSSIntellisense.Parsers;
 
 namespace TailwindCSSIntellisense.Completions.Controllers;
@@ -38,7 +38,9 @@ internal sealed class JavaScriptCompletionController : IVsTextViewCreationListen
     {
         IWpfTextView view = AdaptersFactory.GetWpfTextView(textViewAdapter)!;
 
-        view.Properties.GetOrCreateSingletonProperty(() => new JavaScriptCommandFilter(view, textViewAdapter, this));
+        view.Properties.GetOrCreateSingletonProperty(() =>
+            new JavaScriptCommandFilter(view, textViewAdapter, this)
+        );
     }
 }
 
@@ -50,7 +52,11 @@ internal sealed class JavaScriptCommandFilter : IOleCommandTarget
     private readonly IWpfTextView _textView;
     private readonly JavaScriptCompletionController _provider;
 
-    public JavaScriptCommandFilter(IWpfTextView textView, IVsTextView textViewAdapter, JavaScriptCompletionController provider)
+    public JavaScriptCommandFilter(
+        IWpfTextView textView,
+        IVsTextView textViewAdapter,
+        JavaScriptCompletionController provider
+    )
     {
         _currentSession = null;
 
@@ -66,7 +72,13 @@ internal sealed class JavaScriptCommandFilter : IOleCommandTarget
         return (char)(ushort)Marshal.GetObjectForNativeVariant(pvaIn);
     }
 
-    public int Exec(ref Guid pguidCmdGroup, uint nCmdID, uint nCmdexecopt, IntPtr pvaIn, IntPtr pvaOut)
+    public int Exec(
+        ref Guid pguidCmdGroup,
+        uint nCmdID,
+        uint nCmdexecopt,
+        IntPtr pvaIn,
+        IntPtr pvaOut
+    )
     {
         ThreadHelper.ThrowIfNotOnUIThread();
 
@@ -105,12 +117,18 @@ internal sealed class JavaScriptCommandFilter : IOleCommandTarget
         }
 
         // Is the caret in a className="" scope?
-        if (JSParser.IsCursorInClassScope(_textView, out var classSpan) == false || classSpan is null)
+        if (
+            JSParser.IsCursorInClassScope(_textView, out var classSpan) == false
+            || classSpan is null
+        )
         {
             return _next.Exec(pguidCmdGroup, nCmdID, nCmdexecopt, pvaIn, pvaOut);
         }
 
-        var truncatedClassSpan = new SnapshotSpan(classSpan.Value.Start, _textView.Caret.Position.BufferPosition);
+        var truncatedClassSpan = new SnapshotSpan(
+            classSpan.Value.Start,
+            _textView.Caret.Position.BufferPosition
+        );
         var classText = truncatedClassSpan.GetText();
 
         bool handled = false;
@@ -168,7 +186,12 @@ internal sealed class JavaScriptCommandFilter : IOleCommandTarget
                 {
                     case VSConstants.VSStd2KCmdID.TYPECHAR:
                         var character = GetTypeChar(pvaIn);
-                        if (_currentSession == null || character == ' ' || character == ':' || character == '/')
+                        if (
+                            _currentSession == null
+                            || character == ' '
+                            || character == ':'
+                            || character == '/'
+                        )
                         {
                             _currentSession?.Dismiss();
                             StartSession();
@@ -188,7 +211,11 @@ internal sealed class JavaScriptCommandFilter : IOleCommandTarget
                         {
                             break;
                         }
-                        if (_currentSession == null || classText.EndsWith("/") || classText.EndsWith(":"))
+                        if (
+                            _currentSession == null
+                            || classText.EndsWith("/")
+                            || classText.EndsWith(":")
+                        )
                         {
                             _currentSession?.Dismiss();
                             StartSession();
@@ -221,7 +248,11 @@ internal sealed class JavaScriptCommandFilter : IOleCommandTarget
             return;
         }
 
-        _currentSession.OpenOrUpdate(new CompletionTrigger(), _textView.Caret.Position.BufferPosition, default);
+        _currentSession.OpenOrUpdate(
+            new CompletionTrigger(),
+            _textView.Caret.Position.BufferPosition,
+            default
+        );
     }
 
     /// <summary>
@@ -230,7 +261,9 @@ internal sealed class JavaScriptCommandFilter : IOleCommandTarget
     bool Cancel()
     {
         if (_currentSession == null)
+        {
             return false;
+        }
 
         _currentSession.Dismiss();
 
@@ -294,13 +327,19 @@ internal sealed class JavaScriptCommandFilter : IOleCommandTarget
     bool StartSession()
     {
         if (_currentSession != null)
+        {
             return false;
+        }
 
         var caret = _textView.Caret.Position.Point.GetPoint(
-            textBuffer => !textBuffer.ContentType.IsOfType("projection"), PositionAffinity.Predecessor);
+            textBuffer => !textBuffer.ContentType.IsOfType("projection"),
+            PositionAffinity.Predecessor
+        );
 
         if (!caret.HasValue)
+        {
             return false;
+        }
 
         ITextSnapshot snapshot = caret.Value.Snapshot;
 
@@ -313,7 +352,12 @@ internal sealed class JavaScriptCommandFilter : IOleCommandTarget
         }
         else
         {
-            _currentSession = _broker.TriggerCompletion(_textView, new CompletionTrigger(), caret.Value, default);
+            _currentSession = _broker.TriggerCompletion(
+                _textView,
+                new CompletionTrigger(),
+                caret.Value,
+                default
+            );
 
             if (_currentSession is not null)
             {

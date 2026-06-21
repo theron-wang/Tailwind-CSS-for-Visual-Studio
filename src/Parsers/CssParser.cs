@@ -1,112 +1,64 @@
-﻿using Microsoft.VisualStudio.Text;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Text.RegularExpressions;
+using Microsoft.VisualStudio.Text;
 
 namespace TailwindCSSIntellisense.Parsers;
+
 internal static class CssParser
 {
-    public static IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span, ITextSnapshot snapshot)
+    private static readonly Regex _segmentRegex = new(
+        @"[@;{}][^;{}]*",
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(1)
+    );
+
+    public static IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span)
     {
-        char[] endings = [';', '{', '}'];
-
-        var text = span.GetText();
-        var last = text.LastIndexOfAny(endings);
-
-        // The goal of this method is to split a larger SnapshotSpan into smaller SnapshotSpans
-        // Each smaller SnapshotSpan will be a segment between ;, {, }, and snapshot boundaries
-
-        if (span.End != snapshot.Length && (text is null || string.IsNullOrWhiteSpace(text.Trim(endings)) || last == -1 || string.IsNullOrWhiteSpace(text.Substring(last + 1)) == false))
+        if (span.Start == span.Snapshot.Length)
         {
-            SnapshotPoint end = span.End;
-            bool hitNonEnding = false;
-            while (end < snapshot.Length - 1 && (endings.Contains(end.GetChar()) == false || !hitNonEnding))
-            {
-                if (endings.Contains(end.GetChar()) == false)
-                {
-                    hitNonEnding = true;
-                }
-                end += 1;
-            }
-
-            if (string.IsNullOrWhiteSpace(text) == false && hitNonEnding)
-            {
-                while (endings.Contains(end.GetChar()))
-                {
-                    end -= 1;
-
-                    if (end < span.Start || end == 0)
-                    {
-                        yield break;
-                    }
-                }
-
-                if (end < snapshot.Length - 1)
-                {
-                    // SnapshotPoint end is exclusive
-                    end += 1;
-                }
-            }
-
-            span = new SnapshotSpan(span.Start, end);
+            yield break;
         }
 
-        int first;
-
-        if (text is null || string.IsNullOrWhiteSpace(text.Trim(endings)) || (first = text.IndexOfAny(endings)) == -1 || string.IsNullOrWhiteSpace(text.Substring(0, first)) == false)
+        // Expand backward to the nearest boundary so we don't start mid-segment
+        int start = span.Start;
+        while (start > 0 && !IsBoundary(span.Snapshot[start]))
         {
-            SnapshotPoint start = span.Start;
-
-            if (span.End == start)
-            {
-                if (start == 0)
-                {
-                    yield break;
-                }
-                start -= 1;
-            }
-
-            bool hitNonEnding = false;
-            while (start > 0 && (endings.Contains(start.GetChar()) == false || !hitNonEnding))
-            {
-                if (endings.Contains(start.GetChar()) == false)
-                {
-                    hitNonEnding = true;
-                }
-                start -= 1;
-            }
-
-            while (endings.Contains(start.GetChar()))
-            {
-                start += 1;
-
-                if (start >= span.End)
-                {
-                    yield break;
-                }
-            }
-
-            span = new SnapshotSpan(start, span.End);
+            start--;
         }
 
-        var segmentStart = span.Start;
-        var segmentEnd = span.Start;
-
-        while (segmentEnd < span.End && segmentEnd < snapshot.Length)
+        // Expand forward to the nearest boundary so we don't end mid-segment
+        int end = span.End;
+        while (end < span.Snapshot.Length)
         {
-            segmentEnd += 1;
-
-            if (segmentEnd == snapshot.Length)
+            if (IsBoundary(span.Snapshot[end]))
             {
-                yield return new SnapshotSpan(segmentStart, segmentEnd);
-                yield break;
+                end++;
+                break;
+            }
+            end++;
+        }
+
+        var text = CommentRemover.StripCssComments(span.Snapshot.GetText(start, end - start));
+
+        foreach (Match match in _segmentRegex.Matches(text))
+        {
+            if (string.IsNullOrWhiteSpace(match.Value))
+            {
+                continue;
             }
 
-            if (endings.Contains(segmentEnd.GetChar()))
-            {
-                yield return new SnapshotSpan(segmentStart, segmentEnd);
+            int segStart = start + match.Index;
+            int segEnd = segStart + match.Length;
 
-                segmentStart = segmentEnd + 1;
+            if (segEnd > span.Snapshot.Length)
+            {
+                segEnd = span.Snapshot.Length;
             }
+
+            yield return new SnapshotSpan(span.Snapshot, segStart, segEnd - segStart);
         }
     }
+
+    private static bool IsBoundary(char c) => c is '@' or ';' or '{' or '}';
 }

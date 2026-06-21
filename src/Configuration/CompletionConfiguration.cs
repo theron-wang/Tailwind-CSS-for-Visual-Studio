@@ -1,11 +1,11 @@
-﻿using Community.VisualStudio.Toolkit;
-using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Threading;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Linq;
 using System.Threading.Tasks;
+using Community.VisualStudio.Toolkit;
+using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Threading;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Configuration.Descriptions;
 using TailwindCSSIntellisense.Settings;
@@ -78,7 +78,10 @@ public sealed partial class CompletionConfiguration
     /// <summary>
     /// Adjusts classes to match a change in the configuration file
     /// </summary>
-    public async Task ReloadCustomAttributesAsync(ConfigurationFile configurationFile, TailwindSettings settings)
+    public async Task ReloadCustomAttributesAsync(
+        ConfigurationFile configurationFile,
+        TailwindSettings settings
+    )
     {
         var success = await ReloadCustomAttributesImplAsync(configurationFile, settings);
 
@@ -106,7 +109,10 @@ public sealed partial class CompletionConfiguration
     /// <returns>
     /// True if run successfully, false if an error occurred
     /// </returns>
-    private async Task<bool> ReloadCustomAttributesImplAsync(ConfigurationFile configurationFile, TailwindSettings settings)
+    private async Task<bool> ReloadCustomAttributesImplAsync(
+        ConfigurationFile configurationFile,
+        TailwindSettings settings
+    )
     {
         if (ProjectConfigurationManager is not null)
         {
@@ -116,24 +122,39 @@ public sealed partial class CompletionConfiguration
             {
                 // Switch to background thread
                 await TaskScheduler.Default;
-                var version = await DirectoryVersionFinder.GetTailwindVersionAsync(configurationFile.Path, settings);
+                var version = await DirectoryVersionFinder.GetTailwindVersionAsync(
+                    configurationFile.Path,
+                    settings
+                );
 
-                var config = await ConfigFileParser.GetConfigurationAsync(configurationFile.Path, version);
+                var config = await ConfigFileParser.GetConfigurationAsync(
+                    configurationFile.Path,
+                    version
+                );
 
                 foreach (var imports in config.Imports)
                 {
-                    Reloader.AddImport(imports, configurationFile);
+                    await Reloader.AddImportAsync(imports, configurationFile);
                 }
 
-                var projectCompletionValues = await ProjectConfigurationManager.GetCompletionConfigurationByConfigFilePathAsync(configurationFile.Path);
+                var projectCompletionValues =
+                    await ProjectConfigurationManager.GetCompletionConfigurationByConfigFilePathAsync(
+                        configurationFile.Path
+                    );
 
                 if (projectCompletionValues is null)
                 {
                     return false;
                 }
 
-                projectCompletionValues.ApplicablePaths = [.. config.ContentPaths.Where(c => !c.StartsWith("!"))];
-                projectCompletionValues.NotApplicablePaths = [.. config.ContentPaths.Where(c => c.StartsWith("!")).Select(c => c.Trim('!'))];
+                projectCompletionValues.ApplicablePaths =
+                [
+                    .. config.ContentPaths.Where(c => !c.StartsWith("!")),
+                ];
+                projectCompletionValues.NotApplicablePaths =
+                [
+                    .. config.ContentPaths.Where(c => c.StartsWith("!")).Select(c => c.Trim('!')),
+                ];
 
                 LastConfig = config;
                 if (version >= TailwindVersion.V4 && !string.IsNullOrWhiteSpace(config.Prefix))
@@ -154,7 +175,9 @@ public sealed partial class CompletionConfiguration
             }
             catch (Exception ex)
             {
-                await VS.StatusBar.ShowMessageAsync("Tailwind CSS: Failed to load configuration file; check the 'Extensions' output window for more details");
+                await VS.StatusBar.ShowMessageAsync(
+                    "Tailwind CSS: Failed to load configuration file; check the 'Extensions' output window for more details"
+                );
                 await ex.LogAsync();
                 return false;
             }

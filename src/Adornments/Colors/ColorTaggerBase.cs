@@ -1,16 +1,17 @@
-﻿using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Text;
-using Microsoft.VisualStudio.Text.Editor;
-using Microsoft.VisualStudio.Text.Tagging;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Media;
+using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Text;
+using Microsoft.VisualStudio.Text.Editor;
+using Microsoft.VisualStudio.Text.Tagging;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Options;
+using TailwindCSSIntellisense.Settings;
 
 namespace TailwindCSSIntellisense.Adornments.Colors;
 
@@ -23,23 +24,45 @@ internal abstract class ColorTaggerBase : ITagger<IntraTextAdornmentTag>, IDispo
     private readonly ITextView _view;
     private readonly ProjectConfigurationManager _projectConfigurationManager;
     private readonly CompletionConfiguration _completionConfiguration;
+    protected readonly SettingsProvider _settingsProvider;
+
     private ProjectCompletionValues? _projectConfigurationValues;
     private bool _isProcessing;
     private General? _generalOptions;
+    protected TailwindSettings? _settings;
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync", Justification = "FileAndForget is ok")]
-    protected ColorTaggerBase(ITextBuffer buffer, ITextView view, ProjectConfigurationManager projectConfigurationManager, CompletionConfiguration completionConfiguration)
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Reliability",
+        "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync",
+        Justification = "FileAndForget is ok"
+    )]
+    protected ColorTaggerBase(
+        ITextBuffer buffer,
+        ITextView view,
+        ProjectConfigurationManager projectConfigurationManager,
+        CompletionConfiguration completionConfiguration,
+        SettingsProvider settingsProvider
+    )
     {
         _buffer = buffer;
         _view = view;
         _projectConfigurationManager = projectConfigurationManager;
         _completionConfiguration = completionConfiguration;
+        _settingsProvider = settingsProvider;
+
         _buffer.Changed += OnBufferChanged;
         General.Saved += GeneralSettingsChanged;
         _completionConfiguration.ConfigurationUpdated += ConfigurationUpdatedAsync;
+        _settingsProvider.OnSettingsChanged += LocalSettingsChangedAsync;
 
         // Set _projectConfigurationValues without blocking
-        ThreadHelper.JoinableTaskFactory.RunAsync(ConfigurationUpdatedAsync).FileAndForget(nameof(TailwindCSSIntellisense) + "/ColorTagger/Initialize");
+        ThreadHelper
+            .JoinableTaskFactory.RunAsync(async () =>
+            {
+                _settings = await _settingsProvider.GetSettingsAsync();
+                await ConfigurationUpdatedAsync();
+            })
+            .FileAndForget(nameof(TailwindCSSIntellisense) + "/ColorTagger/Initialize");
     }
 
     private void OnBufferChanged(object sender, TextContentChangedEventArgs e)
@@ -67,6 +90,12 @@ internal abstract class ColorTaggerBase : ITagger<IntraTextAdornmentTag>, IDispo
         }
     }
 
+    private async Task LocalSettingsChangedAsync(TailwindSettings settings)
+    {
+        _settings = settings;
+        await ConfigurationUpdatedAsync();
+    }
+
     public event EventHandler<SnapshotSpanEventArgs>? TagsChanged;
 
     public void Dispose()
@@ -74,34 +103,57 @@ internal abstract class ColorTaggerBase : ITagger<IntraTextAdornmentTag>, IDispo
         _buffer.Changed -= OnBufferChanged;
         _completionConfiguration.ConfigurationUpdated -= ConfigurationUpdatedAsync;
         General.Saved -= GeneralSettingsChanged;
+        _settingsProvider.OnSettingsChanged -= LocalSettingsChangedAsync;
     }
 
     /// <summary>
     /// Gets the class="" / @apply scopes in the specified span.
     /// </summary>
-    protected abstract IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span, ITextSnapshot snapshot);
+    protected abstract IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span);
 
     private void GeneralSettingsChanged(General general)
     {
         _generalOptions = general;
-        TagsChanged?.Invoke(this, new SnapshotSpanEventArgs(new SnapshotSpan(_buffer.CurrentSnapshot, 0, _buffer.CurrentSnapshot.Length)));
+        TagsChanged?.Invoke(
+            this,
+            new SnapshotSpanEventArgs(
+                new SnapshotSpan(_buffer.CurrentSnapshot, 0, _buffer.CurrentSnapshot.Length)
+            )
+        );
     }
 
     private async Task ConfigurationUpdatedAsync()
     {
-        _projectConfigurationValues = await _projectConfigurationManager.GetCompletionConfigurationByFilePathAsync(_buffer.GetFileNameSafe());
-        TagsChanged?.Invoke(this, new SnapshotSpanEventArgs(new SnapshotSpan(_buffer.CurrentSnapshot, 0, _buffer.CurrentSnapshot.Length)));
+        _projectConfigurationValues =
+            await _projectConfigurationManager.GetCompletionConfigurationByFilePathAsync(
+                _buffer.GetFileNameSafe()
+            );
+        TagsChanged?.Invoke(
+            this,
+            new SnapshotSpanEventArgs(
+                new SnapshotSpan(_buffer.CurrentSnapshot, 0, _buffer.CurrentSnapshot.Length)
+            )
+        );
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "Not expensive")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Usage",
+        "VSTHRD102:Implement internal logic asynchronously",
+        Justification = "Not expensive"
+    )]
     private bool Enabled()
     {
         _generalOptions ??= ThreadHelper.JoinableTaskFactory.Run(General.GetLiveInstanceAsync);
 
-        return _generalOptions.ShowColorPreviews && _generalOptions.UseTailwindCss;
+        return _generalOptions.ShowColorPreviews
+            && _generalOptions.UseTailwindCss
+            && _settings is not null
+            && _settings.ConfigurationFiles.Count > 0;
     }
 
-    public IEnumerable<ITagSpan<IntraTextAdornmentTag>> GetTags(NormalizedSnapshotSpanCollection spans)
+    public IEnumerable<ITagSpan<IntraTextAdornmentTag>> GetTags(
+        NormalizedSnapshotSpanCollection spans
+    )
     {
         var tags = new List<ITagSpan<IntraTextAdornmentTag>>();
 
@@ -120,7 +172,7 @@ internal abstract class ColorTaggerBase : ITagger<IntraTextAdornmentTag>, IDispo
 
     private IEnumerable<ITagSpan<IntraTextAdornmentTag>> GetAdornments(SnapshotSpan span)
     {
-        foreach (var scope in GetScopes(span, span.Snapshot))
+        foreach (var scope in GetScopes(span))
         {
             var color = GetRgbaFromClass(scope.GetText());
             if (color is null)
@@ -128,9 +180,16 @@ internal abstract class ColorTaggerBase : ITagger<IntraTextAdornmentTag>, IDispo
                 continue;
             }
             var winColor = Color.FromArgb(color[3], color[0], color[1], color[2]);
-            var tag = new IntraTextAdornmentTag(new ColorAdornment(winColor, _view), null, PositionAffinity.Successor);
+            var tag = new IntraTextAdornmentTag(
+                new ColorAdornment(winColor, _view),
+                null,
+                PositionAffinity.Successor
+            );
 
-            yield return new TagSpan<IntraTextAdornmentTag>(new SnapshotSpan(scope.Snapshot, scope.Start, 0), tag);
+            yield return new TagSpan<IntraTextAdornmentTag>(
+                new SnapshotSpan(scope.Snapshot, scope.Start, 0),
+                tag
+            );
         }
     }
 
@@ -220,7 +279,7 @@ internal abstract class ColorTaggerBase : ITagger<IntraTextAdornmentTag>, IDispo
             {
                 color = segments[segments.Count - 1];
             }
-            var stem = text.Replace(color, "{0}");
+            var stem = text.ReplaceLastOccurrence(color, "{0}");
 
             var opacityText = color.Split('/').Last();
             int opacity = 100;
@@ -239,8 +298,10 @@ internal abstract class ColorTaggerBase : ITagger<IntraTextAdornmentTag>, IDispo
                 }
             }
 
-            if ((color[0] == '[' && color[color.Length - 1] == ']') ||
-                (color[0] == '(' && color[color.Length - 1] == ')'))
+            if (
+                (color[0] == '[' && color[color.Length - 1] == ']')
+                || (color[0] == '(' && color[color.Length - 1] == ')')
+            )
             {
                 var c = color.Substring(1, color.Length - 2);
 
@@ -259,10 +320,19 @@ internal abstract class ColorTaggerBase : ITagger<IntraTextAdornmentTag>, IDispo
                 }
                 else if (c.StartsWith("rgb"))
                 {
-                    var numbers = c.Substring(c.IndexOf('(') + 1, c.IndexOf(')') - c.IndexOf('(') - 1)
+                    var openParen = c.IndexOf('(');
+                    var closeParen = c.LastIndexOf(')');
+                    if (openParen < 0 || closeParen <= openParen + 1)
+                    {
+                        return null;
+                    }
+
+                    var numbers = c.Substring(openParen + 1, closeParen - openParen - 1)
                         .Split([' ', ',', '/'], StringSplitOptions.RemoveEmptyEntries);
 
-                    var numbersAsBytes = numbers.Take(3).Where(n => byte.TryParse(n, out _))
+                    var numbersAsBytes = numbers
+                        .Take(3)
+                        .Where(n => byte.TryParse(n, out _))
                         .Select(byte.Parse)
                         .ToArray();
 
@@ -278,9 +348,24 @@ internal abstract class ColorTaggerBase : ITagger<IntraTextAdornmentTag>, IDispo
                     else if (numbers.Length == 4)
                     {
                         // decimal or percent
-                        if (!double.TryParse(numbers[3], NumberStyles.Float, CultureInfo.InvariantCulture, out var alpha))
+                        if (
+                            !double.TryParse(
+                                numbers[3],
+                                NumberStyles.Float,
+                                CultureInfo.InvariantCulture,
+                                out var alpha
+                            )
+                        )
                         {
-                            if (numbers[3].EndsWith("%") && double.TryParse(numbers[3].TrimEnd('%'), NumberStyles.Float, CultureInfo.InvariantCulture, out alpha))
+                            if (
+                                numbers[3].EndsWith("%")
+                                && double.TryParse(
+                                    numbers[3].TrimEnd('%'),
+                                    NumberStyles.Float,
+                                    CultureInfo.InvariantCulture,
+                                    out alpha
+                                )
+                            )
                             {
                                 alpha /= 100;
                             }
@@ -296,15 +381,29 @@ internal abstract class ColorTaggerBase : ITagger<IntraTextAdornmentTag>, IDispo
                 return null;
             }
 
-            if (_projectConfigurationValues.DescriptionMapper.ContainsKey(stem.Replace("{0}", "{c}")) == false && _projectConfigurationValues.CustomDescriptionMapper.ContainsKey(stem.Replace("{0}", "{c}")) == false)
+            if (
+                _projectConfigurationValues.DescriptionMapper.ContainsKey(
+                    stem.Replace("{0}", "{c}")
+                ) == false
+                && _projectConfigurationValues.CustomDescriptionMapper.ContainsKey(
+                    stem.Replace("{0}", "{c}")
+                ) == false
+            )
             {
                 return null;
             }
 
             string value;
-            if (_projectConfigurationValues.CustomColorMappers != null && _projectConfigurationValues.CustomColorMappers.ContainsKey(stem))
+            if (
+                _projectConfigurationValues.CustomColorMappers != null
+                && _projectConfigurationValues.CustomColorMappers.ContainsKey(stem)
+            )
             {
-                if (_projectConfigurationValues.CustomColorMappers[stem].TryGetValue(color, out value) == false)
+                if (
+                    _projectConfigurationValues
+                        .CustomColorMappers[stem]
+                        .TryGetValue(color, out value) == false
+                )
                 {
                     return null;
                 }
@@ -316,11 +415,18 @@ internal abstract class ColorTaggerBase : ITagger<IntraTextAdornmentTag>, IDispo
 
             if (ColorHelpers.ForceConvertToRgb(value) is int[] converted && converted.Length == 3)
             {
-                return [(byte)converted[0], (byte)converted[1], (byte)converted[2], (byte)Math.Round(opacity / 100d * 255)];
+                return
+                [
+                    (byte)converted[0],
+                    (byte)converted[1],
+                    (byte)converted[2],
+                    (byte)Math.Round(opacity / 100d * 255),
+                ];
             }
             else
             {
-                var rgb = value.Split(',')
+                var rgb = value
+                    .Split(',')
                     .Where(v => byte.TryParse(v, out _))
                     .Select(byte.Parse)
                     .ToArray();

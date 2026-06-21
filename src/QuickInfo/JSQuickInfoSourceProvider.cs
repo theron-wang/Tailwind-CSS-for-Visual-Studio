@@ -1,9 +1,9 @@
-﻿using Microsoft.VisualStudio.Language.Intellisense;
+﻿using System.ComponentModel.Composition;
+using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Utilities;
-using System.ComponentModel.Composition;
 using TailwindCSSIntellisense.Completions;
-using TailwindCSSIntellisense.Configuration;
+using TailwindCSSIntellisense.Settings;
 
 namespace TailwindCSSIntellisense.QuickInfo;
 
@@ -15,16 +15,23 @@ namespace TailwindCSSIntellisense.QuickInfo;
 internal sealed class JSQuickInfoSourceProvider : IAsyncQuickInfoSourceProvider
 {
     [Import]
-    public DescriptionGenerator DescriptionGenerator { get; set; } = null!;
+    private readonly DescriptionGenerator _descriptionGenerator = null!;
 
     [Import]
-    public ProjectConfigurationManager ProjectConfigurationManager { get; set; } = null!;
+    private readonly ProjectConfigurationManager _projectConfigurationManager = null!;
 
     [Import]
-    public CompletionConfiguration CompletionConfiguration { get; set; } = null!;
+    private readonly SettingsProvider _settingsProvider = null!;
 
     public IAsyncQuickInfoSource TryCreateQuickInfoSource(ITextBuffer textBuffer)
     {
-        return textBuffer.Properties.GetOrCreateSingletonProperty(() => new JSQuickInfoSource(textBuffer, DescriptionGenerator, ProjectConfigurationManager, CompletionConfiguration));
+        return textBuffer.Properties.GetOrCreateSingletonProperty(() =>
+            new JSQuickInfoSource(
+                textBuffer,
+                _descriptionGenerator,
+                _projectConfigurationManager,
+                _settingsProvider
+            )
+        );
     }
 }

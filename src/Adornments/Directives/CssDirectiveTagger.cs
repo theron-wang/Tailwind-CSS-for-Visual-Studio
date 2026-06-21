@@ -1,16 +1,16 @@
-﻿using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Text;
-using Microsoft.VisualStudio.Text.Editor;
-using Microsoft.VisualStudio.Text.Operations;
-using Microsoft.VisualStudio.Text.Tagging;
-using Microsoft.VisualStudio.Utilities;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Text;
+using Microsoft.VisualStudio.Text.Editor;
+using Microsoft.VisualStudio.Text.Operations;
+using Microsoft.VisualStudio.Text.Tagging;
+using Microsoft.VisualStudio.Utilities;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Options;
 using TailwindCSSIntellisense.Settings;
@@ -27,14 +27,27 @@ internal sealed class DirectiveCssTaggerProvider : IViewTaggerProvider
 {
     [Import]
     internal DirectoryVersionFinder DirectoryVersionFinder { get; set; } = null!;
+
     [Import]
-    internal ITextStructureNavigatorSelectorService TextStructureNavigatorSelector { get; set; } = null!;
+    internal ITextStructureNavigatorSelectorService TextStructureNavigatorSelector { get; set; } =
+        null!;
+
     [Import]
     internal SettingsProvider SettingsProvider { get; set; } = null!;
 
-    public ITagger<T> CreateTagger<T>(ITextView textView, ITextBuffer buffer) where T : ITag
+    public ITagger<T> CreateTagger<T>(ITextView textView, ITextBuffer buffer)
+        where T : ITag
     {
-        return (buffer.Properties.GetOrCreateSingletonProperty(() => new CssDirectiveTagger(buffer, TextStructureNavigatorSelector, DirectoryVersionFinder, SettingsProvider)) as ITagger<T>)!;
+        return (
+            buffer.Properties.GetOrCreateSingletonProperty(() =>
+                new CssDirectiveTagger(
+                    buffer,
+                    TextStructureNavigatorSelector,
+                    DirectoryVersionFinder,
+                    SettingsProvider
+                )
+            ) as ITagger<T>
+        )!;
     }
 
     /// <summary>
@@ -54,24 +67,39 @@ internal sealed class DirectiveCssTaggerProvider : IViewTaggerProvider
         private General? _generalOptions;
         private TailwindSettings? _tailwindSettings;
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync", Justification = "FileAndForget is ok")]
-        internal CssDirectiveTagger(ITextBuffer buffer, ITextStructureNavigatorSelectorService textStructureNavigatorSelector, DirectoryVersionFinder directoryVersionFinder, SettingsProvider settingsProvider)
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Reliability",
+            "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync",
+            Justification = "FileAndForget is ok"
+        )]
+        internal CssDirectiveTagger(
+            ITextBuffer buffer,
+            ITextStructureNavigatorSelectorService textStructureNavigatorSelector,
+            DirectoryVersionFinder directoryVersionFinder,
+            SettingsProvider settingsProvider
+        )
         {
             _buffer = buffer;
             _file = buffer.GetFileNameSafe();
             _directoryVersionFinder = directoryVersionFinder;
             _settingsProvider = settingsProvider;
 
-            _textStructureNavigator = textStructureNavigatorSelector.GetTextStructureNavigator(buffer);
+            _textStructureNavigator = textStructureNavigatorSelector.GetTextStructureNavigator(
+                buffer
+            );
 
             _buffer.Changed += OnBufferChanged;
             General.Saved += GeneralSettingsChanged;
             _settingsProvider.OnSettingsChanged += SettingsChangedAsync;
 
-            ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
-            {
-                await SettingsChangedAsync(await _settingsProvider.GetSettingsAsync());
-            }).FileAndForget(nameof(TailwindCSSIntellisense) + "/CssDirectiveTagger/InitializeSettings");
+            ThreadHelper
+                .JoinableTaskFactory.RunAsync(async () =>
+                {
+                    await SettingsChangedAsync(await _settingsProvider.GetSettingsAsync());
+                })
+                .FileAndForget(
+                    nameof(TailwindCSSIntellisense) + "/CssDirectiveTagger/InitializeSettings"
+                );
         }
 
         private void OnBufferChanged(object sender, TextContentChangedEventArgs e)
@@ -111,7 +139,11 @@ internal sealed class DirectiveCssTaggerProvider : IViewTaggerProvider
         /// <summary>
         /// Gets relevant @ directives.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "Not expensive")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Usage",
+            "VSTHRD102:Implement internal logic asynchronously",
+            Justification = "Not expensive"
+        )]
         protected IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span)
         {
             if (_tailwindSettings is null)
@@ -123,7 +155,9 @@ internal sealed class DirectiveCssTaggerProvider : IViewTaggerProvider
             int end = span.End.Position;
 
             // Use the cache for _tailwindSettings here instead of fetching new since it _could_ be expensive
-            var version = ThreadHelper.JoinableTaskFactory.Run(async () => await _directoryVersionFinder.GetTailwindVersionAsync(_file, _tailwindSettings));
+            var version = ThreadHelper.JoinableTaskFactory.Run(async () =>
+                await _directoryVersionFinder.GetTailwindVersionAsync(_file, _tailwindSettings)
+            );
 
             while (position < end)
             {
@@ -137,11 +171,23 @@ internal sealed class DirectiveCssTaggerProvider : IViewTaggerProvider
                     {
                         yield return extent.Span;
                     }
-                    else if (version == TailwindVersion.V3 && (text == "@tailwind" || text == "@config"))
+                    else if (
+                        version == TailwindVersion.V3
+                        && (text == "@tailwind" || text == "@config")
+                    )
                     {
                         yield return extent.Span;
                     }
-                    else if (text == "@theme" || text == "@source" || text == "@utility" || text == "@custom-variant" || text == "@config" || text == "@plugin" || text == "@variant" || text.StartsWith("@slot"))
+                    else if (
+                        text == "@theme"
+                        || text == "@source"
+                        || text == "@utility"
+                        || text == "@custom-variant"
+                        || text == "@config"
+                        || text == "@plugin"
+                        || text == "@variant"
+                        || text.StartsWith("@slot")
+                    )
                     {
                         yield return extent.Span;
                     }
@@ -158,7 +204,12 @@ internal sealed class DirectiveCssTaggerProvider : IViewTaggerProvider
         private void GeneralSettingsChanged(General general)
         {
             _generalOptions = general;
-            TagsChanged?.Invoke(this, new SnapshotSpanEventArgs(new SnapshotSpan(_buffer.CurrentSnapshot, 0, _buffer.CurrentSnapshot.Length)));
+            TagsChanged?.Invoke(
+                this,
+                new SnapshotSpanEventArgs(
+                    new SnapshotSpan(_buffer.CurrentSnapshot, 0, _buffer.CurrentSnapshot.Length)
+                )
+            );
         }
 
         private Task SettingsChangedAsync(TailwindSettings settings)
@@ -169,12 +220,21 @@ internal sealed class DirectiveCssTaggerProvider : IViewTaggerProvider
             // Settings changed can happen a lot; only reload if it's the first time from null to non-null
             if (first)
             {
-                TagsChanged?.Invoke(this, new SnapshotSpanEventArgs(new SnapshotSpan(_buffer.CurrentSnapshot, 0, _buffer.CurrentSnapshot.Length)));
+                TagsChanged?.Invoke(
+                    this,
+                    new SnapshotSpanEventArgs(
+                        new SnapshotSpan(_buffer.CurrentSnapshot, 0, _buffer.CurrentSnapshot.Length)
+                    )
+                );
             }
             return Task.CompletedTask;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "Not expensive")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Usage",
+            "VSTHRD102:Implement internal logic asynchronously",
+            Justification = "Not expensive"
+        )]
         private bool Enabled()
         {
             _generalOptions ??= ThreadHelper.JoinableTaskFactory.Run(General.GetLiveInstanceAsync);
@@ -182,7 +242,9 @@ internal sealed class DirectiveCssTaggerProvider : IViewTaggerProvider
             return _generalOptions.ShowColorPreviews && _generalOptions.UseTailwindCss;
         }
 
-        public IEnumerable<ITagSpan<IntraTextAdornmentTag>> GetTags(NormalizedSnapshotSpanCollection spans)
+        public IEnumerable<ITagSpan<IntraTextAdornmentTag>> GetTags(
+            NormalizedSnapshotSpanCollection spans
+        )
         {
             var tags = new List<ITagSpan<IntraTextAdornmentTag>>();
 
@@ -203,11 +265,21 @@ internal sealed class DirectiveCssTaggerProvider : IViewTaggerProvider
         {
             foreach (var scope in GetScopes(span))
             {
-                var tag = new IntraTextAdornmentTag(new Image() { Source = ProjectConfigurationManager.TailwindLogo, Margin = new Thickness(4, 0, 0, 0) }, null, PositionAffinity.Successor);
+                var tag = new IntraTextAdornmentTag(
+                    new Image()
+                    {
+                        Source = ProjectConfigurationManager.TailwindLogo,
+                        Margin = new Thickness(4, 0, 0, 0),
+                    },
+                    null,
+                    PositionAffinity.Successor
+                );
 
-                yield return new TagSpan<IntraTextAdornmentTag>(new SnapshotSpan(scope.Snapshot, scope.End, 0), tag);
+                yield return new TagSpan<IntraTextAdornmentTag>(
+                    new SnapshotSpan(scope.Snapshot, scope.End, 0),
+                    tag
+                );
             }
         }
     }
 }
-

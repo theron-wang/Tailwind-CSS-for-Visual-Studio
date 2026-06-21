@@ -1,4 +1,8 @@
-﻿using Microsoft.VisualStudio;
+﻿using System;
+using System.ComponentModel.Composition;
+using System.Linq;
+using System.Runtime.InteropServices;
+using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Editor;
 using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.OLE.Interop;
@@ -7,10 +11,6 @@ using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.TextManager.Interop;
 using Microsoft.VisualStudio.Utilities;
-using System;
-using System.ComponentModel.Composition;
-using System.Linq;
-using System.Runtime.InteropServices;
 
 namespace TailwindCSSIntellisense.Completions.Controllers;
 
@@ -35,7 +35,9 @@ internal sealed class CssCompletionController : IVsTextViewCreationListener
     {
         var view = AdaptersFactory.GetWpfTextView(textViewAdapter)!;
 
-        view.Properties.GetOrCreateSingletonProperty(() => new CssCommandFilter(view, textViewAdapter, this));
+        view.Properties.GetOrCreateSingletonProperty(() =>
+            new CssCommandFilter(view, textViewAdapter, this)
+        );
     }
 }
 
@@ -47,7 +49,11 @@ internal sealed class CssCommandFilter : IOleCommandTarget
     private readonly IWpfTextView _textView;
     private readonly CssCompletionController _provider;
 
-    public CssCommandFilter(IWpfTextView textView, IVsTextView textViewAdapter, CssCompletionController provider)
+    public CssCommandFilter(
+        IWpfTextView textView,
+        IVsTextView textViewAdapter,
+        CssCompletionController provider
+    )
     {
         _currentSession = null;
 
@@ -63,7 +69,13 @@ internal sealed class CssCommandFilter : IOleCommandTarget
         return (char)(ushort)Marshal.GetObjectForNativeVariant(pvaIn);
     }
 
-    public int Exec(ref Guid pguidCmdGroup, uint nCmdID, uint nCmdexecopt, IntPtr pvaIn, IntPtr pvaOut)
+    public int Exec(
+        ref Guid pguidCmdGroup,
+        uint nCmdID,
+        uint nCmdexecopt,
+        IntPtr pvaIn,
+        IntPtr pvaOut
+    )
     {
         ThreadHelper.ThrowIfNotOnUIThread();
 
@@ -168,7 +180,11 @@ internal sealed class CssCommandFilter : IOleCommandTarget
                 {
                     case VSConstants.VSStd2KCmdID.TYPECHAR:
                         var character = GetTypeChar(pvaIn);
-                        if (character == ' ' || character == ':' || (isInApply && (_currentSession == null || character == '/')))
+                        if (
+                            character == ' '
+                            || character == ':'
+                            || (isInApply && (_currentSession == null || character == '/'))
+                        )
                         {
                             _currentSession?.Dismiss();
                             StartSession(true);
@@ -185,11 +201,25 @@ internal sealed class CssCommandFilter : IOleCommandTarget
                         StartSession(true);
                         break;
                     case VSConstants.VSStd2KCmdID.BACKSPACE:
-                        if (isInApply && classText is not null && classText.Any() && char.IsWhiteSpace(classText.Last()))
+                        if (
+                            isInApply
+                            && classText is not null
+                            && classText.Any()
+                            && char.IsWhiteSpace(classText.Last())
+                        )
                         {
                             break;
                         }
-                        if (isInApply && (_currentSession == null || (classText is not null && (classText.EndsWith("/") || classText.EndsWith(":")))))
+                        if (
+                            isInApply
+                            && (
+                                _currentSession == null
+                                || (
+                                    classText is not null
+                                    && (classText.EndsWith("/") || classText.EndsWith(":"))
+                                )
+                            )
+                        )
                         {
                             _currentSession?.Dismiss();
                             StartSession(true);
@@ -232,7 +262,9 @@ internal sealed class CssCommandFilter : IOleCommandTarget
     private void Filter()
     {
         if (_currentSession == null || _currentSession.SelectedCompletionSet == null)
+        {
             return;
+        }
 
         _currentSession.SelectedCompletionSet.Filter();
         _currentSession.SelectedCompletionSet.SelectBestMatch();
@@ -244,7 +276,9 @@ internal sealed class CssCommandFilter : IOleCommandTarget
     bool Cancel()
     {
         if (_currentSession == null)
+        {
             return false;
+        }
 
         _currentSession.Dismiss();
 
@@ -256,8 +290,14 @@ internal sealed class CssCommandFilter : IOleCommandTarget
     /// </summary>
     bool Complete(bool force)
     {
-        if (_currentSession == null || _currentSession.SelectedCompletionSet == null || _currentSession.SelectedCompletionSet.SelectionStatus == null)
+        if (
+            _currentSession == null
+            || _currentSession.SelectedCompletionSet == null
+            || _currentSession.SelectedCompletionSet.SelectionStatus == null
+        )
+        {
             return false;
+        }
 
         if (!_currentSession.SelectedCompletionSet.SelectionStatus.IsSelected)
         {
@@ -272,7 +312,11 @@ internal sealed class CssCommandFilter : IOleCommandTarget
             }
         }
 
-        var completionText = _currentSession.SelectedCompletionSet.SelectionStatus.Completion.InsertionText;
+        var completionText = _currentSession
+            .SelectedCompletionSet
+            .SelectionStatus
+            .Completion
+            .InsertionText;
         // ) is for theme()
         var moveOneBack = completionText.EndsWith("]") || completionText.EndsWith(")");
         var moveTwoBack = completionText.EndsWith("]:");
@@ -296,11 +340,14 @@ internal sealed class CssCommandFilter : IOleCommandTarget
     bool StartSession(bool shouldStartNew = false)
     {
         if (_currentSession != null)
+        {
             return false;
+        }
 
-        var caretPoint =
-            _textView.Caret.Position.Point.GetPoint(
-            textBuffer => !textBuffer.ContentType.IsOfType("projection"), PositionAffinity.Predecessor);
+        var caretPoint = _textView.Caret.Position.Point.GetPoint(
+            textBuffer => !textBuffer.ContentType.IsOfType("projection"),
+            PositionAffinity.Predecessor
+        );
 
         if (!caretPoint.HasValue)
         {
@@ -321,7 +368,11 @@ internal sealed class CssCommandFilter : IOleCommandTarget
         else if (shouldStartNew)
         {
             DismissOtherSessions();
-            _currentSession = _broker.CreateCompletionSession(_textView, snapshot.CreateTrackingPoint(caret, PointTrackingMode.Positive), true);
+            _currentSession = _broker.CreateCompletionSession(
+                _textView,
+                snapshot.CreateTrackingPoint(caret, PointTrackingMode.Positive),
+                true
+            );
             _currentSession.Dismissed += (sender, args) => _currentSession = null;
             _currentSession.Start();
 

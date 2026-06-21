@@ -1,10 +1,10 @@
-﻿using Community.VisualStudio.Toolkit;
-using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Shell.Interop;
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Community.VisualStudio.Toolkit;
+using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Shell.Interop;
 using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Node;
 using TailwindCSSIntellisense.Settings;
@@ -27,8 +27,11 @@ internal sealed class SetUpTailwindWs : BaseCommand<SetUpTailwindWs>
     internal SettingsProvider SettingsProvider { get; set; } = null!;
     internal FileFinder FileFinder { get; set; } = null!;
 
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "No other choice + settings likely loaded by the time this command is queried")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Usage",
+        "VSTHRD102:Implement internal logic asynchronously",
+        Justification = "No other choice + settings likely loaded by the time this command is queried"
+    )]
     protected override void BeforeQueryStatus(EventArgs e)
     {
         var settings = ThreadHelper.JoinableTaskFactory.Run(SettingsProvider.GetSettingsAsync);
@@ -37,12 +40,25 @@ internal sealed class SetUpTailwindWs : BaseCommand<SetUpTailwindWs>
 
         if (Path.GetExtension(selected) == "")
         {
-            var path = ThreadHelper.JoinableTaskFactory.Run(FileFinder.GetCurrentMiscellaneousProjectPathAsync);
+            var path = ThreadHelper.JoinableTaskFactory.Run(
+                FileFinder.GetCurrentMiscellaneousProjectPathAsync
+            );
 
-            Command.Visible = settings.EnableTailwindCss && string.IsNullOrEmpty(path) == false &&
-                path!.TrimEnd(Path.DirectorySeparatorChar).Equals(selected.TrimEnd(Path.DirectorySeparatorChar), StringComparison.InvariantCultureIgnoreCase) &&
-                    (settings.ConfigurationFiles.Count == 0 || settings.ConfigurationFiles.All(c =>
-                    string.IsNullOrEmpty(c.Path) || File.Exists(c.Path) == false));
+            Command.Visible =
+                settings.EnableTailwindCss
+                && string.IsNullOrEmpty(path) == false
+                && path!
+                    .TrimEnd(Path.DirectorySeparatorChar)
+                    .Equals(
+                        selected.TrimEnd(Path.DirectorySeparatorChar),
+                        StringComparison.InvariantCultureIgnoreCase
+                    )
+                && (
+                    settings.ConfigurationFiles.Count == 0
+                    || settings.ConfigurationFiles.All(c =>
+                        string.IsNullOrEmpty(c.Path) || File.Exists(c.Path) == false
+                    )
+                );
         }
         else
         {
@@ -54,15 +70,20 @@ internal sealed class SetUpTailwindWs : BaseCommand<SetUpTailwindWs>
     {
         if (!TailwindSetUpProcess.IsSettingUp)
         {
-            var directory = Path.GetDirectoryName(SolutionExplorerSelection.CurrentSelectedItemFullPath);
+            var directory = Path.GetDirectoryName(
+                SolutionExplorerSelection.CurrentSelectedItemFullPath
+            );
 
             // Check again to see if there were any changes since the last settings cache
             // User may have manually run the setup command, for example
             SettingsProvider.RefreshSettings();
             var settings = await SettingsProvider.GetSettingsAsync();
 
-            var hasConfig = settings.ConfigurationFiles.Count > 0 && settings.ConfigurationFiles.Any(c =>
-                !string.IsNullOrWhiteSpace(c.Path) && File.Exists(c.Path));
+            var hasConfig =
+                settings.ConfigurationFiles.Count > 0
+                && settings.ConfigurationFiles.Any(c =>
+                    !string.IsNullOrWhiteSpace(c.Path) && File.Exists(c.Path)
+                );
 
             var configFile = await TailwindSetUpProcess.RunAsync(directory, true, !hasConfig);
 
@@ -78,7 +99,7 @@ internal sealed class SetUpTailwindWs : BaseCommand<SetUpTailwindWs>
             {
                 Path.Combine(directory, "package.json"),
                 Path.Combine(directory, "package-lock.json"),
-                configFile!
+                configFile!,
             };
 
             try
@@ -95,7 +116,10 @@ internal sealed class SetUpTailwindWs : BaseCommand<SetUpTailwindWs>
                     var folder = await SolutionItem.FromHierarchyAsync(hierarchy, itemId);
 
                     // Include the created file if the current iterated folder/project is the same as the one that is selected
-                    if (folder?.FullPath is not null && Path.GetDirectoryName(folder.FullPath) == directory)
+                    if (
+                        folder?.FullPath is not null
+                        && Path.GetDirectoryName(folder.FullPath) == directory
+                    )
                     {
                         var project = (Project)folder;
                         await project.AddExistingFilesAsync(fileNames);
@@ -105,7 +129,9 @@ internal sealed class SetUpTailwindWs : BaseCommand<SetUpTailwindWs>
             catch (Exception ex)
             {
                 await ex.LogAsync();
-                await VS.StatusBar.ShowMessageAsync("One or more Tailwind CSS items could not be shown in the Solution Explorer.");
+                await VS.StatusBar.ShowMessageAsync(
+                    "One or more Tailwind CSS items could not be shown in the Solution Explorer."
+                );
             }
         }
     }

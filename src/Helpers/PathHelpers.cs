@@ -3,6 +3,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 
 namespace TailwindCSSIntellisense.Helpers;
+
 public static class PathHelpers
 {
     // https://stackoverflow.com/questions/703281/getting-path-relative-to-the-current-working-directory
@@ -29,7 +30,9 @@ public static class PathHelpers
             folder += Path.DirectorySeparatorChar;
         }
         var folderUri = new Uri(folder);
-        return Uri.UnescapeDataString(folderUri.MakeRelativeUri(pathUri).ToString().Replace('/', Path.DirectorySeparatorChar));
+        return Uri.UnescapeDataString(
+            folderUri.MakeRelativeUri(pathUri).ToString().Replace('/', Path.DirectorySeparatorChar)
+        );
     }
 
     /// <summary>
@@ -56,7 +59,9 @@ public static class PathHelpers
         var dirUri = new Uri(dir);
         var absUri = new Uri(dirUri, rel);
 
-        return Uri.UnescapeDataString(absUri.AbsolutePath.Replace('/', Path.DirectorySeparatorChar));
+        return Uri.UnescapeDataString(
+            absUri.AbsolutePath.Replace('/', Path.DirectorySeparatorChar)
+        );
     }
 
     /// <summary>
@@ -69,7 +74,9 @@ public static class PathHelpers
     public static bool PathMatchesGlob(string path, string pattern)
     {
         if (path == null || pattern == null)
+        {
             return false;
+        }
 
         // Normalize path separators for consistency
         path = path.ToLower().Replace('\\', '/');
@@ -129,7 +136,10 @@ public static class PathHelpers
             {
                 // Escape regex special characters
                 if ("\\.[]{}()+-^$|".IndexOf(c) >= 0)
+                {
                     regex.Append('\\');
+                }
+
                 regex.Append(c);
                 i++;
             }

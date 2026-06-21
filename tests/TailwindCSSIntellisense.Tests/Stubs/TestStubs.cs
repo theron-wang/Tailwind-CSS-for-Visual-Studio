@@ -1,4 +1,6 @@
 using System.Collections;
+using System.Text.RegularExpressions;
+using Microsoft.VisualStudio.Text;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Configuration;
 
@@ -10,17 +12,13 @@ namespace Community.VisualStudio.Toolkit
 
         public sealed class MessageBoxProxy
         {
-            public void ShowError(string message)
-            {
-            }
+            public void ShowError(string message) { }
         }
     }
 
     public static class ExceptionLoggingExtensions
     {
-        public static void Log(this Exception ex, string message)
-        {
-        }
+        public static void Log(this Exception ex, string message) { }
 
         public static Task LogAsync(this Exception ex)
         {
@@ -30,7 +28,11 @@ namespace Community.VisualStudio.Toolkit
 
     public static class StringExtensions
     {
-        public static string TrimPrefix(this string value, string prefix, StringComparison comparison)
+        public static string TrimPrefix(
+            this string value,
+            string prefix,
+            StringComparison comparison
+        )
         {
             return value.StartsWith(prefix, comparison) ? value[prefix.Length..] : value;
         }
@@ -51,15 +53,9 @@ namespace Community.VisualStudio.Toolkit
         public string FullPath { get; init; } = string.Empty;
     }
 
-    public class BaseOptionModel<T>
-    {
+    public class BaseOptionModel<T> { }
 
-    }
-
-    public class BaseOptionPage<T>
-    {
-
-    }
+    public class BaseOptionPage<T> { }
 }
 
 namespace Microsoft.VisualStudio.Shell
@@ -83,9 +79,7 @@ namespace Microsoft.VisualStudio.Shell
     }
 }
 
-namespace Microsoft.VisualStudio.Threading
-{
-}
+namespace Microsoft.VisualStudio.Threading { }
 
 namespace Microsoft.VisualStudio.Text
 {
@@ -153,8 +147,11 @@ namespace Microsoft.VisualStudio.Text
         }
 
         public IEnumerator<KeyValuePair<object, object>> GetEnumerator() => _values.GetEnumerator();
+
         IEnumerator IEnumerable.GetEnumerator() => _values.GetEnumerator();
     }
+
+    public interface ITrackingSpan { }
 
     public readonly struct SnapshotSpan(ITextSnapshot snapshot, int start, int length)
     {
@@ -183,10 +180,10 @@ namespace Microsoft.VisualStudio.Text
 
         public override bool Equals(object? obj)
         {
-            return obj is SnapshotSpan other &&
-                   ReferenceEquals(Snapshot, other.Snapshot) &&
-                   Span.Start == other.Span.Start &&
-                   Span.Length == other.Span.Length;
+            return obj is SnapshotSpan other
+                && ReferenceEquals(Snapshot, other.Snapshot)
+                && Span.Start == other.Span.Start
+                && Span.Length == other.Span.Length;
         }
 
         public override int GetHashCode()
@@ -200,7 +197,9 @@ namespace TailwindCSSIntellisense.Completions
 {
     public sealed class ProjectConfigurationManager
     {
-        private readonly Dictionary<string, ProjectCompletionValues> _byFilePath = new(StringComparer.InvariantCultureIgnoreCase);
+        private readonly Dictionary<string, ProjectCompletionValues> _byFilePath = new(
+            StringComparer.InvariantCultureIgnoreCase
+        );
 
         public ProjectCompletionValues? DefaultProject { get; private set; }
 
@@ -217,9 +216,14 @@ namespace TailwindCSSIntellisense.Completions
             DefaultProject = values;
         }
 
-        public Task<ProjectCompletionValues> GetCompletionConfigurationByFilePathAsync(string? filePath)
+        public Task<ProjectCompletionValues> GetCompletionConfigurationByFilePathAsync(
+            string? filePath
+        )
         {
-            if (!string.IsNullOrWhiteSpace(filePath) && _byFilePath.TryGetValue(filePath, out var value))
+            if (
+                !string.IsNullOrWhiteSpace(filePath)
+                && _byFilePath.TryGetValue(filePath, out var value)
+            )
             {
                 return Task.FromResult(value);
             }
@@ -248,7 +252,8 @@ namespace TailwindCSSIntellisense.ClassSort
 
         public ClassSortUtilities(
             Dictionary<TailwindVersion, Dictionary<string, int>> classOrders,
-            Dictionary<TailwindVersion, Dictionary<string, int>> variantOrders)
+            Dictionary<TailwindVersion, Dictionary<string, int>> variantOrders
+        )
         {
             _classOrders = classOrders;
             _variantOrders = variantOrders;
@@ -282,7 +287,10 @@ namespace TailwindCSSIntellisense.Linting
     {
         public ErrorSeverity GetErrorSeverity(ErrorType type) => ErrorSeverity.None;
 
-        public IEnumerable<Tuple<string, string>> CheckForClassDuplicates(IEnumerable<string> classes, ProjectCompletionValues projectCompletionValues)
+        public IEnumerable<Tuple<string, string>> CheckForClassDuplicates(
+            IEnumerable<string> classes,
+            ProjectCompletionValues projectCompletionValues
+        )
         {
             return [];
         }
@@ -295,7 +303,7 @@ namespace TailwindCSSIntellisense.Parsers
 
     internal static class CssParser
     {
-        public static IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span, ITextSnapshot snapshot)
+        public static IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span)
         {
             return [span];
         }
@@ -305,27 +313,40 @@ namespace TailwindCSSIntellisense.Parsers
 namespace TailwindCSSIntellisense.Linting.Validators
 {
     using Microsoft.VisualStudio.Text;
+    using TailwindCSSIntellisense.Linting.Validators.Diagnostics;
 
     internal abstract class Validator
     {
         protected readonly ITextBuffer _buffer;
         protected readonly LinterUtilities _linterUtils;
         protected readonly ProjectConfigurationManager _projectConfigurationManager;
-        private readonly CompletionConfiguration _completionConfiguration;
+        protected readonly CompletionConfiguration _completionConfiguration;
+        protected readonly DiagnosticsAggregator _diagnosticsAggregator;
         protected ProjectCompletionValues _projectCompletionValues;
         protected readonly HashSet<SnapshotSpan> _checkedSpans = [];
 
-        protected Validator(ITextBuffer buffer, LinterUtilities linterUtils, ProjectConfigurationManager projectConfigurationManager, CompletionConfiguration completionConfiguration)
+        protected Validator(
+            ITextBuffer buffer,
+            LinterUtilities linterUtils,
+            ProjectConfigurationManager projectConfigurationManager,
+            CompletionConfiguration completionConfiguration,
+            DiagnosticsAggregator diagnosticsAggregator
+        )
         {
             _buffer = buffer;
             _linterUtils = linterUtils;
             _projectConfigurationManager = projectConfigurationManager;
             _completionConfiguration = completionConfiguration;
-            _projectCompletionValues = projectConfigurationManager.GetCompletionConfigurationByFilePathAsync(null).Result;
+            _diagnosticsAggregator = diagnosticsAggregator;
+            _projectCompletionValues = projectConfigurationManager
+                .GetCompletionConfigurationByFilePathAsync(null)
+                .Result;
         }
 
-        public abstract IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span);
-        public abstract IEnumerable<Error> GetErrors(SnapshotSpan span, bool force = false);
+        protected bool IsAlreadyChecked(SnapshotSpan scope) => false;
+
+        protected abstract IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span);
+        protected abstract IEnumerable<Error> ComputeErrors(SnapshotSpan span);
     }
 }
 
@@ -333,7 +354,11 @@ namespace TailwindCSSIntellisense.ClassSort.Sorters
 {
     internal static class SorterStringExtensions
     {
-        public static string TrimPrefix(this string value, string prefix, StringComparison comparison)
+        public static string TrimPrefix(
+            this string value,
+            string prefix,
+            StringComparison comparison
+        )
         {
             return value.StartsWith(prefix, comparison) ? value[prefix.Length..] : value;
         }
@@ -343,7 +368,10 @@ namespace TailwindCSSIntellisense.ClassSort.Sorters
     {
         public override string[] Handled { get; } = [".css"];
 
-        protected async override IAsyncEnumerable<string> GetSegmentsAsync(string filePath, string input)
+        protected override async IAsyncEnumerable<string> GetSegmentsAsync(
+            string filePath,
+            string input
+        )
         {
             yield return input;
         }
@@ -352,7 +380,6 @@ namespace TailwindCSSIntellisense.ClassSort.Sorters
 
 namespace TailwindCSSIntellisense.Settings
 {
-
     public sealed class TailwindSettings
     {
         public bool UseCli { get; set; }
@@ -376,8 +403,23 @@ namespace TailwindCSSIntellisense.Settings
 
 namespace TailwindCSSIntellisense.Configuration
 {
-    public class CompletionConfiguration
-    {
+    public class CompletionConfiguration { }
+}
 
+namespace TailwindCSSIntellisense.Linting.Validators.Diagnostics
+{
+    public class DiagnosticsAggregator()
+    {
+        internal IEnumerable<Error> GetErrors(
+            SnapshotSpan span,
+            bool isCss,
+            ProjectCompletionValues projectCompletionValues,
+            Func<string, IEnumerable<Match>> findClasses,
+            Func<string, IEnumerable<Match>> splitClasses,
+            Func<SnapshotSpan, bool> shouldNotAddErrors
+        )
+        {
+            return [];
+        }
     }
 }

@@ -1,12 +1,12 @@
-﻿using Community.VisualStudio.Toolkit;
-using Microsoft.VisualStudio.Threading;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Community.VisualStudio.Toolkit;
+using Microsoft.VisualStudio.Threading;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Settings;
 
@@ -14,7 +14,7 @@ namespace TailwindCSSIntellisense.Helpers;
 
 /// <summary>
 /// It is unsafe to import SettingsProvider in this class. First, importing it here will cause a circular dependency;
-/// second, it will cause infinite recursion if you try to get settings in any of these methods. 
+/// second, it will cause infinite recursion if you try to get settings in any of these methods.
 /// </summary>
 [Export]
 [PartCreationPolicy(CreationPolicy.Shared)]
@@ -58,7 +58,7 @@ internal class DirectoryVersionFinder : IDisposable
             CreateNoWindow = true,
             FileName = "cmd",
             Arguments = "/C npm list tailwindcss @tailwindcss/cli --depth=0",
-            WorkingDirectory = directory
+            WorkingDirectory = directory,
         };
 
         string output;
@@ -80,7 +80,7 @@ internal class DirectoryVersionFinder : IDisposable
                 CreateNoWindow = true,
                 FileName = "cmd",
                 Arguments = "/C npm list tailwindcss @tailwindcss/cli --depth=0 -g",
-                WorkingDirectory = directory
+                WorkingDirectory = directory,
             };
 
             using var process = Process.Start(processInfo);
@@ -121,7 +121,10 @@ internal class DirectoryVersionFinder : IDisposable
     /// </summary>
     /// <param name="file">The file for which to get the tailwind version.</param>
     /// <param name="settings">The Tailwind settings (see summary for this class for justification)</param>
-    public async Task<TailwindVersion> GetTailwindVersionAsync(string file, TailwindSettings settings)
+    public async Task<TailwindVersion> GetTailwindVersionAsync(
+        string file,
+        TailwindSettings settings
+    )
     {
         var directory = Path.GetDirectoryName(file).ToLower();
 
@@ -138,8 +141,10 @@ internal class DirectoryVersionFinder : IDisposable
             RedirectStandardOutput = true,
             CreateNoWindow = true,
             FileName = "cmd",
-            Arguments = isCli ? $"/C \"{settings.TailwindCliPath}\" --help" : "/C npm list tailwindcss --depth=0",
-            WorkingDirectory = directory
+            Arguments = isCli
+                ? $"/C \"{settings.TailwindCliPath}\" --help"
+                : "/C npm list tailwindcss --depth=0",
+            WorkingDirectory = directory,
         };
 
         string output;
@@ -161,7 +166,7 @@ internal class DirectoryVersionFinder : IDisposable
                 CreateNoWindow = true,
                 FileName = "cmd",
                 Arguments = "/C npm list tailwindcss --depth=0 -g",
-                WorkingDirectory = directory
+                WorkingDirectory = directory,
             };
 
             using var process = Process.Start(processInfo);

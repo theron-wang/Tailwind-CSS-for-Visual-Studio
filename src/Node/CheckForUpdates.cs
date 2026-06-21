@@ -1,12 +1,12 @@
-﻿using Community.VisualStudio.Toolkit;
-using Microsoft.VisualStudio.Threading;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
+using Community.VisualStudio.Toolkit;
+using Microsoft.VisualStudio.Threading;
 using TailwindCSSIntellisense.Options;
 
 namespace TailwindCSSIntellisense.Node;
@@ -33,7 +33,12 @@ internal static class CheckForUpdates
 
         var general = await General.GetLiveInstanceAsync();
 
-        if (!general.UseTailwindCss || !general.AutomaticallyUpdateLibrary || !File.Exists(config) || string.IsNullOrWhiteSpace(folder))
+        if (
+            !general.UseTailwindCss
+            || !general.AutomaticallyUpdateLibrary
+            || !File.Exists(config)
+            || string.IsNullOrWhiteSpace(folder)
+        )
         {
             return;
         }
@@ -59,7 +64,9 @@ internal static class CheckForUpdates
         }
         catch (Exception ex)
         {
-            await VS.StatusBar.ShowMessageAsync("Tailwind CSS update/check failed; check 'Extensions' output window for more details");
+            await VS.StatusBar.ShowMessageAsync(
+                "Tailwind CSS update/check failed; check 'Extensions' output window for more details"
+            );
             await ex.LogAsync();
         }
     }
@@ -80,7 +87,7 @@ internal static class CheckForUpdates
             CreateNoWindow = true,
             FileName = "cmd",
             Arguments = $"/C npm outdated --json",
-            WorkingDirectory = workingDir
+            WorkingDirectory = workingDir,
         };
 
         string output;
@@ -124,13 +131,17 @@ internal static class CheckForUpdates
 
         if (result[module] is JsonObject jsonObj)
         {
-            relevantPackage = jsonObj.Deserialize<OutdatedPackage>(new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
+            relevantPackage = jsonObj.Deserialize<OutdatedPackage>(
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+            );
         }
 
-        if (relevantPackage is null || relevantPackage.Current is null || relevantPackage.Latest is null || relevantPackage.Wanted is null)
+        if (
+            relevantPackage is null
+            || relevantPackage.Current is null
+            || relevantPackage.Latest is null
+            || relevantPackage.Wanted is null
+        )
         {
             await VS.StatusBar.ShowMessageAsync($"Tailwind CSS: {module} is up to date");
             return;
@@ -144,7 +155,9 @@ internal static class CheckForUpdates
         // In this case, we want to notify the user about the new major version, but not automatically update, since that could cause breaking changes.
         if (currentMajor != newMajor)
         {
-            await VS.StatusBar.ShowMessageAsync($"A major Tailwind update is available: {relevantPackage.Latest}. If you would like to update, please manually run npm install {module}@latest.");
+            await VS.StatusBar.ShowMessageAsync(
+                $"A major Tailwind update is available: {relevantPackage.Latest}. If you would like to update, please manually run npm install {module}@latest."
+            );
         }
 
         if (relevantPackage.Current == relevantPackage.Wanted)
@@ -152,7 +165,9 @@ internal static class CheckForUpdates
             return;
         }
 
-        await VS.StatusBar.ShowMessageAsync($"Updating {module} ({relevantPackage.Current} -> {relevantPackage.Wanted})");
+        await VS.StatusBar.ShowMessageAsync(
+            $"Updating {module} ({relevantPackage.Current} -> {relevantPackage.Wanted})"
+        );
 
         processInfo = new ProcessStartInfo()
         {
@@ -161,7 +176,7 @@ internal static class CheckForUpdates
             CreateNoWindow = true,
             FileName = "cmd",
             Arguments = $"/C npm install {module}@{relevantPackage.Wanted}",
-            WorkingDirectory = Path.GetDirectoryName(folder)
+            WorkingDirectory = Path.GetDirectoryName(folder),
         };
 
         string error;
@@ -177,11 +192,15 @@ internal static class CheckForUpdates
         {
             var ex = new Exception(error);
             await ex.LogAsync();
-            await VS.StatusBar.ShowMessageAsync("An error occurred while updating Tailwind CSS: check the 'Extensions' output window for more details");
+            await VS.StatusBar.ShowMessageAsync(
+                "An error occurred while updating Tailwind CSS: check the 'Extensions' output window for more details"
+            );
             return;
         }
 
-        await VS.StatusBar.ShowMessageAsync($"Tailwind CSS update successful (updated to version {relevantPackage.Wanted})");
+        await VS.StatusBar.ShowMessageAsync(
+            $"Tailwind CSS update successful (updated to version {relevantPackage.Wanted})"
+        );
     }
 
     private class OutdatedPackage

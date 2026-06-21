@@ -1,12 +1,13 @@
-﻿using Microsoft.VisualStudio.Text;
+﻿using System.Collections.Generic;
+using System.ComponentModel.Composition;
+using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Text.Tagging;
 using Microsoft.VisualStudio.Utilities;
-using System.Collections.Generic;
-using System.ComponentModel.Composition;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Parsers;
+using TailwindCSSIntellisense.Settings;
 
 namespace TailwindCSSIntellisense.Adornments.Colors;
 
@@ -21,19 +22,45 @@ namespace TailwindCSSIntellisense.Adornments.Colors;
 internal sealed class ColorRazorTaggerProvider : IViewTaggerProvider
 {
     [Import]
-    internal ProjectConfigurationManager ProjectConfigurationManager { get; set; } = null!;
-    [Import]
-    public CompletionConfiguration CompletionConfiguration { get; set; } = null!;
+    private readonly ProjectConfigurationManager _projectConfigurationManager = null!;
 
-    public ITagger<T> CreateTagger<T>(ITextView textView, ITextBuffer buffer) where T : ITag
+    [Import]
+    private readonly CompletionConfiguration _completionConfiguration = null!;
+
+    [Import]
+    private readonly SettingsProvider _settingsProvider = null!;
+
+    public ITagger<T> CreateTagger<T>(ITextView textView, ITextBuffer buffer)
+        where T : ITag
     {
-        return (ITagger<T>)buffer.Properties.GetOrCreateSingletonProperty(() => new ColorRazorTagger(buffer, textView, ProjectConfigurationManager, CompletionConfiguration));
+        return (ITagger<T>)
+            buffer.Properties.GetOrCreateSingletonProperty(() =>
+                new ColorRazorTagger(
+                    buffer,
+                    textView,
+                    _projectConfigurationManager,
+                    _completionConfiguration,
+                    _settingsProvider
+                )
+            );
     }
 
-    private class ColorRazorTagger(ITextBuffer buffer, ITextView view, ProjectConfigurationManager completionUtilities, CompletionConfiguration completionConfiguration)
-        : ColorTaggerBase(buffer, view, completionUtilities, completionConfiguration)
+    private class ColorRazorTagger(
+        ITextBuffer buffer,
+        ITextView view,
+        ProjectConfigurationManager completionUtilities,
+        CompletionConfiguration completionConfiguration,
+        SettingsProvider settingsProvider
+    )
+        : ColorTaggerBase(
+            buffer,
+            view,
+            completionUtilities,
+            completionConfiguration,
+            settingsProvider
+        )
     {
-        protected override IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span, ITextSnapshot snapshot)
+        protected override IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span)
         {
             foreach (var classAttributeSpan in RazorParser.GetClassAttributeValues(span))
             {
@@ -41,7 +68,11 @@ internal sealed class ColorRazorTaggerProvider : IViewTaggerProvider
 
                 foreach (var split in ClassRegexHelper.SplitRazorClasses(text))
                 {
-                    yield return new SnapshotSpan(snapshot, classAttributeSpan.Start + split.Index, split.Value.Length);
+                    yield return new SnapshotSpan(
+                        span.Snapshot,
+                        classAttributeSpan.Start + split.Index,
+                        split.Value.Length
+                    );
                 }
             }
         }

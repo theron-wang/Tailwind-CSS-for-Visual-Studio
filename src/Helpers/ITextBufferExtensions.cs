@@ -10,8 +10,11 @@ internal static class ITextBufferExtensions
     /// </summary>
     /// <param name="buffer">The buffer</param>
     /// <returns>The file name</returns>
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "Not expensive")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Usage",
+        "VSTHRD102:Implement internal logic asynchronously",
+        Justification = "Not expensive"
+    )]
     public static string GetFileNameSafe(this ITextBuffer buffer)
     {
         return ThreadHelper.JoinableTaskFactory.Run(async () =>

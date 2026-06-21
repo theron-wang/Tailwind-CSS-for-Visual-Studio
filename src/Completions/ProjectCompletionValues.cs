@@ -14,6 +14,7 @@ public class ProjectCompletionValues
     /// Glob format for v3, base folders for v4.
     /// </summary>
     public List<string> ApplicablePaths { get; set; } = [];
+
     /// <summary>
     /// V4+ only
     /// </summary>
@@ -22,6 +23,7 @@ public class ProjectCompletionValues
     internal bool Initialized { get; set; }
     internal List<TailwindClass> Classes { get; set; } = [];
     internal List<string> Variants { get; set; } = [];
+
     /// <summary>
     /// V4 and above
     /// </summary>
@@ -33,6 +35,7 @@ public class ProjectCompletionValues
 
     internal Dictionary<string, string> ColorMapper { get; set; } = [];
     internal Dictionary<string, string> SpacingMapper { get; set; } = [];
+
     /// <summary>
     /// Removed in V4
     /// </summary>
@@ -42,6 +45,7 @@ public class ProjectCompletionValues
     /// Removed in V4
     /// </summary>
     internal Dictionary<string, Dictionary<string, string>> CustomColorMappers { get; set; } = [];
+
     /// <summary>
     /// Removed in V4
     /// </summary>
@@ -100,13 +104,16 @@ public class ProjectCompletionValues
             ColorMapper = new Dictionary<string, string>(ColorMapper),
             SpacingMapper = new Dictionary<string, string>(SpacingMapper),
             ConfigurationValueToClassStems = ConfigurationValueToClassStems.ToDictionary(
-                kvp => kvp.Key, kvp => kvp.Value.ToList()
+                kvp => kvp.Key,
+                kvp => kvp.Value.ToList()
             ),
             CustomColorMappers = CustomColorMappers.ToDictionary(
-                kvp => kvp.Key, kvp => new Dictionary<string, string>(kvp.Value)
+                kvp => kvp.Key,
+                kvp => new Dictionary<string, string>(kvp.Value)
             ),
             CustomSpacingMappers = CustomSpacingMappers.ToDictionary(
-                kvp => kvp.Key, kvp => new Dictionary<string, string>(kvp.Value)
+                kvp => kvp.Key,
+                kvp => new Dictionary<string, string>(kvp.Value)
             ),
             DescriptionMapper = new Dictionary<string, string>(DescriptionMapper),
             CustomDescriptionMapper = new Dictionary<string, string>(CustomDescriptionMapper),
@@ -114,12 +121,11 @@ public class ProjectCompletionValues
             PluginVariants = [.. PluginVariants],
             Blocklist = [.. Blocklist],
             Version = Version,
-            CssVariables = CssVariables.ToDictionary(
-                kvp => kvp.Key, kvp => kvp.Value
-            ),
+            CssVariables = CssVariables.ToDictionary(kvp => kvp.Key, kvp => kvp.Value),
             VariantsToDescriptions = VariantsToDescriptions.ToDictionary(
-                kvp => kvp.Key, kvp => kvp.Value
-            )
+                kvp => kvp.Key,
+                kvp => kvp.Value
+            ),
         };
     }
 }

@@ -15,7 +15,10 @@ internal class ColorIconGenerator
     [Import]
     internal ProjectConfigurationManager ProjectConfigurationManager { get; set; } = null!;
 
-    private readonly Dictionary<ProjectCompletionValues, Dictionary<string, ImageSource>> _colorToRgbMapperCaches = [];
+    private readonly Dictionary<
+        ProjectCompletionValues,
+        Dictionary<string, ImageSource>
+    > _colorToRgbMapperCaches = [];
 
     internal void ClearCache(ProjectCompletionValues project)
     {
@@ -25,7 +28,12 @@ internal class ColorIconGenerator
         }
     }
 
-    internal ImageSource GetImageFromColor(ProjectCompletionValues projectCompletionValues, string stem, string color, int opacity = 100)
+    internal ImageSource GetImageFromColor(
+        ProjectCompletionValues projectCompletionValues,
+        string stem,
+        string color,
+        int opacity = 100
+    )
     {
         if (_colorToRgbMapperCaches.TryGetValue(projectCompletionValues, out var cache) == false)
         {
@@ -35,9 +43,19 @@ internal class ColorIconGenerator
 
         string value;
         var custom = false;
-        if (projectCompletionValues.CustomColorMappers != null && projectCompletionValues.CustomColorMappers.Count > 0)
+        if (
+            projectCompletionValues.CustomColorMappers != null
+            && projectCompletionValues.CustomColorMappers.Count > 0
+        )
         {
-            if (projectCompletionValues.CustomColorMappers.TryGetValue(stem, out var dict) == false || (dict.TryGetValue(color, out value) && projectCompletionValues.ColorMapper.TryGetValue(color, out var value2) && value == value2))
+            if (
+                projectCompletionValues.CustomColorMappers.TryGetValue(stem, out var dict) == false
+                || (
+                    dict.TryGetValue(color, out value)
+                    && projectCompletionValues.ColorMapper.TryGetValue(color, out var value2)
+                    && value == value2
+                )
+            )
             {
                 if (cache.TryGetValue($"{color}/{opacity}", out var result))
                 {
@@ -67,12 +85,18 @@ internal class ColorIconGenerator
             return ProjectConfigurationManager.TailwindLogo;
         }
 
-        if (string.IsNullOrWhiteSpace(value) || value.StartsWith("{noparse}") || value.StartsWith("var"))
+        if (
+            string.IsNullOrWhiteSpace(value)
+            || value.StartsWith("{noparse}")
+            || value.StartsWith("var")
+        )
         {
             return ProjectConfigurationManager.TailwindLogo;
         }
 
-        byte r, g, b;
+        byte r,
+            g,
+            b;
 
         if (ColorHelpers.ForceConvertToRgb(value) is int[] converted && converted.Length == 3)
         {
@@ -82,7 +106,8 @@ internal class ColorIconGenerator
         }
         else
         {
-            var rgb = value.Split(',')
+            var rgb = value
+                .Split(',')
                 .Take(3)
                 .Where(v => byte.TryParse(v, out _))
                 .Select(byte.Parse)
@@ -100,21 +125,34 @@ internal class ColorIconGenerator
         }
         var a = (byte)Math.Round(opacity / 100d * 255);
 
-        var pen = new Pen() { Thickness = 8, Brush = new SolidColorBrush(Color.FromArgb(a, r, g, b)) };
-        var mainImage = new GeometryDrawing() { Geometry = new RectangleGeometry(new Rect(4, 5, 9, 8)), Pen = pen };
+        var pen = new Pen()
+        {
+            Thickness = 8,
+            Brush = new SolidColorBrush(Color.FromArgb(a, r, g, b)),
+        };
+        var mainImage = new GeometryDrawing()
+        {
+            Geometry = new RectangleGeometry(new Rect(4, 5, 9, 8)),
+            Pen = pen,
+        };
 
         // https://stackoverflow.com/questions/37663993/preventing-icon-color-and-size-distortions-when-bundling-a-visual-studio-project
-        var pen2 = new Pen() { Thickness = 1, Brush = new SolidColorBrush(Color.FromArgb(1, 0, 255, 255)) };
-        var vsPrevent = new GeometryDrawing() { Geometry = new RectangleGeometry(new Rect(16, 0, 1, 1)), Pen = pen2 };
+        var pen2 = new Pen()
+        {
+            Thickness = 1,
+            Brush = new SolidColorBrush(Color.FromArgb(1, 0, 255, 255)),
+        };
+        var vsPrevent = new GeometryDrawing()
+        {
+            Geometry = new RectangleGeometry(new Rect(16, 0, 1, 1)),
+            Pen = pen2,
+        };
 
         var geometry = new DrawingGroup();
         geometry.Children.Add(mainImage);
         geometry.Children.Add(vsPrevent);
 
-        var output = new DrawingImage
-        {
-            Drawing = geometry
-        };
+        var output = new DrawingImage { Drawing = geometry };
 
         var key = $"{color}/{opacity}";
         if (custom)

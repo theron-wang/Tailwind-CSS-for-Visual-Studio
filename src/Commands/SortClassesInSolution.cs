@@ -1,7 +1,7 @@
-﻿using Community.VisualStudio.Toolkit;
-using Microsoft.VisualStudio.Shell;
-using System;
+﻿using System;
 using System.Threading.Tasks;
+using Community.VisualStudio.Toolkit;
+using Microsoft.VisualStudio.Shell;
 using TailwindCSSIntellisense.ClassSort;
 using TailwindCSSIntellisense.Options;
 using TailwindCSSIntellisense.Settings;
@@ -20,13 +20,17 @@ internal sealed class SortClassesInSolution : BaseCommand<SortClassesInSolution>
     internal ClassSorter ClassSorter { get; set; } = null!;
     internal SettingsProvider SettingsProvider { get; set; } = null!;
 
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "General settings load fast")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Usage",
+        "VSTHRD102:Implement internal logic asynchronously",
+        Justification = "General settings load fast"
+    )]
     protected override void BeforeQueryStatus(EventArgs e)
     {
         var settings = ThreadHelper.JoinableTaskFactory.Run(General.GetLiveInstanceAsync);
 
-        Command.Visible = settings.UseTailwindCss && settings.ClassSortType != SortClassesOptions.None;
+        Command.Visible =
+            settings.UseTailwindCss && settings.ClassSortType != SortClassesOptions.None;
         Command.Enabled = !ClassSorter.Sorting;
     }
 

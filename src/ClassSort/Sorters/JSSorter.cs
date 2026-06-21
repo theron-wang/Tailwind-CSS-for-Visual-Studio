@@ -8,7 +8,10 @@ internal class JSSorter : Sorter
 {
     public override string[] Handled { get; } = [".jsx", ".tsx"];
 
-    protected override async IAsyncEnumerable<string> GetSegmentsAsync(string filePath, string content)
+    protected override async IAsyncEnumerable<string> GetSegmentsAsync(
+        string filePath,
+        string content
+    )
     {
         int lastIndex = 0;
         int indexOfClass;

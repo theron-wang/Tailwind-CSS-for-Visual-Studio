@@ -12,7 +12,7 @@ namespace TailwindCSSIntellisense
         public const string Name = "Tailwind CSS for Visual Studio";
         public const string Description = @"Unofficial extension for Tailwind CSS IntelliSense, linting, sorting, and more in Visual Studio 2026 and 2022.";
         public const string Language = "en-US";
-        public const string Version = "1.13.12";
+        public const string Version = "1.14.0";
         public const string Author = "Theron Wang";
         public const string Tags = "tailwind, tailwind css, css, html, cshtml, razor, blazor, intellisense, auto-completion";
         public const bool IsPreview = false;

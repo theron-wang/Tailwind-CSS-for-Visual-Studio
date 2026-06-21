@@ -1,11 +1,11 @@
-﻿using Community.VisualStudio.Toolkit;
-using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Threading;
-using System;
+﻿using System;
 using System.ComponentModel.Composition;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
+using Community.VisualStudio.Toolkit;
+using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Threading;
 
 namespace TailwindCSSIntellisense.Node;
 
@@ -24,7 +24,11 @@ internal sealed class TailwindSetUpProcess
     /// Starts a process to install Tailwind in the specified directory (uses npm), if needInstall = true. Otherwise, it just creates a tailwind.css file with the import statement.
     /// </summary>
     /// <param name="directory">The directory to install in</param>
-    public async Task<string?> RunAsync(string directory, bool needInstall, bool shouldCreateTailwindDotCss)
+    public async Task<string?> RunAsync(
+        string directory,
+        bool needInstall,
+        bool shouldCreateTailwindDotCss
+    )
     {
         IsSettingUp = true;
         var processInfo = new ProcessStartInfo()
@@ -70,7 +74,14 @@ internal sealed class TailwindSetUpProcess
                     fileName = "tailwind.css";
                 }
 
-                using (var fileStream = new FileStream(Path.Combine(directory, fileName), FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite))
+                using (
+                    var fileStream = new FileStream(
+                        Path.Combine(directory, fileName),
+                        FileMode.CreateNew,
+                        FileAccess.Write,
+                        FileShare.ReadWrite
+                    )
+                )
                 {
                     using var streamWriter = new StreamWriter(fileStream);
                     await streamWriter.WriteLineAsync("@import \"tailwindcss\";");
@@ -94,22 +105,32 @@ internal sealed class TailwindSetUpProcess
         return null;
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync", Justification = "FileAndForget ok")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Reliability",
+        "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync",
+        Justification = "FileAndForget ok"
+    )]
     private void ErrorDataReceived(object sender, DataReceivedEventArgs e)
     {
-        ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
-        {
-            if (e.Data != null)
+        ThreadHelper
+            .JoinableTaskFactory.RunAsync(async () =>
             {
-                var ex = new Exception(e.Data);
-                await LogErrorAsync(ex);
-            }
-        }).FileAndForget(nameof(TailwindCSSIntellisense) + "/TailwindSetUpProcess/ErrorDataReceived");
+                if (e.Data != null)
+                {
+                    var ex = new Exception(e.Data);
+                    await LogErrorAsync(ex);
+                }
+            })
+            .FileAndForget(
+                nameof(TailwindCSSIntellisense) + "/TailwindSetUpProcess/ErrorDataReceived"
+            );
     }
 
     private async Task LogErrorAsync(Exception exception)
     {
         await exception.LogAsync();
-        await VS.StatusBar.ShowMessageAsync("An error occurred while setting up Tailwind CSS: check the 'Extensions' output window for more details");
+        await VS.StatusBar.ShowMessageAsync(
+            "An error occurred while setting up Tailwind CSS: check the 'Extensions' output window for more details"
+        );
     }
 }

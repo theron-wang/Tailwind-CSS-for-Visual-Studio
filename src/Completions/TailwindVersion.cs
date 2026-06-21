@@ -8,7 +8,7 @@ public enum TailwindVersion
     V4_2,
     V4_3,
 
-    LATEST = V4_3
+    LATEST = V4_3,
 }
 
 public static class TailwindVersionExtensions
@@ -17,8 +17,9 @@ public static class TailwindVersionExtensions
     {
         return version switch
         {
-            TailwindVersion.V4_1 or TailwindVersion.V4_2 or TailwindVersion.V4_3 => TailwindVersion.V4,
-            _ => version
+            TailwindVersion.V4_1 or TailwindVersion.V4_2 or TailwindVersion.V4_3 =>
+                TailwindVersion.V4,
+            _ => version,
         };
     }
 }

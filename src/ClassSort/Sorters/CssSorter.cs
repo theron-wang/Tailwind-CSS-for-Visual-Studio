@@ -8,7 +8,10 @@ internal class CssSorter : Sorter
 {
     public override string[] Handled { get; } = [".css", ".tcss"];
 
-    protected override async IAsyncEnumerable<string> GetSegmentsAsync(string filePath, string content)
+    protected override async IAsyncEnumerable<string> GetSegmentsAsync(
+        string filePath,
+        string content
+    )
     {
         int indexOfApply = content.IndexOf("@apply");
 
@@ -20,7 +23,10 @@ internal class CssSorter : Sorter
             // Check to see if it is whitespace between here and { or ;, whichever comes first
             var context = content.LastIndexOfAny([';', '{'], indexOfApply) + 1;
 
-            if (context == -1 || !string.IsNullOrWhiteSpace(content.Substring(context, indexOfApply - context)))
+            if (
+                context == -1
+                || !string.IsNullOrWhiteSpace(content.Substring(context, indexOfApply - context))
+            )
             {
                 indexOfApply = content.IndexOf("@apply", indexOfApply + 1);
                 continue;
@@ -38,7 +44,10 @@ internal class CssSorter : Sorter
 
             // return @apply
             yield return "@apply ";
-            yield return await SortSegmentAsync(content.Substring(indexOfApply + 6, lastIndex - (indexOfApply + 6)), filePath);
+            yield return await SortSegmentAsync(
+                content.Substring(indexOfApply + 6, lastIndex - (indexOfApply + 6)),
+                filePath
+            );
             indexOfApply = content.IndexOf("@apply", indexOfApply + 1);
         }
 

@@ -1,9 +1,10 @@
-﻿using Microsoft.VisualStudio.Text;
-using Microsoft.VisualStudio.Text.Editor;
-using System;
+﻿using System;
 using System.Collections.Generic;
+using Microsoft.VisualStudio.Text;
+using Microsoft.VisualStudio.Text.Editor;
 
 namespace TailwindCSSIntellisense.Parsers;
+
 internal static class JSParser
 {
     /// <summary>
@@ -12,12 +13,18 @@ internal static class JSParser
     /// <param name="snapshot">The text snapshot</param>
     /// <param name="trigger">The trigger, such as the caret or the quick info location</param>
     /// <param name="fullClassScope">The output SnapshotSpan of the <b>entire</b> class scope</param>
-    public static bool IsInClassScope(ITextSnapshot snapshot, SnapshotPoint trigger, out SnapshotSpan? fullClassScope)
+    public static bool IsInClassScope(
+        ITextSnapshot snapshot,
+        SnapshotPoint trigger,
+        out SnapshotSpan? fullClassScope
+    )
     {
-        var text = snapshot.GetText(0, (int)trigger);
-        var expandedSearchText = snapshot.GetText(0, Math.Min((int)trigger + 2000, snapshot.Length));
+        var expandedSearchText = snapshot.GetText(
+            0,
+            Math.Min((int)trigger + 2000, snapshot.Length)
+        );
 
-        foreach (var match in ClassRegexHelper.GetClassesJavaScript(text, expandedSearchText))
+        foreach (var match in ClassRegexHelper.GetClassesJavaScript(expandedSearchText))
         {
             if (trigger.Position >= match.Index && trigger.Position <= match.Index + match.Length)
             {
@@ -40,7 +47,11 @@ internal static class JSParser
     /// <param name="fullClassScope">The output SnapshotSpan of the <b>entire</b> class scope</param>
     public static bool IsCursorInClassScope(ITextView textView, out SnapshotSpan? fullClassScope)
     {
-        return IsInClassScope(textView.TextSnapshot, textView.Caret.Position.BufferPosition, out fullClassScope);
+        return IsInClassScope(
+            textView.TextSnapshot,
+            textView.Caret.Position.BufferPosition,
+            out fullClassScope
+        );
     }
 
     /// <summary>
@@ -50,9 +61,20 @@ internal static class JSParser
     {
         var start = Math.Max(0, (int)span.Start - 2000);
 
-        foreach (var scope in ClassRegexHelper.GetClassesJavaScriptEnumerator(span.Snapshot.GetText(start, Math.Min(span.Snapshot.Length, (int)span.End + 2000) - start)))
+        foreach (
+            var scope in ClassRegexHelper.GetClassesJavaScriptEnumerator(
+                span.Snapshot.GetText(
+                    start,
+                    Math.Min(span.Snapshot.Length, (int)span.End + 2000) - start
+                )
+            )
+        )
         {
-            var potentialReturn = new SnapshotSpan(span.Snapshot, start + scope.Index, scope.Length);
+            var potentialReturn = new SnapshotSpan(
+                span.Snapshot,
+                start + scope.Index,
+                scope.Length
+            );
 
             if (!potentialReturn.IntersectsWith(span))
             {
@@ -70,7 +92,14 @@ internal static class JSParser
     {
         var start = Math.Max(0, (int)span.Start - 2000);
 
-        foreach (var scope in ClassRegexHelper.GetClassesJavaScriptEnumerator(span.Snapshot.GetText(start, Math.Min(span.Snapshot.Length, (int)span.End + 2000) - start)))
+        foreach (
+            var scope in ClassRegexHelper.GetClassesJavaScriptEnumerator(
+                span.Snapshot.GetText(
+                    start,
+                    Math.Min(span.Snapshot.Length, (int)span.End + 2000) - start
+                )
+            )
+        )
         {
             var text = ClassRegexHelper.GetClassTextGroup(scope);
             var potentialReturn = new SnapshotSpan(span.Snapshot, start + text.Index, text.Length);
@@ -95,7 +124,14 @@ internal static class JSParser
         // For future reference: note that checkPoint is not necessary in JS because point already refers to the character before
         // the caret, not after
 
-        foreach (var scope in ClassRegexHelper.GetClassesJavaScriptEnumerator(point.Snapshot.GetText(start, Math.Min(point.Snapshot.Length, (int)point + 2000) - start)))
+        foreach (
+            var scope in ClassRegexHelper.GetClassesJavaScriptEnumerator(
+                point.Snapshot.GetText(
+                    start,
+                    Math.Min(point.Snapshot.Length, (int)point + 2000) - start
+                )
+            )
+        )
         {
             var text = ClassRegexHelper.GetClassTextGroup(scope);
             var lower = start + scope.Index;
@@ -108,7 +144,11 @@ internal static class JSParser
 
             foreach (var token in ClassRegexHelper.SplitNonRazorClasses(text.Value))
             {
-                var potentialReturn = new SnapshotSpan(point.Snapshot, start + text.Index + token.Index, token.Length);
+                var potentialReturn = new SnapshotSpan(
+                    point.Snapshot,
+                    start + text.Index + token.Index,
+                    token.Length
+                );
 
                 if (!potentialReturn.Contains(point))
                 {

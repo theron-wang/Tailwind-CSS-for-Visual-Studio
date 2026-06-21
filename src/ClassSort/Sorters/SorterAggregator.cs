@@ -22,7 +22,9 @@ internal class SorterAggregator([ImportMany] IEnumerable<Sorter> sorters)
 
     public async Task<string> SortAsync(string filePath, string fileContent)
     {
-        var sorter = _sorters.First(g => g.Handled.Contains(Path.GetExtension(filePath).ToLowerInvariant()));
+        var sorter = _sorters.First(g =>
+            g.Handled.Contains(Path.GetExtension(filePath).ToLowerInvariant())
+        );
         return await sorter.SortAsync(filePath, fileContent);
     }
 }

@@ -1,8 +1,8 @@
-﻿using Microsoft.VisualStudio.Language.Intellisense;
+﻿using System.ComponentModel.Composition;
+using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Operations;
 using Microsoft.VisualStudio.Utilities;
-using System.ComponentModel.Composition;
 using TailwindCSSIntellisense.Settings;
 
 namespace TailwindCSSIntellisense.QuickInfo;
@@ -13,7 +13,8 @@ namespace TailwindCSSIntellisense.QuickInfo;
 internal sealed class CssDirectiveQuickInfoSourceProvider : IAsyncQuickInfoSourceProvider
 {
     [Import]
-    public ITextStructureNavigatorSelectorService ITextStructureNavigatorSelectorService { get; set; } = null!;
+    public ITextStructureNavigatorSelectorService ITextStructureNavigatorSelectorService { get; set; } =
+        null!;
 
     [Import]
     public DirectoryVersionFinder DirectoryVersionFinder { get; set; } = null!;
@@ -23,6 +24,13 @@ internal sealed class CssDirectiveQuickInfoSourceProvider : IAsyncQuickInfoSourc
 
     public IAsyncQuickInfoSource TryCreateQuickInfoSource(ITextBuffer textBuffer)
     {
-        return textBuffer.Properties.GetOrCreateSingletonProperty(() => new CssDirectiveQuickInfoSource(textBuffer, DirectoryVersionFinder, SettingsProvider, ITextStructureNavigatorSelectorService));
+        return textBuffer.Properties.GetOrCreateSingletonProperty(() =>
+            new CssDirectiveQuickInfoSource(
+                textBuffer,
+                DirectoryVersionFinder,
+                SettingsProvider,
+                ITextStructureNavigatorSelectorService
+            )
+        );
     }
 }
