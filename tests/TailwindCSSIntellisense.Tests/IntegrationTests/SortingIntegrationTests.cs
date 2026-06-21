@@ -11,7 +11,10 @@ public class SortingIntegrationTests
     {
         var sorter = CreateTestSorter();
 
-        var sorted = await sorter.SortSegmentPublic("hover:font-bold text-red-500 p-4", "index.html");
+        var sorted = await sorter.SortSegmentPublic(
+            "hover:font-bold text-red-500 p-4",
+            "index.html"
+        );
 
         Assert.Equal("p-4 text-red-500 hover:font-bold", sorted);
     }
@@ -45,7 +48,8 @@ public class SortingIntegrationTests
     public async Task RazorSorter_KeepsRazorExpressionAndSortsNonRazorClasses()
     {
         var razorSorter = CreateRazorSorter();
-        const string input = "<div class=\"text-red-500 @(isActive ? 'font-bold' : 'font-light') p-4\"></div>";
+        const string input =
+            "<div class=\"text-red-500 @(isActive ? 'font-bold' : 'font-light') p-4\"></div>";
 
         var sorted = await razorSorter.SortAsync("page.razor", input);
 
@@ -74,13 +78,13 @@ public class SortingIntegrationTests
         {
             Version = TailwindVersion.V3,
             SpacingMapper = { ["4"] = "1rem" },
-            ColorMapper = { ["red-500"] = "#f00" }
+            ColorMapper = { ["red-500"] = "#f00" },
         };
         var v4Values = new ProjectCompletionValues
         {
             Version = TailwindVersion.V4,
             SpacingMapper = { ["4"] = "1rem" },
-            ColorMapper = { ["red-500"] = "#f00" }
+            ColorMapper = { ["red-500"] = "#f00" },
         };
 
         var projectManager = new ProjectConfigurationManager();
@@ -92,22 +96,29 @@ public class SortingIntegrationTests
             classOrders: new Dictionary<TailwindVersion, Dictionary<string, int>>
             {
                 [TailwindVersion.V3] = new() { ["p-{s}"] = 1, ["text-{c}"] = 2 },
-                [TailwindVersion.V4] = new() { ["text-{c}"] = 1, ["p-{s}"] = 2 }
+                [TailwindVersion.V4] = new() { ["text-{c}"] = 1, ["p-{s}"] = 2 },
             },
             variantOrders: new Dictionary<TailwindVersion, Dictionary<string, int>>
             {
                 [TailwindVersion.V3] = new(),
-                [TailwindVersion.V4] = new()
-            });
+                [TailwindVersion.V4] = new(),
+            }
+        );
 
         var sorter = new TestSorter
         {
             ProjectConfigurationManager = projectManager,
-            ClassSortUtilities = classSortUtilities
+            ClassSortUtilities = classSortUtilities,
         };
 
-        Assert.Equal("p-4 text-red-500", await sorter.SortSegmentPublic("text-red-500 p-4", "v3.html"));
-        Assert.Equal("text-red-500 p-4", await sorter.SortSegmentPublic("text-red-500 p-4", "v4.html"));
+        Assert.Equal(
+            "p-4 text-red-500",
+            await sorter.SortSegmentPublic("text-red-500 p-4", "v3.html")
+        );
+        Assert.Equal(
+            "text-red-500 p-4",
+            await sorter.SortSegmentPublic("text-red-500 p-4", "v4.html")
+        );
     }
 
     private static TestSorter CreateTestSorter()
@@ -117,7 +128,7 @@ public class SortingIntegrationTests
         return new TestSorter
         {
             ProjectConfigurationManager = projectManager,
-            ClassSortUtilities = classSortUtilities
+            ClassSortUtilities = classSortUtilities,
         };
     }
 
@@ -128,27 +139,21 @@ public class SortingIntegrationTests
         return new RazorSorter
         {
             ProjectConfigurationManager = projectManager,
-            ClassSortUtilities = classSortUtilities
+            ClassSortUtilities = classSortUtilities,
         };
     }
 
-    private static (ProjectConfigurationManager projectManager, ClassSortUtilities classSortUtilities) CreateSharedDependencies()
+    private static (
+        ProjectConfigurationManager projectManager,
+        ClassSortUtilities classSortUtilities
+    ) CreateSharedDependencies()
     {
         var values = new ProjectCompletionValues
         {
             Version = TailwindVersion.V3,
-            ColorMapper =
-            {
-                ["red-500"] = "#f00"
-            },
-            SpacingMapper =
-            {
-                ["4"] = "1rem"
-            },
-            Breakpoints =
-            {
-                ["sm"] = "640px"
-            }
+            ColorMapper = { ["red-500"] = "#f00" },
+            SpacingMapper = { ["4"] = "1rem" },
+            Breakpoints = { ["sm"] = "640px" },
         };
 
         var projectManager = new ProjectConfigurationManager();
@@ -165,17 +170,14 @@ public class SortingIntegrationTests
                     ["text-{c}"] = 2,
                     ["font-bold"] = 3,
                     ["font-light"] = 4,
-                    ["@container"] = 5
-                }
+                    ["@container"] = 5,
+                },
             },
             variantOrders: new Dictionary<TailwindVersion, Dictionary<string, int>>
             {
-                [TailwindVersion.V3] = new Dictionary<string, int>
-                {
-                    ["hover"] = 10,
-                    ["sm"] = 20
-                }
-            });
+                [TailwindVersion.V3] = new Dictionary<string, int> { ["hover"] = 10, ["sm"] = 20 },
+            }
+        );
 
         return (projectManager, classSortUtilities);
     }
@@ -199,7 +201,10 @@ public class SortingIntegrationTests
             return GetNextIndexOfClass(input, startIndex);
         }
 
-        protected override async IAsyncEnumerable<string> GetSegmentsAsync(string filePath, string input)
+        protected override async IAsyncEnumerable<string> GetSegmentsAsync(
+            string filePath,
+            string input
+        )
         {
             const string marker = "class=\"";
             var classStart = input.IndexOf(marker, StringComparison.OrdinalIgnoreCase);

@@ -2,6 +2,7 @@
 using TailwindCSSIntellisense.Completions;
 
 namespace TailwindCSSIntellisense.Configuration;
+
 public class UnsetProjectCompletionValues : ProjectCompletionValues
 {
     /// <summary>

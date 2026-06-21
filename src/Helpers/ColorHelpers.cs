@@ -53,21 +53,26 @@ internal static class ColorHelpers
         {
             var rgb = color.Replace("rgb(", "").Replace(")", "").Trim();
 
-
             byte[] values;
             if (rgb.Contains(','))
             {
-                values = [..rgb.Split(',')
-                .Take(3)
-                .Where(v => byte.TryParse(v, out _))
-                .Select(byte.Parse)];
+                values =
+                [
+                    .. rgb.Split(',')
+                        .Take(3)
+                        .Where(v => byte.TryParse(v, out _))
+                        .Select(byte.Parse),
+                ];
             }
             else
             {
-                values = [..rgb.Split(' ')
-                .Take(3)
-                .Where(v => byte.TryParse(v, out _))
-                .Select(byte.Parse)];
+                values =
+                [
+                    .. rgb.Split(' ')
+                        .Take(3)
+                        .Where(v => byte.TryParse(v, out _))
+                        .Select(byte.Parse),
+                ];
             }
 
             if (values.Length != 3)
@@ -81,9 +86,25 @@ internal static class ColorHelpers
         {
             var oklch = color.Replace("oklch(", "").Replace(")", "").Trim();
 
-            var values = oklch.Split(' ')
-                .Select(x => x.EndsWith("%") ? double.TryParse(x.Substring(0, x.Length - 1), NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? (value / 100).ToString(CultureInfo.InvariantCulture) : x : x)
-                .Where(x => double.TryParse(x, NumberStyles.Float, CultureInfo.InvariantCulture, out _)).Select(num => double.Parse(num, CultureInfo.InvariantCulture)).ToList();
+            var values = oklch
+                .Split(' ')
+                .Select(x =>
+                    x.EndsWith("%")
+                        ? double.TryParse(
+                            x.Substring(0, x.Length - 1),
+                            NumberStyles.Float,
+                            CultureInfo.InvariantCulture,
+                            out var value
+                        )
+                            ? (value / 100).ToString(CultureInfo.InvariantCulture)
+                            : x
+                        : x
+                )
+                .Where(x =>
+                    double.TryParse(x, NumberStyles.Float, CultureInfo.InvariantCulture, out _)
+                )
+                .Select(num => double.Parse(num, CultureInfo.InvariantCulture))
+                .ToList();
 
             if (values.Count != 3)
             {
@@ -101,8 +122,23 @@ internal static class ColorHelpers
             var hsl = color.Replace("hsl(", "").Replace(")", "").Trim();
 
             var values = hsl.Split(' ')
-                .Select(x => x.EndsWith("%") ? double.TryParse(x.Substring(0, x.Length - 1), NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? (value / 100).ToString(CultureInfo.InvariantCulture) : x : x)
-                .Where(x => double.TryParse(x, NumberStyles.Float, CultureInfo.InvariantCulture, out _)).Select(num => double.Parse(num, CultureInfo.InvariantCulture)).ToList();
+                .Select(x =>
+                    x.EndsWith("%")
+                        ? double.TryParse(
+                            x.Substring(0, x.Length - 1),
+                            NumberStyles.Float,
+                            CultureInfo.InvariantCulture,
+                            out var value
+                        )
+                            ? (value / 100).ToString(CultureInfo.InvariantCulture)
+                            : x
+                        : x
+                )
+                .Where(x =>
+                    double.TryParse(x, NumberStyles.Float, CultureInfo.InvariantCulture, out _)
+                )
+                .Select(num => double.Parse(num, CultureInfo.InvariantCulture))
+                .ToList();
 
             if (values.Count != 3)
             {
@@ -134,16 +170,37 @@ internal static class ColorHelpers
 
             // Unicolour does not accept 3-letter hex codes
             var unicolour = new Unicolour($"#{hex}");
-            return [unicolour.Rgb.Clipped.Byte255.R, unicolour.Rgb.Clipped.Byte255.G, unicolour.Rgb.Clipped.Byte255.B];
+            return
+            [
+                unicolour.Rgb.Clipped.Byte255.R,
+                unicolour.Rgb.Clipped.Byte255.G,
+                unicolour.Rgb.Clipped.Byte255.B,
+            ];
         }
 
         if (color.StartsWith("oklch"))
         {
             var oklch = color.Replace("oklch(", "").Replace(")", "").Trim();
 
-            var values = oklch.Split(' ')
-                .Select(x => x.EndsWith("%") ? double.TryParse(x.Substring(0, x.Length - 1), NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? (value / 100).ToString(CultureInfo.InvariantCulture) : x : x)
-                .Where(x => double.TryParse(x, NumberStyles.Float, CultureInfo.InvariantCulture, out _)).Select(num => double.Parse(num, CultureInfo.InvariantCulture)).ToList();
+            var values = oklch
+                .Split(' ')
+                .Select(x =>
+                    x.EndsWith("%")
+                        ? double.TryParse(
+                            x.Substring(0, x.Length - 1),
+                            NumberStyles.Float,
+                            CultureInfo.InvariantCulture,
+                            out var value
+                        )
+                            ? (value / 100).ToString(CultureInfo.InvariantCulture)
+                            : x
+                        : x
+                )
+                .Where(x =>
+                    double.TryParse(x, NumberStyles.Float, CultureInfo.InvariantCulture, out _)
+                )
+                .Select(num => double.Parse(num, CultureInfo.InvariantCulture))
+                .ToList();
 
             if (values.Count != 3)
             {
@@ -152,7 +209,12 @@ internal static class ColorHelpers
 
             var unicolour = new Unicolour(ColourSpace.Oklch, values[0], values[1], values[2]);
 
-            return [unicolour.Rgb.Clipped.Byte255.R, unicolour.Rgb.Clipped.Byte255.G, unicolour.Rgb.Clipped.Byte255.B];
+            return
+            [
+                unicolour.Rgb.Clipped.Byte255.R,
+                unicolour.Rgb.Clipped.Byte255.G,
+                unicolour.Rgb.Clipped.Byte255.B,
+            ];
         }
 
         if (color.StartsWith("hsl"))
@@ -160,8 +222,23 @@ internal static class ColorHelpers
             var hsl = color.Replace("hsl(", "").Replace(")", "").Trim();
 
             var values = hsl.Split(' ')
-                .Select(x => x.EndsWith("%") ? double.TryParse(x.Substring(0, x.Length - 1), NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? (value / 100).ToString(CultureInfo.InvariantCulture) : x : x)
-                .Where(x => double.TryParse(x, NumberStyles.Float, CultureInfo.InvariantCulture, out _)).Select(num => double.Parse(num, CultureInfo.InvariantCulture)).ToList();
+                .Select(x =>
+                    x.EndsWith("%")
+                        ? double.TryParse(
+                            x.Substring(0, x.Length - 1),
+                            NumberStyles.Float,
+                            CultureInfo.InvariantCulture,
+                            out var value
+                        )
+                            ? (value / 100).ToString(CultureInfo.InvariantCulture)
+                            : x
+                        : x
+                )
+                .Where(x =>
+                    double.TryParse(x, NumberStyles.Float, CultureInfo.InvariantCulture, out _)
+                )
+                .Select(num => double.Parse(num, CultureInfo.InvariantCulture))
+                .ToList();
 
             if (values.Count != 3)
             {
@@ -170,7 +247,12 @@ internal static class ColorHelpers
 
             var unicolour = new Unicolour(ColourSpace.Hsl, values[0], values[1], values[2]);
 
-            return [unicolour.Rgb.Clipped.Byte255.R, unicolour.Rgb.Clipped.Byte255.G, unicolour.Rgb.Clipped.Byte255.B];
+            return
+            [
+                unicolour.Rgb.Clipped.Byte255.R,
+                unicolour.Rgb.Clipped.Byte255.G,
+                unicolour.Rgb.Clipped.Byte255.B,
+            ];
         }
 
         if (color.StartsWith("rgb"))
@@ -180,15 +262,21 @@ internal static class ColorHelpers
             List<byte> values;
             if (rgb.Contains(','))
             {
-                values = [..rgb.Split(',')
-                    .Where(x => byte.TryParse(x, out _))
-                    .Select(x => byte.Parse(x))];
+                values =
+                [
+                    .. rgb.Split(',')
+                        .Where(x => byte.TryParse(x, out _))
+                        .Select(x => byte.Parse(x)),
+                ];
             }
             else
             {
-                values = [..rgb.Split(' ')
-                    .Where(x => byte.TryParse(x, out _))
-                    .Select(x => byte.Parse(x))];
+                values =
+                [
+                    .. rgb.Split(' ')
+                        .Where(x => byte.TryParse(x, out _))
+                        .Select(x => byte.Parse(x)),
+                ];
             }
 
             if (values.Count >= 3)

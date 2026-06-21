@@ -1,11 +1,11 @@
-﻿using Microsoft.VisualStudio.Language.Intellisense;
-using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Text;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.VisualStudio.Language.Intellisense;
+using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Text;
 using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Settings;
 
@@ -27,7 +27,15 @@ internal abstract class ClassCompletionGenerator : IDisposable
 
     private readonly SemaphoreSlim _reloadLock = new(1, 1);
 
-    protected ClassCompletionGenerator(ITextBuffer textBuffer, ProjectConfigurationManager completionUtils, ColorIconGenerator colorIconGenerator, DescriptionGenerator descriptionGenerator, SettingsProvider settingsProvider, CompletionConfiguration completionConfiguration, ProjectConfigurationInitializer projectCompletionInit)
+    protected ClassCompletionGenerator(
+        ITextBuffer textBuffer,
+        ProjectConfigurationManager completionUtils,
+        ColorIconGenerator colorIconGenerator,
+        DescriptionGenerator descriptionGenerator,
+        SettingsProvider settingsProvider,
+        CompletionConfiguration completionConfiguration,
+        ProjectConfigurationInitializer projectCompletionInit
+    )
     {
         _textBuffer = textBuffer;
         _projectCompletionManager = completionUtils;
@@ -43,16 +51,23 @@ internal abstract class ClassCompletionGenerator : IDisposable
     /// <summary>
     /// Must call in child class constructors.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync", Justification = "FileAndForget is ok")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Reliability",
+        "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync",
+        Justification = "FileAndForget is ok"
+    )]
     protected void Initialize()
     {
         // Set _projectConfigurationValues without blocking
-        ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
-        {
-            await ReloadProjectCompletionValuesAsync();
-            _settings = await _settingsProvider.GetSettingsAsync();
-
-        }).FileAndForget(nameof(TailwindCSSIntellisense) + "/ClassCompletionGenerator/Initialize");
+        ThreadHelper
+            .JoinableTaskFactory.RunAsync(async () =>
+            {
+                await ReloadProjectCompletionValuesAsync();
+                _settings = await _settingsProvider.GetSettingsAsync();
+            })
+            .FileAndForget(
+                nameof(TailwindCSSIntellisense) + "/ClassCompletionGenerator/Initialize"
+            );
     }
 
     /// <summary>
@@ -71,7 +86,11 @@ internal abstract class ClassCompletionGenerator : IDisposable
 
         if (!string.IsNullOrWhiteSpace(prefix))
         {
-            if (!string.IsNullOrWhiteSpace(classRaw) && !classRaw.StartsWith(prefix) && _projectCompletionValues.Version >= TailwindVersion.V4)
+            if (
+                !string.IsNullOrWhiteSpace(classRaw)
+                && !classRaw.StartsWith(prefix)
+                && _projectCompletionValues.Version >= TailwindVersion.V4
+            )
             {
                 return [];
             }
@@ -144,7 +163,9 @@ internal abstract class ClassCompletionGenerator : IDisposable
         var variantsAsStringUnescaped = variantsAsString;
         if (isRazor)
         {
-            variantsAsStringUnescaped = variantsAsString.Replace("@@", "@").Replace("@(\"@\")", "@");
+            variantsAsStringUnescaped = variantsAsString
+                .Replace("@@", "@")
+                .Replace("@(\"@\")", "@");
         }
 
         var segments = currentClass.Split('-');
@@ -181,7 +202,10 @@ internal abstract class ClassCompletionGenerator : IDisposable
             {
                 IEnumerable<string> colors;
 
-                if (_projectCompletionValues.CustomColorMappers != null && _projectCompletionValues.CustomColorMappers.ContainsKey(twClass.Name))
+                if (
+                    _projectCompletionValues.CustomColorMappers != null
+                    && _projectCompletionValues.CustomColorMappers.ContainsKey(twClass.Name)
+                )
                 {
                     colors = _projectCompletionValues.CustomColorMappers[twClass.Name].Keys;
                 }
@@ -195,7 +219,10 @@ internal abstract class ClassCompletionGenerator : IDisposable
                     var className = string.Format(twClass.Name, color);
                     var classNameRaw = className;
 
-                    if (_projectCompletionValues.Version == TailwindVersion.V3 && !string.IsNullOrWhiteSpace(prefix))
+                    if (
+                        _projectCompletionValues.Version == TailwindVersion.V3
+                        && !string.IsNullOrWhiteSpace(prefix)
+                    )
                     {
                         if (className.StartsWith("-"))
                         {
@@ -207,56 +234,102 @@ internal abstract class ClassCompletionGenerator : IDisposable
                         }
                     }
 
-                    if (!_projectCompletionValues.IsClassAllowed(variantsAsStringUnescaped + className + suffix))
+                    if (
+                        !_projectCompletionValues.IsClassAllowed(
+                            variantsAsStringUnescaped + className + suffix
+                        )
+                    )
                     {
                         continue;
                     }
 
-                    var insert = prefixInsert + variantsAsString + (isRazor ? className.Replace("@", "@@") : className) + suffix;
+                    var insert =
+                        prefixInsert
+                        + variantsAsString
+                        + (isRazor ? className.Replace("@", "@@") : className)
+                        + suffix;
 
                     completions.Add(
-                                new Completion(className + suffix,
-                                                    insert,
-                                                    classNameRaw,
-                                                    _colorIconGenerator.GetImageFromColor(_projectCompletionValues, twClass.Name, color, color == "transparent" ? 0 : 100),
-                                                    null));
+                        new Completion(
+                            className + suffix,
+                            insert,
+                            classNameRaw,
+                            _colorIconGenerator.GetImageFromColor(
+                                _projectCompletionValues,
+                                twClass.Name,
+                                color,
+                                color == "transparent" ? 0 : 100
+                            ),
+                            null
+                        )
+                    );
 
-                    if (twClass.UseOpacity && currentClass.Contains(color) && currentClass.Contains('/') && currentClass.StartsWith(className))
+                    if (
+                        twClass.UseOpacity
+                        && currentClass.Contains(color)
+                        && currentClass.Contains('/')
+                        && currentClass.StartsWith(className)
+                    )
                     {
                         foreach (var opacity in _projectCompletionInit.Opacity)
                         {
-                            if (!_projectCompletionValues.IsClassAllowed($"{variantsAsStringUnescaped}{className}/{opacity}{suffix}"))
+                            if (
+                                !_projectCompletionValues.IsClassAllowed(
+                                    $"{variantsAsStringUnescaped}{className}/{opacity}{suffix}"
+                                )
+                            )
                             {
                                 continue;
                             }
 
-                            insert = $"{prefixInsert}{variantsAsString}{(isRazor ? className.Replace("@", "@@") : className)}/{opacity}{suffix}";
+                            insert =
+                                $"{prefixInsert}{variantsAsString}{(isRazor ? className.Replace("@", "@@") : className)}/{opacity}{suffix}";
 
                             completions.Add(
-                                    new Completion($"{className}/{opacity}{suffix}",
-                                                        insert,
-                                                        $"{className}/{opacity}",
-                                                        _colorIconGenerator.GetImageFromColor(_projectCompletionValues, twClass.Name, color, opacity),
-                                                        null));
+                                new Completion(
+                                    $"{className}/{opacity}{suffix}",
+                                    insert,
+                                    $"{className}/{opacity}",
+                                    _colorIconGenerator.GetImageFromColor(
+                                        _projectCompletionValues,
+                                        twClass.Name,
+                                        color,
+                                        opacity
+                                    ),
+                                    null
+                                )
+                            );
                         }
 
-                        insert = prefixInsert + variantsAsString + (isRazor ? className.Replace("@", "@@") : className) + "/[]" + suffix;
+                        insert =
+                            prefixInsert
+                            + variantsAsString
+                            + (isRazor ? className.Replace("@", "@@") : className)
+                            + "/[]"
+                            + suffix;
                         completions.Add(
-                                    new Completion(className + "/[]" + suffix,
-                                                        insert,
-                                                        className + "/[]",
-                                                        ProjectConfigurationManager.TailwindLogo,
-                                                        null));
+                            new Completion(
+                                className + "/[]" + suffix,
+                                insert,
+                                className + "/[]",
+                                ProjectConfigurationManager.TailwindLogo,
+                                null
+                            )
+                        );
                     }
-
-
                 }
             }
             else if (twClass.UseSpacing)
             {
                 IEnumerable<string> spacings;
 
-                if (_projectCompletionValues.CustomSpacingMappers != null && _projectCompletionValues.CustomSpacingMappers.TryGetValue(twClass.Name, out var value))
+                if (
+                    _projectCompletionValues.CustomSpacingMappers != null
+                    && _projectCompletionValues.CustomSpacingMappers.TryGetValue(
+                        twClass.Name,
+                        out var value
+                    )
+                )
                 {
                     spacings = value.Keys;
                 }
@@ -267,10 +340,15 @@ internal abstract class ClassCompletionGenerator : IDisposable
 
                 foreach (var spacing in spacings)
                 {
-                    var className = string.IsNullOrWhiteSpace(spacing) ? twClass.Name.Replace("-{0}", "") : string.Format(twClass.Name, spacing);
+                    var className = string.IsNullOrWhiteSpace(spacing)
+                        ? twClass.Name.Replace("-{0}", "")
+                        : string.Format(twClass.Name, spacing);
                     var classNameRaw = className;
 
-                    if (_projectCompletionValues.Version == TailwindVersion.V3 && !string.IsNullOrWhiteSpace(prefix))
+                    if (
+                        _projectCompletionValues.Version == TailwindVersion.V3
+                        && !string.IsNullOrWhiteSpace(prefix)
+                    )
                     {
                         if (className.StartsWith("-"))
                         {
@@ -282,18 +360,29 @@ internal abstract class ClassCompletionGenerator : IDisposable
                         }
                     }
 
-                    if (!_projectCompletionValues.IsClassAllowed(variantsAsStringUnescaped + className + suffix))
+                    if (
+                        !_projectCompletionValues.IsClassAllowed(
+                            variantsAsStringUnescaped + className + suffix
+                        )
+                    )
                     {
                         continue;
                     }
 
-                    var insert = prefixInsert + variantsAsString + (isRazor ? className.Replace("@", "@@") : className) + suffix;
+                    var insert =
+                        prefixInsert
+                        + variantsAsString
+                        + (isRazor ? className.Replace("@", "@@") : className)
+                        + suffix;
                     completions.Add(
-                        new Completion(className + suffix,
-                                            insert,
-                                            classNameRaw,
-                                            ProjectConfigurationManager.TailwindLogo,
-                                            null));
+                        new Completion(
+                            className + suffix,
+                            insert,
+                            classNameRaw,
+                            ProjectConfigurationManager.TailwindLogo,
+                            null
+                        )
+                    );
                 }
             }
             else if (twClass.HasArbitrary)
@@ -301,7 +390,10 @@ internal abstract class ClassCompletionGenerator : IDisposable
                 var className = twClass.Name;
                 var classNameRaw = className;
 
-                if (_projectCompletionValues.Version == TailwindVersion.V3 && !string.IsNullOrWhiteSpace(prefix))
+                if (
+                    _projectCompletionValues.Version == TailwindVersion.V3
+                    && !string.IsNullOrWhiteSpace(prefix)
+                )
                 {
                     if (className.StartsWith("-"))
                     {
@@ -313,18 +405,30 @@ internal abstract class ClassCompletionGenerator : IDisposable
                     }
                 }
 
-                if (!_projectCompletionValues.IsClassAllowed(variantsAsStringUnescaped + className + suffix))
+                if (
+                    !_projectCompletionValues.IsClassAllowed(
+                        variantsAsStringUnescaped + className + suffix
+                    )
+                )
                 {
                     continue;
                 }
 
-                var insert = prefixInsert + variantsAsString + (isRazor ? className.Replace("@", "@@") : className) + "[]" + suffix;
+                var insert =
+                    prefixInsert
+                    + variantsAsString
+                    + (isRazor ? className.Replace("@", "@@") : className)
+                    + "[]"
+                    + suffix;
                 completions.Add(
-                new Completion(className + "[]" + suffix,
-                                    insert,
-                                    classNameRaw + "[]",
-                                    ProjectConfigurationManager.TailwindLogo,
-                                    null));
+                    new Completion(
+                        className + "[]" + suffix,
+                        insert,
+                        classNameRaw + "[]",
+                        ProjectConfigurationManager.TailwindLogo,
+                        null
+                    )
+                );
             }
             else
             {
@@ -337,7 +441,10 @@ internal abstract class ClassCompletionGenerator : IDisposable
 
                 var classNameRaw = className;
 
-                if (_projectCompletionValues.Version == TailwindVersion.V3 && !string.IsNullOrWhiteSpace(prefix))
+                if (
+                    _projectCompletionValues.Version == TailwindVersion.V3
+                    && !string.IsNullOrWhiteSpace(prefix)
+                )
                 {
                     if (className.StartsWith("-"))
                     {
@@ -349,74 +456,128 @@ internal abstract class ClassCompletionGenerator : IDisposable
                     }
                 }
 
-                if (!_projectCompletionValues.IsClassAllowed(variantsAsStringUnescaped + className + suffix))
+                if (
+                    !_projectCompletionValues.IsClassAllowed(
+                        variantsAsStringUnescaped + className + suffix
+                    )
+                )
                 {
                     continue;
                 }
 
-                var insert = prefixInsert + variantsAsString + (isRazor ? className.Replace("@", "@@") : className) + suffix;
+                var insert =
+                    prefixInsert
+                    + variantsAsString
+                    + (isRazor ? className.Replace("@", "@@") : className)
+                    + suffix;
                 completions.Add(
-                new Completion(className + suffix,
-                                    insert,
-                                    classNameRaw,
-                                    ProjectConfigurationManager.TailwindLogo,
-                                    null));
+                    new Completion(
+                        className + suffix,
+                        insert,
+                        classNameRaw,
+                        ProjectConfigurationManager.TailwindLogo,
+                        null
+                    )
+                );
 
                 if (currentClass.Contains('/'))
                 {
-                    if (classNameRaw.StartsWith("bg-linear") || classNameRaw.StartsWith("bg-radial") || classNameRaw.StartsWith("bg-conic"))
+                    if (
+                        classNameRaw.StartsWith("bg-linear")
+                        || classNameRaw.StartsWith("bg-radial")
+                        || classNameRaw.StartsWith("bg-conic")
+                    )
                     {
                         foreach (var modifier in KnownModifiers.GradientModifierToDescription.Keys)
                         {
-                            if (!_projectCompletionValues.IsClassAllowed($"{variantsAsStringUnescaped}/{className}/{modifier}{suffix}"))
+                            if (
+                                !_projectCompletionValues.IsClassAllowed(
+                                    $"{variantsAsStringUnescaped}/{className}/{modifier}{suffix}"
+                                )
+                            )
                             {
                                 continue;
                             }
 
-                            insert = $"{prefixInsert}{variantsAsString}{(isRazor ? className.Replace("@", "@@") : className)}/{modifier}{suffix}";
+                            insert =
+                                $"{prefixInsert}{variantsAsString}{(isRazor ? className.Replace("@", "@@") : className)}/{modifier}{suffix}";
 
                             completions.Add(
-                                    new Completion($"{className}/{modifier}{suffix}",
-                                                        insert,
-                                                        $"{classNameRaw}/{modifier}",
-                                                        ProjectConfigurationManager.TailwindLogo,
-                                                        null));
+                                new Completion(
+                                    $"{className}/{modifier}{suffix}",
+                                    insert,
+                                    $"{classNameRaw}/{modifier}",
+                                    ProjectConfigurationManager.TailwindLogo,
+                                    null
+                                )
+                            );
                         }
 
-                        insert = prefixInsert + variantsAsString + (isRazor ? className.Replace("@", "@@") : className) + "/[]" + suffix;
+                        insert =
+                            prefixInsert
+                            + variantsAsString
+                            + (isRazor ? className.Replace("@", "@@") : className)
+                            + "/[]"
+                            + suffix;
                         completions.Add(
-                                    new Completion(className + "/[]" + suffix,
-                                                       insert,
-                                                       classNameRaw + "/[]",
-                                                       ProjectConfigurationManager.TailwindLogo,
-                                                       null));
+                            new Completion(
+                                className + "/[]" + suffix,
+                                insert,
+                                classNameRaw + "/[]",
+                                ProjectConfigurationManager.TailwindLogo,
+                                null
+                            )
+                        );
                     }
-                    else if (KnownModifiers.IsEligibleForLineHeightModifier(className, _projectCompletionValues))
+                    else if (
+                        KnownModifiers.IsEligibleForLineHeightModifier(
+                            className,
+                            _projectCompletionValues
+                        )
+                    )
                     {
-                        var lineHeightModifiers = _projectCompletionValues.CssVariables.Where(v => v.Key.StartsWith("--leading-")).Select(v => v.Key.Replace("--leading-", ""));
+                        var lineHeightModifiers = _projectCompletionValues
+                            .CssVariables.Where(v => v.Key.StartsWith("--leading-"))
+                            .Select(v => v.Key.Replace("--leading-", ""));
                         foreach (var modifier in lineHeightModifiers)
                         {
-                            if (!_projectCompletionValues.IsClassAllowed($"{variantsAsStringUnescaped}/{className}/{modifier}{suffix}"))
+                            if (
+                                !_projectCompletionValues.IsClassAllowed(
+                                    $"{variantsAsStringUnescaped}/{className}/{modifier}{suffix}"
+                                )
+                            )
                             {
                                 continue;
                             }
 
-                            insert = $"{prefixInsert}{variantsAsString}{(isRazor ? className.Replace("@", "@@") : className)}/{modifier}{suffix}";
+                            insert =
+                                $"{prefixInsert}{variantsAsString}{(isRazor ? className.Replace("@", "@@") : className)}/{modifier}{suffix}";
                             completions.Add(
-                                    new Completion($"{className}/{modifier}{suffix}",
-                                                        insert,
-                                                        $"{classNameRaw}/{modifier}",
-                                                        ProjectConfigurationManager.TailwindLogo,
-                                                        null));
+                                new Completion(
+                                    $"{className}/{modifier}{suffix}",
+                                    insert,
+                                    $"{classNameRaw}/{modifier}",
+                                    ProjectConfigurationManager.TailwindLogo,
+                                    null
+                                )
+                            );
                         }
 
-                        insert = prefixInsert + variantsAsString + (isRazor ? className.Replace("@", "@@") : className) + "/[]" + suffix;
+                        insert =
+                            prefixInsert
+                            + variantsAsString
+                            + (isRazor ? className.Replace("@", "@@") : className)
+                            + "/[]"
+                            + suffix;
                         completions.Add(
-                                    new Completion(className + "/[]" + suffix,
-                                                        insert,
-                                                        classNameRaw + "/[]",
-                                                        ProjectConfigurationManager.TailwindLogo,
-                                                        null));
+                            new Completion(
+                                className + "/[]" + suffix,
+                                insert,
+                                classNameRaw + "/[]",
+                                ProjectConfigurationManager.TailwindLogo,
+                                null
+                            )
+                        );
                     }
                 }
             }
@@ -426,78 +587,127 @@ internal abstract class ClassCompletionGenerator : IDisposable
         {
             foreach (var pluginClass in _projectCompletionValues.PluginClasses)
             {
-                if (!_projectCompletionValues.IsClassAllowed(variantsAsStringUnescaped + pluginClass + suffix))
+                if (
+                    !_projectCompletionValues.IsClassAllowed(
+                        variantsAsStringUnescaped + pluginClass + suffix
+                    )
+                )
                 {
                     continue;
                 }
 
-                var insert = prefixInsert + variantsAsString + prefix + (isRazor ? pluginClass.Replace("@", "@@") : pluginClass).TrimStart('.') + suffix;
+                var insert =
+                    prefixInsert
+                    + variantsAsString
+                    + prefix
+                    + (isRazor ? pluginClass.Replace("@", "@@") : pluginClass).TrimStart('.')
+                    + suffix;
 
                 completions.Add(
-                    new Completion(pluginClass.TrimStart('.'),
-                                        insert,
-                                        pluginClass.TrimStart('.'),
-                                        ProjectConfigurationManager.TailwindLogo,
-                                        null));
+                    new Completion(
+                        pluginClass.TrimStart('.'),
+                        insert,
+                        pluginClass.TrimStart('.'),
+                        ProjectConfigurationManager.TailwindLogo,
+                        null
+                    )
+                );
             }
         }
 
         var variantCompletions = new List<Completion>();
         var variantCompletionsToAddToEnd = new List<Completion>();
 
-        var allVariants = _projectCompletionValues.Variants
-            .SelectMany(v =>
+        var allVariants = _projectCompletionValues.Variants.SelectMany(v =>
+        {
+            if (v.Contains("{b}"))
             {
-                if (v.Contains("{b}"))
-                {
-                    return _projectCompletionValues.Breakpoints.Keys.Select(b => $"{v.Replace("{b}", b)}");
-                }
-                else if (v.Contains("{c}"))
-                {
-                    return _projectCompletionValues.Containers.Keys.Select(c => $"{v.Replace("{c}", c)}");
-                }
-                else if (v.Contains("{a}"))
-                {
-                    return [v.Replace("{a}", "[]")];
-                }
-                return [v];
-            });
+                return _projectCompletionValues.Breakpoints.Keys.Select(b =>
+                    $"{v.Replace("{b}", b)}"
+                );
+            }
+            else if (v.Contains("{c}"))
+            {
+                return _projectCompletionValues.Containers.Keys.Select(c =>
+                    $"{v.Replace("{c}", c)}"
+                );
+            }
+            else if (v.Contains("{a}"))
+            {
+                return [v.Replace("{a}", "[]")];
+            }
+            return [v];
+        });
 
         foreach (var variant in allVariants)
         {
-            var description = _descriptionGenerator.GetVariantDescription(variant, _projectCompletionValues);
+            var description = _descriptionGenerator.GetVariantDescription(
+                variant,
+                _projectCompletionValues
+            );
 
             if (variants.Contains(variant) == false)
             {
-                var insert = prefixInsert + variantsAsString + (isRazor ? variant.Replace("@", "@@") : variant) + ":";
+                var insert =
+                    prefixInsert
+                    + variantsAsString
+                    + (isRazor ? variant.Replace("@", "@@") : variant)
+                    + ":";
 
-                var completion = new Completion(variant + ":",
+                var completion = new Completion(
+                    variant + ":",
                     insert,
                     description,
                     ProjectConfigurationManager.TailwindLogo,
-                    null);
+                    null
+                );
 
                 completion.Properties.AddProperty("variant", true);
                 variantCompletions.Add(completion);
 
-                if (_projectCompletionValues.Version == TailwindVersion.V3 && description is not null && description.StartsWith("&:") && description.Substring(2) == variant)
+                if (
+                    _projectCompletionValues.Version == TailwindVersion.V3
+                    && description is not null
+                    && description.StartsWith("&:")
+                    && description.Substring(2) == variant
+                )
                 {
-                    insert = prefixInsert + variantsAsString + "group-" + (isRazor ? variant.Replace("@", "@@") : variant) + ":";
+                    insert =
+                        prefixInsert
+                        + variantsAsString
+                        + "group-"
+                        + (isRazor ? variant.Replace("@", "@@") : variant)
+                        + ":";
 
-                    completion = new Completion("group-" + variant + ":",
+                    completion = new Completion(
+                        "group-" + variant + ":",
                         insert,
-                        _descriptionGenerator.GetVariantDescription("group-" + variant, _projectCompletionValues),
+                        _descriptionGenerator.GetVariantDescription(
+                            "group-" + variant,
+                            _projectCompletionValues
+                        ),
                         ProjectConfigurationManager.TailwindLogo,
-                        null);
+                        null
+                    );
                     completion.Properties.AddProperty("variant", true);
                     variantCompletionsToAddToEnd.Add(completion);
 
-                    insert = prefixInsert + variantsAsString + "peer-" + (isRazor ? variant.Replace("@", "@@") : variant) + ":";
-                    completion = new Completion("peer-" + variant + ":",
+                    insert =
+                        prefixInsert
+                        + variantsAsString
+                        + "peer-"
+                        + (isRazor ? variant.Replace("@", "@@") : variant)
+                        + ":";
+                    completion = new Completion(
+                        "peer-" + variant + ":",
                         insert,
-                        _descriptionGenerator.GetVariantDescription("peer-" + variant, _projectCompletionValues),
+                        _descriptionGenerator.GetVariantDescription(
+                            "peer-" + variant,
+                            _projectCompletionValues
+                        ),
                         ProjectConfigurationManager.TailwindLogo,
-                        null);
+                        null
+                    );
                     completion.Properties.AddProperty("variant", true);
                     variantCompletionsToAddToEnd.Add(completion);
                 }
@@ -510,13 +720,23 @@ internal abstract class ClassCompletionGenerator : IDisposable
             {
                 if (variants.Contains(variant) == false)
                 {
-                    var insert = prefixInsert + variantsAsString + (isRazor ? variant.Replace("@", "@@") : variant) + ":";
-                    var completion = new Completion(variant + ":",
-                                            insert,
-                                            _projectCompletionValues.Version >= TailwindVersion.V4 ?
-                                            _descriptionGenerator.GetVariantDescription(variant, _projectCompletionValues) : variant,
-                                            ProjectConfigurationManager.TailwindLogo,
-                                            null);
+                    var insert =
+                        prefixInsert
+                        + variantsAsString
+                        + (isRazor ? variant.Replace("@", "@@") : variant)
+                        + ":";
+                    var completion = new Completion(
+                        variant + ":",
+                        insert,
+                        _projectCompletionValues.Version >= TailwindVersion.V4
+                            ? _descriptionGenerator.GetVariantDescription(
+                                variant,
+                                _projectCompletionValues
+                            )
+                            : variant,
+                        ProjectConfigurationManager.TailwindLogo,
+                        null
+                    );
 
                     completion.Properties.AddProperty("variant", true);
                     variantCompletions.Add(completion);
@@ -530,26 +750,39 @@ internal abstract class ClassCompletionGenerator : IDisposable
             {
                 if (variants.Contains(screen) == false)
                 {
-                    var insert = prefixInsert + variantsAsString + (isRazor ? screen.Replace("@", "@@") : screen) + ":";
+                    var insert =
+                        prefixInsert
+                        + variantsAsString
+                        + (isRazor ? screen.Replace("@", "@@") : screen)
+                        + ":";
 
-                    var completion = new Completion(screen + ":",
-                                            insert,
-                                            screen,
-                                            ProjectConfigurationManager.TailwindLogo,
-                                            null);
+                    var completion = new Completion(
+                        screen + ":",
+                        insert,
+                        screen,
+                        ProjectConfigurationManager.TailwindLogo,
+                        null
+                    );
 
                     completion.Properties.AddProperty("variant", true);
                     variantCompletions.Add(completion);
 
                     if (_projectCompletionValues.Version == TailwindVersion.V3)
                     {
-                        insert = prefixInsert + variantsAsString + "max-" + (isRazor ? screen.Replace("@", "@@") : screen) + ":";
+                        insert =
+                            prefixInsert
+                            + variantsAsString
+                            + "max-"
+                            + (isRazor ? screen.Replace("@", "@@") : screen)
+                            + ":";
 
-                        completion = new Completion("max-" + screen + ":",
-                                                insert,
-                                                screen,
-                                                ProjectConfigurationManager.TailwindLogo,
-                                                null);
+                        completion = new Completion(
+                            "max-" + screen + ":",
+                            insert,
+                            screen,
+                            ProjectConfigurationManager.TailwindLogo,
+                            null
+                        );
                         completion.Properties.AddProperty("variant", true);
                         variantCompletionsToAddToEnd.Add(completion);
                     }
@@ -604,7 +837,10 @@ internal abstract class ClassCompletionGenerator : IDisposable
         await _reloadLock.WaitAsync();
         try
         {
-            _projectCompletionValues = await _projectCompletionManager.GetCompletionConfigurationByFilePathAsync(_textBuffer.GetFileNameSafe());
+            _projectCompletionValues =
+                await _projectCompletionManager.GetCompletionConfigurationByFilePathAsync(
+                    _textBuffer.GetFileNameSafe()
+                );
             await OnConfigurationUpdatedAsync();
         }
         finally

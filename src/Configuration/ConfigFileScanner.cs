@@ -38,7 +38,9 @@ public sealed class ConfigFileScanner
         var jsFiles = await FileFinder.GetJavascriptFilesAsync();
 
         // Best case scenario: user names file tailwind.config.js
-        _configFilePath = jsFiles.FirstOrDefault(f => DefaultConfigurationFileNames.Names.Contains(Path.GetFileName(f).ToLower()));
+        _configFilePath = jsFiles.FirstOrDefault(f =>
+            DefaultConfigurationFileNames.Names.Contains(Path.GetFileName(f).ToLower())
+        );
 
         if (_configFilePath != null)
         {
@@ -145,7 +147,7 @@ public sealed class ConfigFileScanner
             }
         }
 
-    End:
+        End:
 
         if (configLine == null)
         {

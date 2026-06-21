@@ -1,10 +1,10 @@
-﻿using Microsoft.VisualStudio.Imaging.Interop;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using Microsoft.VisualStudio.Imaging.Interop;
 using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Options;
 using TailwindCSSIntellisense.Parsers;
@@ -17,7 +17,24 @@ namespace TailwindCSSIntellisense.Completions.Sources;
 /// </summary>
 internal class HtmlCompletionSource : ClassCompletionGenerator, ICompletionSource
 {
-    public HtmlCompletionSource(ITextBuffer textBuffer, ProjectConfigurationManager completionUtils, ColorIconGenerator colorIconGenerator, DescriptionGenerator descriptionGenerator, SettingsProvider settingsProvider, CompletionConfiguration completionConfiguration, ProjectConfigurationInitializer projectCompletionInit) : base(textBuffer, completionUtils, colorIconGenerator, descriptionGenerator, settingsProvider, completionConfiguration, projectCompletionInit)
+    public HtmlCompletionSource(
+        ITextBuffer textBuffer,
+        ProjectConfigurationManager completionUtils,
+        ColorIconGenerator colorIconGenerator,
+        DescriptionGenerator descriptionGenerator,
+        SettingsProvider settingsProvider,
+        CompletionConfiguration completionConfiguration,
+        ProjectConfigurationInitializer projectCompletionInit
+    )
+        : base(
+            textBuffer,
+            completionUtils,
+            colorIconGenerator,
+            descriptionGenerator,
+            settingsProvider,
+            completionConfiguration,
+            projectCompletionInit
+        )
     {
         Initialize();
     }
@@ -27,7 +44,10 @@ internal class HtmlCompletionSource : ClassCompletionGenerator, ICompletionSourc
     /// </summary>
     /// <param name="session">Provided by Visual Studio</param>
     /// <param name="completionSets">Provided by Visual Studio</param>
-    void ICompletionSource.AugmentCompletionSession(ICompletionSession session, IList<CompletionSet> completionSets)
+    void ICompletionSource.AugmentCompletionSession(
+        ICompletionSession session,
+        IList<CompletionSet> completionSets
+    )
     {
         if (_settings is null)
         {
@@ -41,12 +61,18 @@ internal class HtmlCompletionSource : ClassCompletionGenerator, ICompletionSourc
             return;
         }
 
-        if (HtmlParser.IsCursorInClassScope(session.TextView, out var classSpan) == false || classSpan is null)
+        if (
+            HtmlParser.IsCursorInClassScope(session.TextView, out var classSpan) == false
+            || classSpan is null
+        )
         {
             return;
         }
 
-        var truncatedClassSpan = new SnapshotSpan(classSpan.Value.Start, session.TextView.Caret.Position.BufferPosition);
+        var truncatedClassSpan = new SnapshotSpan(
+            classSpan.Value.Start,
+            session.TextView.Caret.Position.BufferPosition
+        );
         string classAttributeValueUpToPosition = truncatedClassSpan.GetText();
 
         var position = session.TextView.Caret.Position.BufferPosition.Position;
@@ -69,23 +95,60 @@ internal class HtmlCompletionSource : ClassCompletionGenerator, ICompletionSourc
 
             if (defaultCompletionSet.Completions.Count > 0)
             {
-                var addToBeginning = ThreadHelper.JoinableTaskFactory.Run(General.GetLiveInstanceAsync).TailwindCompletionsComeFirst;
+                var addToBeginning = ThreadHelper
+                    .JoinableTaskFactory.Run(General.GetLiveInstanceAsync)
+                    .TailwindCompletionsComeFirst;
 
                 if (addToBeginning)
                 {
                     // Cast to Completion3 to gain access to IconMoniker
                     // Return new Completion3 so session commit will actually commit the text
-                    completions.AddRange(defaultCompletionSet.Completions
-                        .Where(c => c.DisplayText.StartsWith(currentClassTotal, StringComparison.InvariantCultureIgnoreCase))
-                        .Cast<Completion3>()
-                        .Select(c => new Completion3(c.DisplayText, c.InsertionText, c.DisplayText, new ImageMoniker() { Guid = c.IconMoniker.Guid, Id = c.IconMoniker.Id }, c.IconAutomationText)));
+                    completions.AddRange(
+                        defaultCompletionSet
+                            .Completions.Where(c =>
+                                c.DisplayText.StartsWith(
+                                    currentClassTotal,
+                                    StringComparison.InvariantCultureIgnoreCase
+                                )
+                            )
+                            .Cast<Completion3>()
+                            .Select(c => new Completion3(
+                                c.DisplayText,
+                                c.InsertionText,
+                                c.DisplayText,
+                                new ImageMoniker()
+                                {
+                                    Guid = c.IconMoniker.Guid,
+                                    Id = c.IconMoniker.Id,
+                                },
+                                c.IconAutomationText
+                            ))
+                    );
                 }
                 else
                 {
-                    completions.InsertRange(0, defaultCompletionSet.Completions
-                        .Where(c => c.DisplayText.StartsWith(currentClassTotal, StringComparison.InvariantCultureIgnoreCase))
-                        .Cast<Completion3>()
-                        .Select(c => new Completion3(c.DisplayText, c.InsertionText, c.DisplayText, new ImageMoniker() { Guid = c.IconMoniker.Guid, Id = c.IconMoniker.Id }, c.IconAutomationText)));
+                    completions.InsertRange(
+                        0,
+                        defaultCompletionSet
+                            .Completions.Where(c =>
+                                c.DisplayText.StartsWith(
+                                    currentClassTotal,
+                                    StringComparison.InvariantCultureIgnoreCase
+                                )
+                            )
+                            .Cast<Completion3>()
+                            .Select(c => new Completion3(
+                                c.DisplayText,
+                                c.InsertionText,
+                                c.DisplayText,
+                                new ImageMoniker()
+                                {
+                                    Guid = c.IconMoniker.Guid,
+                                    Id = c.IconMoniker.Id,
+                                },
+                                c.IconAutomationText
+                            ))
+                    );
                 }
             }
 
@@ -94,19 +157,23 @@ internal class HtmlCompletionSource : ClassCompletionGenerator, ICompletionSourc
                 defaultCompletionSet.DisplayName,
                 applicableTo,
                 completions,
-                defaultCompletionSet.CompletionBuilders);
+                defaultCompletionSet.CompletionBuilders
+            );
             // Overrides the original completion set so there aren't two different completion tabs
             completionSets.Clear();
             completionSets.Add(overridenCompletionSet);
         }
         else
         {
-            completionSets.Add(new TailwindCssCompletionSet(
-                "All",
-                "All",
-                applicableTo,
-                completions,
-                new List<Completion>()));
+            completionSets.Add(
+                new TailwindCssCompletionSet(
+                    "All",
+                    "All",
+                    applicableTo,
+                    completions,
+                    new List<Completion>()
+                )
+            );
         }
     }
 
@@ -114,6 +181,9 @@ internal class HtmlCompletionSource : ClassCompletionGenerator, ICompletionSourc
     {
         var span = HtmlParser.GetClassAttributeValue(triggerPoint);
         // span should not be null since this is called after we verify the cursor is in a class context
-        return snapshot.CreateTrackingSpan(new SnapshotSpan(span!.Value.Start, triggerPoint), SpanTrackingMode.EdgeInclusive);
+        return snapshot.CreateTrackingSpan(
+            new SnapshotSpan(span!.Value.Start, triggerPoint),
+            SpanTrackingMode.EdgeInclusive
+        );
     }
 }

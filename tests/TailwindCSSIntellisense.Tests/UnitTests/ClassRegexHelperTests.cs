@@ -21,7 +21,8 @@ public class ClassRegexHelperTests : IDisposable
     [Fact]
     public void GetClassesNormal_FindsClassAttributes()
     {
-        const string html = "<div class=\"px-4 text-red-500\"></div><span class='font-bold'></span>";
+        const string html =
+            "<div class=\"px-4 text-red-500\"></div><span class='font-bold'></span>";
 
         var matches = ClassRegexHelper.GetClassesNormal(html).ToList();
 
@@ -33,9 +34,11 @@ public class ClassRegexHelperTests : IDisposable
     [Fact]
     public void GetClassesNormal_SplitsQuotedConditionalSegments()
     {
-        const string html = "<div class=\"open ? 'px-2 text-red-500' : 'py-1 text-blue-500'\"></div>";
+        const string html =
+            "<div class=\"open ? 'px-2 text-red-500' : 'py-1 text-blue-500'\"></div>";
 
-        var matches = ClassRegexHelper.GetClassesNormal(html)
+        var matches = ClassRegexHelper
+            .GetClassesNormal(html)
             .Select(m => ClassRegexHelper.GetClassTextGroup(m).Value)
             .ToList();
 
@@ -47,24 +50,31 @@ public class ClassRegexHelperTests : IDisposable
     [Fact]
     public void GetClassesJavaScript_HandlesLargeMixedInput()
     {
-        var input = new string('x', 6000) + "\n<div className=\"bg-blue-500 md:hover:text-white\"></div>";
+        var input =
+            new string('x', 6000) + "\n<div className=\"bg-blue-500 md:hover:text-white\"></div>";
 
         var matches = ClassRegexHelper.GetClassesJavaScript(input).ToList();
 
         Assert.Single(matches);
-        Assert.Equal("bg-blue-500 md:hover:text-white", ClassRegexHelper.GetClassTextGroup(matches[0]).Value);
+        Assert.Equal(
+            "bg-blue-500 md:hover:text-white",
+            ClassRegexHelper.GetClassTextGroup(matches[0]).Value
+        );
     }
-
 
     [Fact]
     public void GetClassesRazor_ComplexCase()
     {
-        var input = "\n<div class=\"@(\"hi\") bg-[''] bg-white @Func('h') @A.B(test ? \"test\" : \"foo\")\"></div>";
+        var input =
+            "\n<div class=\"@(\"hi\") bg-[''] bg-white @Func('h') @A.B(test ? \"test\" : \"foo\")\"></div>";
 
         var matches = ClassRegexHelper.GetClassesRazor(input).ToList();
 
         Assert.Single(matches);
-        Assert.Equal("@(\"hi\") bg-[''] bg-white @Func('h') @A.B(test ? \"test\" : \"foo\")", ClassRegexHelper.GetClassTextGroup(matches[0]).Value);
+        Assert.Equal(
+            "@(\"hi\") bg-[''] bg-white @Func('h') @A.B(test ? \"test\" : \"foo\")",
+            ClassRegexHelper.GetClassTextGroup(matches[0]).Value
+        );
     }
 
     [Fact]
@@ -210,17 +220,20 @@ public class ClassRegexHelperTests : IDisposable
     [Fact]
     public void CustomRegexOverride_UsesConfiguredRegex()
     {
-        ClassRegexHelper.GetTailwindSettings = () => Task.FromResult(new TailwindSettings
-        {
-            CustomRegexes = new CustomRegexes
-            {
-                HTML = new CustomRegexes.CustomRegex
+        ClassRegexHelper.GetTailwindSettings = () =>
+            Task.FromResult(
+                new TailwindSettings
                 {
-                    Override = true,
-                    Values = ["tw\\s*=\\s*\"(?<content>[^\"]+)\""]
+                    CustomRegexes = new CustomRegexes
+                    {
+                        HTML = new CustomRegexes.CustomRegex
+                        {
+                            Override = true,
+                            Values = ["tw\\s*=\\s*\"(?<content>[^\"]+)\""],
+                        },
+                    },
                 }
-            }
-        });
+            );
 
         const string html = "<div tw=\"p-4 text-sm\" class=\"ignored\"></div>";
 

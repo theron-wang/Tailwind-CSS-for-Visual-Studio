@@ -1,9 +1,9 @@
-﻿using Microsoft.VisualStudio.Language.Intellisense;
+﻿using System.ComponentModel.Composition;
+using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Classification;
 using Microsoft.VisualStudio.Utilities;
-using System.ComponentModel.Composition;
 using TailwindCSSIntellisense.Completions.Sources;
 using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Settings;
@@ -24,23 +24,40 @@ internal class RazorCompletionSourceProvider : ICompletionSourceProvider
 {
     [Import]
     internal ProjectConfigurationManager CompletionUtils { get; set; } = null!;
+
     [Import]
     internal SettingsProvider SettingsProvider { get; set; } = null!;
+
     [Import]
     internal IAsyncCompletionBroker AsyncCompletionBroker { get; set; } = null!;
+
     [Import]
     internal ICompletionBroker CompletionBroker { get; set; } = null!;
+
     [Import]
     internal DescriptionGenerator DescriptionGenerator { get; set; } = null!;
+
     [Import]
     internal ColorIconGenerator ColorIconGenerator { get; set; } = null!;
+
     [Import]
     public CompletionConfiguration CompletionConfiguration { get; set; } = null!;
+
     [Import]
     public ProjectConfigurationInitializer ProjectConfigurationInitializer { get; set; } = null!;
 
     public ICompletionSource TryCreateCompletionSource(ITextBuffer textBuffer)
     {
-        return new RazorCompletionSource(textBuffer, CompletionUtils, ColorIconGenerator, DescriptionGenerator, SettingsProvider, AsyncCompletionBroker, CompletionBroker, CompletionConfiguration, ProjectConfigurationInitializer);
+        return new RazorCompletionSource(
+            textBuffer,
+            CompletionUtils,
+            ColorIconGenerator,
+            DescriptionGenerator,
+            SettingsProvider,
+            AsyncCompletionBroker,
+            CompletionBroker,
+            CompletionConfiguration,
+            ProjectConfigurationInitializer
+        );
     }
 }

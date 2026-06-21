@@ -1,7 +1,7 @@
-﻿using Microsoft.VisualStudio.Language.Intellisense;
-using Microsoft.VisualStudio.Utilities;
-using System.ComponentModel.Composition;
+﻿using System.ComponentModel.Composition;
 using System.Windows;
+using Microsoft.VisualStudio.Language.Intellisense;
+using Microsoft.VisualStudio.Utilities;
 
 namespace TailwindCSSIntellisense.Completions;
 
@@ -16,14 +16,23 @@ namespace TailwindCSSIntellisense.Completions;
 [ContentType("LegacyRazorCSharp")]
 [ContentType("LegacyRazor")]
 [ContentType("LegacyRazorCoreCSharp")]
-internal class CompletionTooltipCustomizationProvider : IUIElementProvider<Completion, ICompletionSession>
+internal class CompletionTooltipCustomizationProvider
+    : IUIElementProvider<Completion, ICompletionSession>
 {
     [Import]
     private DescriptionGenerator DescriptionGenerator { get; set; } = null!;
 
-    public UIElement? GetUIElement(Completion itemToRender, ICompletionSession context, UIElementType elementType)
+    public UIElement? GetUIElement(
+        Completion itemToRender,
+        ICompletionSession context,
+        UIElementType elementType
+    )
     {
-        if (elementType == UIElementType.Tooltip && itemToRender.Properties.ContainsProperty("tailwind") && !itemToRender.Properties.ContainsProperty("variant"))
+        if (
+            elementType == UIElementType.Tooltip
+            && itemToRender.Properties.ContainsProperty("tailwind")
+            && !itemToRender.Properties.ContainsProperty("variant")
+        )
         {
             var fullText = itemToRender.DisplayText;
 
@@ -37,7 +46,11 @@ internal class CompletionTooltipCustomizationProvider : IUIElementProvider<Compl
             var isImportant = ImportantModifierHelper.IsImportantModifier(itemToRender.DisplayText);
 
             // Description property contains the class text parameter for GetDescription
-            var desc = DescriptionGenerator.GetDescription(itemToRender.Description, project, ignorePrefix: true);
+            var desc = DescriptionGenerator.GetDescription(
+                itemToRender.Description,
+                project,
+                ignorePrefix: true
+            );
 
             if (desc is null)
             {

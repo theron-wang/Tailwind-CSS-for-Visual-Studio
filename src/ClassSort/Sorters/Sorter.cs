@@ -1,11 +1,11 @@
-﻿using Microsoft.VisualStudio.Shell;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.VisualStudio.Shell;
 using TailwindCSSIntellisense.Completions;
 
 namespace TailwindCSSIntellisense.ClassSort.Sorters;
@@ -14,6 +14,7 @@ internal abstract class Sorter
 {
     [Import]
     public ProjectConfigurationManager ProjectConfigurationManager { get; set; } = null!;
+
     [Import]
     public ClassSortUtilities ClassSortUtilities { get; set; } = null!;
 
@@ -39,24 +40,28 @@ internal abstract class Sorter
 
         var sorted = await SortAsync(classes, filePath);
 
-        var newlines = classText.Select((c, i) => (c, i))
+        var newlines = classText
+            .Select((c, i) => (c, i))
             .Where(p => p.c == '\n')
-            .Select(p => p.i).ToList();
+            .Select(p => p.i)
+            .ToList();
 
-        var indents = newlines.Select(i =>
-        {
-            var result = "";
-
-            for (++i; i < classText.Length; i++)
+        var indents = newlines
+            .Select(i =>
             {
-                if (!char.IsWhiteSpace(classText[i]))
+                var result = "";
+
+                for (++i; i < classText.Length; i++)
                 {
-                    break;
+                    if (!char.IsWhiteSpace(classText[i]))
+                    {
+                        break;
+                    }
+                    result += classText[i];
                 }
-                result += classText[i];
-            }
-            return result;
-        }).ToList();
+                return result;
+            })
+            .ToList();
 
         var sortedSegment = new StringBuilder();
 
@@ -72,8 +77,11 @@ internal abstract class Sorter
                 continue;
             }
 
-            if (nextNewLineIndex < newlines.Count &&
-                index <= newlines[nextNewLineIndex] && newlines[nextNewLineIndex] <= index + sortedClass.Length)
+            if (
+                nextNewLineIndex < newlines.Count
+                && index <= newlines[nextNewLineIndex]
+                && newlines[nextNewLineIndex] <= index + sortedClass.Length
+            )
             {
                 sortedSegment.AppendLine().Append(indents[nextNewLineIndex]).Append(sortedClass);
                 index += indents[nextNewLineIndex].Length;
@@ -96,12 +104,20 @@ internal abstract class Sorter
         return sortedSegment.ToString().Trim();
     }
 
-    protected async Task<IOrderedEnumerable<string>> SortAsync(IEnumerable<string> classes, string filePath)
+    protected async Task<IOrderedEnumerable<string>> SortAsync(
+        IEnumerable<string> classes,
+        string filePath
+    )
     {
-        var projectCompletionValues = await ProjectConfigurationManager.GetCompletionConfigurationByFilePathAsync(filePath);
+        var projectCompletionValues =
+            await ProjectConfigurationManager.GetCompletionConfigurationByFilePathAsync(filePath);
 
-        var classOrder = await ClassSortUtilities.GetClassOrderAsync(projectCompletionValues.Version);
-        var variantOrder = await ClassSortUtilities.GetVariantOrderAsync(projectCompletionValues.Version);
+        var classOrder = await ClassSortUtilities.GetClassOrderAsync(
+            projectCompletionValues.Version
+        );
+        var variantOrder = await ClassSortUtilities.GetVariantOrderAsync(
+            projectCompletionValues.Version
+        );
 
         var result = classes
             .OrderBy(className =>
@@ -119,7 +135,10 @@ internal abstract class Sorter
             {
                 if (projectCompletionValues.Version >= TailwindVersion.V4)
                 {
-                    if (!string.IsNullOrWhiteSpace(projectCompletionValues.Prefix) && className.StartsWith(projectCompletionValues.Prefix))
+                    if (
+                        !string.IsNullOrWhiteSpace(projectCompletionValues.Prefix)
+                        && className.StartsWith(projectCompletionValues.Prefix)
+                    )
                     {
                         className = className.Substring(projectCompletionValues.Prefix!.Length);
                     }
@@ -138,22 +157,61 @@ internal abstract class Sorter
                                 max = Math.Max(max, index);
                             }
 
-                            var potentialBreakpointOrContainer = variant.Split('-').Last().Trim('@');
+                            var potentialBreakpointOrContainer = variant
+                                .Split('-')
+                                .Last()
+                                .Trim('@');
 
-                            if (projectCompletionValues.Breakpoints.TryGetValue(potentialBreakpointOrContainer, out var breakpoint) &&
-                                variantOrder.TryGetValue(variant.Replace(potentialBreakpointOrContainer, "{b}"), out index))
+                            if (
+                                projectCompletionValues.Breakpoints.TryGetValue(
+                                    potentialBreakpointOrContainer,
+                                    out var breakpoint
+                                )
+                                && variantOrder.TryGetValue(
+                                    variant.Replace(potentialBreakpointOrContainer, "{b}"),
+                                    out index
+                                )
+                            )
                             {
-                                max = Math.Max(max, index + projectCompletionValues.Breakpoints.Count(b => CssSizeConverter.CssSizeToPixels(b.Value) < CssSizeConverter.CssSizeToPixels(breakpoint)));
+                                max = Math.Max(
+                                    max,
+                                    index
+                                        + projectCompletionValues.Breakpoints.Count(b =>
+                                            CssSizeConverter.CssSizeToPixels(b.Value)
+                                            < CssSizeConverter.CssSizeToPixels(breakpoint)
+                                        )
+                                );
                             }
 
-                            if (projectCompletionValues.Containers.TryGetValue(potentialBreakpointOrContainer, out var container) &&
-                                variantOrder.TryGetValue(variant.Replace(potentialBreakpointOrContainer, "{c}"), out index))
+                            if (
+                                projectCompletionValues.Containers.TryGetValue(
+                                    potentialBreakpointOrContainer,
+                                    out var container
+                                )
+                                && variantOrder.TryGetValue(
+                                    variant.Replace(potentialBreakpointOrContainer, "{c}"),
+                                    out index
+                                )
+                            )
                             {
-                                max = Math.Max(max, index + projectCompletionValues.Containers.Count(c => CssSizeConverter.CssSizeToPixels(c.Value) < CssSizeConverter.CssSizeToPixels(container)));
+                                max = Math.Max(
+                                    max,
+                                    index
+                                        + projectCompletionValues.Containers.Count(c =>
+                                            CssSizeConverter.CssSizeToPixels(c.Value)
+                                            < CssSizeConverter.CssSizeToPixels(container)
+                                        )
+                                );
                             }
 
-                            if (potentialBreakpointOrContainer.StartsWith("[") && potentialBreakpointOrContainer.EndsWith("]") &&
-                                variantOrder.TryGetValue(variant.Replace(potentialBreakpointOrContainer, "{a}"), out index))
+                            if (
+                                potentialBreakpointOrContainer.StartsWith("[")
+                                && potentialBreakpointOrContainer.EndsWith("]")
+                                && variantOrder.TryGetValue(
+                                    variant.Replace(potentialBreakpointOrContainer, "{a}"),
+                                    out index
+                                )
+                            )
                             {
                                 max = Math.Max(max, index);
                             }
@@ -189,9 +247,19 @@ internal abstract class Sorter
                                     num = variantOrder.Count * 2000 + index;
                                 }
                             }
-                            else if (projectCompletionValues.Breakpoints.TryGetValue(variant, out var breakpoint))
+                            else if (
+                                projectCompletionValues.Breakpoints.TryGetValue(
+                                    variant,
+                                    out var breakpoint
+                                )
+                            )
                             {
-                                num = variantOrder.Count * 3000 + projectCompletionValues.Breakpoints.Count(b => CssSizeConverter.CssSizeToPixels(b.Value) < CssSizeConverter.CssSizeToPixels(breakpoint));
+                                num =
+                                    variantOrder.Count * 3000
+                                    + projectCompletionValues.Breakpoints.Count(b =>
+                                        CssSizeConverter.CssSizeToPixels(b.Value)
+                                        < CssSizeConverter.CssSizeToPixels(breakpoint)
+                                    );
                             }
 
                             max = Math.Max(max, num);
@@ -217,17 +285,29 @@ internal abstract class Sorter
 
                 if (projectCompletionValues.Version >= TailwindVersion.V4)
                 {
-                    if (!string.IsNullOrWhiteSpace(projectCompletionValues.Prefix) && className.StartsWith(projectCompletionValues.Prefix))
+                    if (
+                        !string.IsNullOrWhiteSpace(projectCompletionValues.Prefix)
+                        && className.StartsWith(projectCompletionValues.Prefix)
+                    )
                     {
                         classToSearch = className.Substring(projectCompletionValues.Prefix!.Length);
                     }
                 }
 
-                if (projectCompletionValues.Version == TailwindVersion.V3 && string.IsNullOrWhiteSpace(projectCompletionValues.Prefix) == false)
+                if (
+                    projectCompletionValues.Version == TailwindVersion.V3
+                    && string.IsNullOrWhiteSpace(projectCompletionValues.Prefix) == false
+                )
                 {
                     classToSearch = classToSearch
-                        .TrimPrefix(projectCompletionValues.Prefix, StringComparison.InvariantCultureIgnoreCase)
-                        .TrimPrefix("-" + projectCompletionValues.Prefix, StringComparison.InvariantCultureIgnoreCase);
+                        .TrimPrefix(
+                            projectCompletionValues.Prefix,
+                            StringComparison.InvariantCultureIgnoreCase
+                        )
+                        .TrimPrefix(
+                            "-" + projectCompletionValues.Prefix,
+                            StringComparison.InvariantCultureIgnoreCase
+                        );
 
                     if (className.StartsWith("-"))
                     {
@@ -250,7 +330,12 @@ internal abstract class Sorter
 
                     var shouldKeepLooking = false;
 
-                    if (projectCompletionValues.CustomSpacingMappers.TryGetValue($"{stem}-{{0}}", out var mapper))
+                    if (
+                        projectCompletionValues.CustomSpacingMappers.TryGetValue(
+                            $"{stem}-{{0}}",
+                            out var mapper
+                        )
+                    )
                     {
                         if (mapper.ContainsKey(ending))
                         {
@@ -261,20 +346,28 @@ internal abstract class Sorter
                         // For example: bg-inherit; any unfound classes will be handled in the final conditional return
                     }
                     // For V4, the later check is more comprehensive
-                    else if (projectCompletionValues.Version == TailwindVersion.V3 && projectCompletionValues.SpacingMapper.ContainsKey(ending) ||
-                        (
-                            ending.Length > 2 &&
-                            ending[0] == '[' &&
-                            ending[ending.Length - 1] == ']' &&
-                            classOrder.ContainsKey($"{stem}-{{s}}")
-                        ))
+                    else if (
+                        projectCompletionValues.Version == TailwindVersion.V3
+                            && projectCompletionValues.SpacingMapper.ContainsKey(ending)
+                        || (
+                            ending.Length > 2
+                            && ending[0] == '['
+                            && ending[ending.Length - 1] == ']'
+                            && classOrder.ContainsKey($"{stem}-{{s}}")
+                        )
+                    )
                     {
                         if (!classOrder.ContainsKey(classToSearch))
                         {
                             classToSearch = $"{stem}-{{s}}";
                         }
                     }
-                    else if (projectCompletionValues.CustomColorMappers.TryGetValue($"{stem}-{{0}}", out mapper))
+                    else if (
+                        projectCompletionValues.CustomColorMappers.TryGetValue(
+                            $"{stem}-{{0}}",
+                            out mapper
+                        )
+                    )
                     {
                         if (mapper.ContainsKey(ending))
                         {
@@ -284,13 +377,15 @@ internal abstract class Sorter
                         // While it may not necessarily be inside the custom color mapper, the class could still be valid
                         // For example: bg-inherit; any unfound classes will be handled in the final conditional return
                     }
-                    else if (projectCompletionValues.ColorMapper.ContainsKey(ending.Split('/')[0]) ||
-                            (
-                                ending.Length > 2 &&
-                                ending[0] == '[' &&
-                                ending[ending.Length - 1] == ']' &&
-                                classOrder.ContainsKey($"{stem}-{{c}}")
-                            ))
+                    else if (
+                        projectCompletionValues.ColorMapper.ContainsKey(ending.Split('/')[0])
+                        || (
+                            ending.Length > 2
+                            && ending[0] == '['
+                            && ending[ending.Length - 1] == ']'
+                            && classOrder.ContainsKey($"{stem}-{{c}}")
+                        )
+                    )
                     {
                         classToSearch = $"{stem}-{{c}}";
                     }
@@ -298,7 +393,10 @@ internal abstract class Sorter
                     {
                         if (stem.Contains('-'))
                         {
-                            var splitIndex = classToSearch.LastIndexOf('-', classToSearch.LastIndexOf('-') - 1);
+                            var splitIndex = classToSearch.LastIndexOf(
+                                '-',
+                                classToSearch.LastIndexOf('-') - 1
+                            );
                             var colorStem = classToSearch.Substring(0, splitIndex);
                             var colorEnding = classToSearch.Substring(splitIndex + 1);
 
@@ -307,7 +405,12 @@ internal abstract class Sorter
                                 colorEnding = colorEnding.Substring(0, colorEnding.IndexOf('/'));
                             }
 
-                            if (projectCompletionValues.CustomColorMappers.TryGetValue($"{colorStem}-{{0}}", out mapper))
+                            if (
+                                projectCompletionValues.CustomColorMappers.TryGetValue(
+                                    $"{colorStem}-{{0}}",
+                                    out mapper
+                                )
+                            )
                             {
                                 if (mapper.ContainsKey(colorEnding))
                                 {
@@ -344,7 +447,14 @@ internal abstract class Sorter
                             {
                                 classToSearch = $"{stem}-{{s}}";
                             }
-                            else if (double.TryParse(ending, NumberStyles.Float, CultureInfo.InvariantCulture, out _))
+                            else if (
+                                double.TryParse(
+                                    ending,
+                                    NumberStyles.Float,
+                                    CultureInfo.InvariantCulture,
+                                    out _
+                                )
+                            )
                             {
                                 classToSearch = $"{stem}-{{s}}";
 
@@ -353,20 +463,30 @@ internal abstract class Sorter
                                     classToSearch = $"{stem}-{{n}}";
                                 }
                             }
-                            else if (ending.EndsWith("%") && int.TryParse(ending.TrimEnd('%'), out _))
+                            else if (
+                                ending.EndsWith("%") && int.TryParse(ending.TrimEnd('%'), out _)
+                            )
                             {
                                 classToSearch = $"{stem}-{{%}}";
                             }
-                            else if (ending.Count(c => c == '/') == 1 && int.TryParse(ending.Replace("/", ""), out _))
+                            else if (
+                                ending.Count(c => c == '/') == 1
+                                && int.TryParse(ending.Replace("/", ""), out _)
+                            )
                             {
                                 classToSearch = $"{stem}-{{f}}";
                             }
                             else if ((classToSearch.Contains('[') || classToSearch.Contains('(')))
                             {
-                                classToSearch = $"{classToSearch.Substring(0, classToSearch.IndexOfAny(['[', '('])).Trim('-')}-{{a}}";
+                                classToSearch =
+                                    $"{classToSearch.Substring(0, classToSearch.IndexOfAny(['[', '('])).Trim('-')}-{{a}}";
                             }
                         }
-                        else if (ending.Length > 2 && ending[0] == '[' && ending[ending.Length - 1] == ']')
+                        else if (
+                            ending.Length > 2
+                            && ending[0] == '['
+                            && ending[ending.Length - 1] == ']'
+                        )
                         {
                             // We'll approximate the class here. For example, if we do rounded-[1.2rem],
                             // find rounded instead
@@ -386,10 +506,22 @@ internal abstract class Sorter
         return result;
     }
 
-    protected (int index, char terminator) GetNextIndexOfClass(string file, int startIndex, string searchFor = "class=")
+    protected (int index, char terminator) GetNextIndexOfClass(
+        string file,
+        int startIndex,
+        string searchFor = "class="
+    )
     {
-        var single = file.IndexOf($"{searchFor}'", startIndex, StringComparison.InvariantCultureIgnoreCase);
-        var doubleQuote = file.IndexOf($"{searchFor}\"", startIndex, StringComparison.InvariantCultureIgnoreCase);
+        var single = file.IndexOf(
+            $"{searchFor}'",
+            startIndex,
+            StringComparison.InvariantCultureIgnoreCase
+        );
+        var doubleQuote = file.IndexOf(
+            $"{searchFor}\"",
+            startIndex,
+            StringComparison.InvariantCultureIgnoreCase
+        );
 
         if (single == -1 && doubleQuote == -1)
         {

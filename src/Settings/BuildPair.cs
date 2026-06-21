@@ -1,6 +1,7 @@
 ﻿using System.Text.Json.Serialization;
 
 namespace TailwindCSSIntellisense.Settings;
+
 public class BuildPair
 {
     public string Input { get; set; } = "";

@@ -10,7 +10,10 @@ internal class RazorSorter : Sorter
 {
     public override string[] Handled { get; } = [".razor", ".cshtml"];
 
-    protected override async IAsyncEnumerable<string> GetSegmentsAsync(string filePath, string content)
+    protected override async IAsyncEnumerable<string> GetSegmentsAsync(
+        string filePath,
+        string content
+    )
     {
         int lastIndex = 0;
         int indexOfClass;
@@ -56,19 +59,41 @@ internal class RazorSorter : Sorter
             // each number represents a text token in tokens
             var newLines = new Dictionary<int, string>();
 
-            foreach ((var token, var index) in ClassRegexHelper.SplitRazorClasses(classContent).Select((m, i) => (m, i)))
+            foreach (
+                (var token, var index) in ClassRegexHelper
+                    .SplitRazorClasses(classContent)
+                    .Select((m, i) => (m, i))
+            )
             {
                 tokens.Add(token.Value);
-                if (!token.Value.StartsWith("@@") && !token.Value.StartsWith("@(\"@\")") && token.Value.StartsWith("@"))
+                if (
+                    !token.Value.StartsWith("@@")
+                    && !token.Value.StartsWith("@(\"@\")")
+                    && token.Value.StartsWith("@")
+                )
                 {
                     razorIndices.Add(index);
                 }
-                if ((token.Index + token.Length < classContent.Length && classContent[token.Index + token.Length] == '\n') ||
+                if (
+                    (
+                        token.Index + token.Length < classContent.Length
+                        && classContent[token.Index + token.Length] == '\n'
+                    )
+                    ||
                     // first case handles \n, second case handles \r\n
-                    token.Index + token.Length + 1 < classContent.Length && classContent[token.Index + token.Length + 1] == '\n')
+                    token.Index
+                        + token.Length
+                        + 1
+                        < classContent.Length
+                        && classContent[token.Index + token.Length + 1] == '\n'
+                )
                 {
                     // This means that after this current token, there should be a newline
-                    var indent = new string([.. classContent.Substring(classContent.IndexOf('\n', token.Index + token.Length) + 1).TakeWhile(char.IsWhiteSpace)]);
+                    var indent = new string([
+                        .. classContent
+                            .Substring(classContent.IndexOf('\n', token.Index + token.Length) + 1)
+                            .TakeWhile(char.IsWhiteSpace),
+                    ]);
 
                     newLines[index] = indent;
                 }
@@ -100,7 +125,11 @@ internal class RazorSorter : Sorter
         yield return content.Substring(lastIndex);
     }
 
-    private async IAsyncEnumerable<string> SortRazorSegmentAsync(List<string> classes, HashSet<int> razorIndices, string file)
+    private async IAsyncEnumerable<string> SortRazorSegmentAsync(
+        List<string> classes,
+        HashSet<int> razorIndices,
+        string file
+    )
     {
         Dictionary<string, string> unescapedToEscaped = [];
 
@@ -109,14 +138,20 @@ internal class RazorSorter : Sorter
             unescapedToEscaped[c.Replace("@@", "@").Replace("@(\"@\")", "@")] = c;
         }
 
-        var sorted = (await SortAsync(classes
-                .Select((v, i) => (v: v.Replace("@@", "@").Replace("@(\"@\")", "@"), i))
-                .Where(v => !razorIndices.Contains(v.i))
-                .Select(v => v.v), file
-            )).Select(c =>
+        var sorted = (
+            await SortAsync(
+                classes
+                    .Select((v, i) => (v: v.Replace("@@", "@").Replace("@(\"@\")", "@"), i))
+                    .Where(v => !razorIndices.Contains(v.i))
+                    .Select(v => v.v),
+                file
+            )
+        )
+            .Select(c =>
             {
                 return unescapedToEscaped.TryGetValue(c, out var value) ? value : c;
-            }).ToList();
+            })
+            .ToList();
 
         int lastIndex = -1;
         int start = 0;

@@ -8,7 +8,10 @@ internal class HtmlSorter : Sorter
 {
     public override string[] Handled { get; } = [".html", ".aspx", ".ascx"];
 
-    protected override async IAsyncEnumerable<string> GetSegmentsAsync(string filePath, string content)
+    protected override async IAsyncEnumerable<string> GetSegmentsAsync(
+        string filePath,
+        string content
+    )
     {
         int lastIndex = 0;
         int indexOfClass;

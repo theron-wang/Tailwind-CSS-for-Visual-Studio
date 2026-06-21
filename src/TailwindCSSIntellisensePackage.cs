@@ -1,10 +1,10 @@
-﻿using Community.VisualStudio.Toolkit;
+﻿using System;
+using System.Runtime.InteropServices;
+using System.Threading;
+using Community.VisualStudio.Toolkit;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Threading;
-using System;
-using System.Runtime.InteropServices;
-using System.Threading;
 using TailwindCSSIntellisense.Build;
 using TailwindCSSIntellisense.ClassSort;
 using TailwindCSSIntellisense.Completions;
@@ -34,15 +34,37 @@ namespace TailwindCSSIntellisense;
 [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
 [Guid(PackageGuidString)]
 [ProvideMenuResource("Menus.ctmenu", 1)]
-[ProvideOptionPage(typeof(OptionsProvider.GeneralOptions), "Tailwind CSS IntelliSense", "General", 0, 0, true, SupportsProfiles = true)]
-[ProvideOptionPage(typeof(OptionsProvider.LinterOptions), "Tailwind CSS IntelliSense", "Linter", 0, 0, true, SupportsProfiles = true)]
+[ProvideOptionPage(
+    typeof(OptionsProvider.GeneralOptions),
+    "Tailwind CSS IntelliSense",
+    "General",
+    0,
+    0,
+    true,
+    SupportsProfiles = true
+)]
+[ProvideOptionPage(
+    typeof(OptionsProvider.LinterOptions),
+    "Tailwind CSS IntelliSense",
+    "Linter",
+    0,
+    0,
+    true,
+    SupportsProfiles = true
+)]
 [InstalledProductRegistration(Vsix.Name, Vsix.Description, Vsix.Version)]
 // Makes sure that the package is initialized early so the solution explorer commands are showing up
 [ProvideAutoLoad(VSConstants.UICONTEXT.NoSolution_string, PackageAutoLoadFlags.BackgroundLoad)]
 [ProvideAutoLoad(VSConstants.UICONTEXT.SolutionExists_string, PackageAutoLoadFlags.BackgroundLoad)]
 [ProvideAutoLoad(VSConstants.UICONTEXT.DesignMode_string, PackageAutoLoadFlags.BackgroundLoad)]
-[ProvideAutoLoad(VSConstants.UICONTEXT.SolutionHasMultipleProjects_string, PackageAutoLoadFlags.BackgroundLoad)]
-[ProvideAutoLoad(VSConstants.UICONTEXT.SolutionHasSingleProject_string, PackageAutoLoadFlags.BackgroundLoad)]
+[ProvideAutoLoad(
+    VSConstants.UICONTEXT.SolutionHasMultipleProjects_string,
+    PackageAutoLoadFlags.BackgroundLoad
+)]
+[ProvideAutoLoad(
+    VSConstants.UICONTEXT.SolutionHasSingleProject_string,
+    PackageAutoLoadFlags.BackgroundLoad
+)]
 public sealed class TailwindCSSIntellisensePackage : AsyncPackage, IDisposable
 {
     /// <summary>
@@ -66,7 +88,10 @@ public sealed class TailwindCSSIntellisensePackage : AsyncPackage, IDisposable
     /// <param name="cancellationToken">A cancellation token to monitor for initialization cancellation, which can occur when VS is shutting down.</param>
     /// <param name="progress">A provider for progress updates.</param>
     /// <returns>A task representing the async work of package initialization, or an already completed task if there is none. Do not return null from this method.</returns>
-    protected override async Task InitializeAsync(CancellationToken cancellationToken, IProgress<ServiceProgressData> progress)
+    protected override async Task InitializeAsync(
+        CancellationToken cancellationToken,
+        IProgress<ServiceProgressData> progress
+    )
     {
         await this.RegisterCommandsAsync();
 
@@ -75,7 +100,8 @@ public sealed class TailwindCSSIntellisensePackage : AsyncPackage, IDisposable
         await JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
 
         _buildProcess = await VS.GetMefServiceAsync<TailwindBuildProcess>();
-        _projectConfigurationInitializer = await VS.GetMefServiceAsync<ProjectConfigurationInitializer>();
+        _projectConfigurationInitializer =
+            await VS.GetMefServiceAsync<ProjectConfigurationInitializer>();
         _classSorter = await VS.GetMefServiceAsync<ClassSorter>();
         _configurationFileReloader = await VS.GetMefServiceAsync<ConfigurationFileReloader>();
 
@@ -106,7 +132,9 @@ public sealed class TailwindCSSIntellisensePackage : AsyncPackage, IDisposable
     /// <param name="folderName">Can be null or anything, does not affect output.</param>
     private void FolderOpened(string? folderName = null)
     {
-        JoinableTaskFactory.RunAsync(BeginInitializationAsync).FileAndForget(nameof(TailwindCSSIntellisense) + "/FolderOpened");
+        JoinableTaskFactory
+            .RunAsync(BeginInitializationAsync)
+            .FileAndForget(nameof(TailwindCSSIntellisense) + "/FolderOpened");
     }
 
     private async Task BeginInitializationAsync()
@@ -126,7 +154,9 @@ public sealed class TailwindCSSIntellisensePackage : AsyncPackage, IDisposable
         }
         catch (Exception ex)
         {
-            await VS.StatusBar.ShowMessageAsync("Tailwind CSS: An error occurred while loading in this project");
+            await VS.StatusBar.ShowMessageAsync(
+                "Tailwind CSS: An error occurred while loading in this project"
+            );
             await ex.LogAsync();
             throw;
         }

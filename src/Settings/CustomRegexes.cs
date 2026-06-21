@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 
 namespace TailwindCSSIntellisense.Settings;
+
 public class CustomRegexes
 {
     public CustomRegex Razor { get; set; } = new();

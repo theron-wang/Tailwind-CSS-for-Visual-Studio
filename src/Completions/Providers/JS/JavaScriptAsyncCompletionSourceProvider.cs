@@ -1,8 +1,8 @@
-﻿using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
+﻿using System.Collections.Generic;
+using System.ComponentModel.Composition;
+using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Utilities;
-using System.Collections.Generic;
-using System.ComponentModel.Composition;
 using TailwindCSSIntellisense.Completions.Sources.JS;
 using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Settings;
@@ -17,7 +17,8 @@ namespace TailwindCSSIntellisense.Completions.Providers.JS;
 [ContentType("jsx")]
 internal class JavaScriptAsyncCompletionSourceProvider : IAsyncCompletionSourceProvider
 {
-    private readonly IDictionary<ITextView, IAsyncCompletionSource> _cache = new Dictionary<ITextView, IAsyncCompletionSource>();
+    private readonly IDictionary<ITextView, IAsyncCompletionSource> _cache =
+        new Dictionary<ITextView, IAsyncCompletionSource>();
 
     [Import]
     public ProjectConfigurationManager ProjectConfigurationManager { get; set; } = null!;
@@ -40,9 +41,19 @@ internal class JavaScriptAsyncCompletionSourceProvider : IAsyncCompletionSourceP
     public IAsyncCompletionSource GetOrCreate(ITextView textView)
     {
         if (_cache.TryGetValue(textView, out var itemSource))
+        {
             return itemSource;
+        }
 
-        var source = new JavaScriptAsyncCompletionSource(textView.TextBuffer, ProjectConfigurationManager, ColorIconGenerator, DescriptionGenerator, SettingsProvider, CompletionConfiguration, ProjectConfigurationInitializer);
+        var source = new JavaScriptAsyncCompletionSource(
+            textView.TextBuffer,
+            ProjectConfigurationManager,
+            ColorIconGenerator,
+            DescriptionGenerator,
+            SettingsProvider,
+            CompletionConfiguration,
+            ProjectConfigurationInitializer
+        );
         textView.Closed += (o, e) => _cache.Remove(textView);
         _cache[textView] = source;
         return source;

@@ -14,7 +14,10 @@ internal sealed class PackageJsonReader
     [Import]
     internal SettingsProvider SettingsProvider { get; set; } = null!;
 
-    internal async Task<(bool exists, string? fileName)> ScriptExistsAsync(string configFileName, string? scriptName)
+    internal async Task<(bool exists, string? fileName)> ScriptExistsAsync(
+        string configFileName,
+        string? scriptName
+    )
     {
         if (scriptName is null)
         {
@@ -24,7 +27,10 @@ internal sealed class PackageJsonReader
         var settings = await SettingsProvider.GetSettingsAsync();
         string packageJsonFileName;
 
-        if (settings.PackageConfigurationFile is not null && File.Exists(settings.PackageConfigurationFile))
+        if (
+            settings.PackageConfigurationFile is not null
+            && File.Exists(settings.PackageConfigurationFile)
+        )
         {
             packageJsonFileName = settings.PackageConfigurationFile;
         }
@@ -35,7 +41,10 @@ internal sealed class PackageJsonReader
                 return (exists: false, fileName: null);
             }
 
-            packageJsonFileName = Path.Combine(Path.GetDirectoryName(configFileName), "package.json");
+            packageJsonFileName = Path.Combine(
+                Path.GetDirectoryName(configFileName),
+                "package.json"
+            );
 
             if (packageJsonFileName is null || !File.Exists(packageJsonFileName))
             {
@@ -47,12 +56,22 @@ internal sealed class PackageJsonReader
         {
             JsonObject? file;
 
-            using (var fs = File.Open(packageJsonFileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (
+                var fs = File.Open(
+                    packageJsonFileName,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.ReadWrite
+                )
+            )
             {
                 file = await JsonSerializer.DeserializeAsync<JsonObject>(fs);
             }
 
-            return (exists: file?["scripts"]?[scriptName] is not null, fileName: packageJsonFileName);
+            return (
+                exists: file?["scripts"]?[scriptName] is not null,
+                fileName: packageJsonFileName
+            );
         }
         catch
         {

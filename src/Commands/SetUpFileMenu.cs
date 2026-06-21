@@ -1,9 +1,9 @@
-﻿using Community.VisualStudio.Toolkit;
-using Microsoft.VisualStudio.Shell;
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Community.VisualStudio.Toolkit;
+using Microsoft.VisualStudio.Shell;
 using TailwindCSSIntellisense.Node;
 using TailwindCSSIntellisense.Settings;
 
@@ -28,8 +28,11 @@ internal sealed class SetUpFileMenu : BaseCommand<SetUpFileMenu>
     internal SettingsProvider SettingsProvider { get; set; } = null!;
     internal DirectoryVersionFinder DirectoryVersionFinder { get; set; } = null!;
 
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD102:Implement internal logic asynchronously", Justification = "No other choice + settings likely loaded by the time this command is queried")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Usage",
+        "VSTHRD102:Implement internal logic asynchronously",
+        Justification = "No other choice + settings likely loaded by the time this command is queried"
+    )]
     protected override void BeforeQueryStatus(EventArgs e)
     {
         var settings = ThreadHelper.JoinableTaskFactory.Run(SettingsProvider.GetSettingsAsync);
@@ -40,17 +43,24 @@ internal sealed class SetUpFileMenu : BaseCommand<SetUpFileMenu>
             return;
         }
 
-        Command.Visible = settings.ConfigurationFiles.Count == 0 || settings.ConfigurationFiles.All(c =>
-                string.IsNullOrWhiteSpace(c.Path) || File.Exists(c.Path) == false);
+        Command.Visible =
+            settings.ConfigurationFiles.Count == 0
+            || settings.ConfigurationFiles.All(c =>
+                string.IsNullOrWhiteSpace(c.Path) || File.Exists(c.Path) == false
+            );
 
         if (Command.Visible)
         {
             return;
         }
 
-        var directory = Path.GetDirectoryName(SolutionExplorerSelection.CurrentSelectedItemFullPath);
+        var directory = Path.GetDirectoryName(
+            SolutionExplorerSelection.CurrentSelectedItemFullPath
+        );
 
-        var isInstalled = ThreadHelper.JoinableTaskFactory.Run(() => DirectoryVersionFinder.IsTailwindInstalledAsync(directory!, settings));
+        var isInstalled = ThreadHelper.JoinableTaskFactory.Run(() =>
+            DirectoryVersionFinder.IsTailwindInstalledAsync(directory!, settings)
+        );
 
         if (isInstalled)
         {

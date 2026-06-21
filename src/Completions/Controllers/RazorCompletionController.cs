@@ -1,4 +1,8 @@
-﻿using Microsoft.VisualStudio;
+﻿using System;
+using System.ComponentModel.Composition;
+using System.Linq;
+using System.Runtime.InteropServices;
+using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Editor;
 using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.OLE.Interop;
@@ -7,10 +11,6 @@ using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.TextManager.Interop;
 using Microsoft.VisualStudio.Utilities;
-using System;
-using System.ComponentModel.Composition;
-using System.Linq;
-using System.Runtime.InteropServices;
 using TailwindCSSIntellisense.Parsers;
 
 namespace TailwindCSSIntellisense.Completions.Controllers;
@@ -38,7 +38,9 @@ internal sealed class RazorCompletionController : IVsTextViewCreationListener
     {
         IWpfTextView view = AdaptersFactory.GetWpfTextView(textViewAdapter)!;
 
-        view.Properties.GetOrCreateSingletonProperty(() => new RazorCommandFilter(view, textViewAdapter, this));
+        view.Properties.GetOrCreateSingletonProperty(() =>
+            new RazorCommandFilter(view, textViewAdapter, this)
+        );
     }
 }
 
@@ -50,7 +52,11 @@ internal sealed class RazorCommandFilter : IOleCommandTarget
     private readonly IWpfTextView _textView;
     private readonly RazorCompletionController _provider;
 
-    public RazorCommandFilter(IWpfTextView textView, IVsTextView textViewAdapter, RazorCompletionController provider)
+    public RazorCommandFilter(
+        IWpfTextView textView,
+        IVsTextView textViewAdapter,
+        RazorCompletionController provider
+    )
     {
         _currentSession = null;
 
@@ -66,7 +72,13 @@ internal sealed class RazorCommandFilter : IOleCommandTarget
         return (char)(ushort)Marshal.GetObjectForNativeVariant(pvaIn);
     }
 
-    public int Exec(ref Guid pguidCmdGroup, uint nCmdID, uint nCmdexecopt, IntPtr pvaIn, IntPtr pvaOut)
+    public int Exec(
+        ref Guid pguidCmdGroup,
+        uint nCmdID,
+        uint nCmdexecopt,
+        IntPtr pvaIn,
+        IntPtr pvaOut
+    )
     {
         ThreadHelper.ThrowIfNotOnUIThread();
 
@@ -105,12 +117,18 @@ internal sealed class RazorCommandFilter : IOleCommandTarget
         }
 
         // Is the caret in a class="" scope?
-        if (RazorParser.IsCursorInClassScope(_textView, out var classSpan) == false || classSpan is null)
+        if (
+            RazorParser.IsCursorInClassScope(_textView, out var classSpan) == false
+            || classSpan is null
+        )
         {
             return _next.Exec(pguidCmdGroup, nCmdID, nCmdexecopt, pvaIn, pvaOut);
         }
 
-        var truncatedClassSpan = new SnapshotSpan(classSpan.Value.Start, _textView.Caret.Position.BufferPosition);
+        var truncatedClassSpan = new SnapshotSpan(
+            classSpan.Value.Start,
+            _textView.Caret.Position.BufferPosition
+        );
         var classText = truncatedClassSpan.GetText();
 
         var last = classText.Split(' ').Last();
@@ -125,7 +143,10 @@ internal sealed class RazorCommandFilter : IOleCommandTarget
 
                 var newText = last + character;
 
-                if (newText.StartsWith("@") && !(newText.StartsWith("@@") || newText.StartsWith("@(\"@\")")))
+                if (
+                    newText.StartsWith("@")
+                    && !(newText.StartsWith("@@") || newText.StartsWith("@(\"@\")"))
+                )
                 {
                     _currentSession?.Dismiss();
                     return _next.Exec(pguidCmdGroup, nCmdID, nCmdexecopt, pvaIn, pvaOut);
@@ -133,12 +154,18 @@ internal sealed class RazorCommandFilter : IOleCommandTarget
 
                 handled = true;
             }
-            else if (nCmdID == (uint)VSConstants.VSStd2KCmdID.BACKSPACE &&
-                !string.IsNullOrEmpty(last) && last.Length >= 1)
+            else if (
+                nCmdID == (uint)VSConstants.VSStd2KCmdID.BACKSPACE
+                && !string.IsNullOrEmpty(last)
+                && last.Length >= 1
+            )
             {
                 var newText = last.Substring(0, last.Length - 1);
 
-                if (newText.StartsWith("@") && !(newText.StartsWith("@@") || newText.StartsWith("@(\"@\")")))
+                if (
+                    newText.StartsWith("@")
+                    && !(newText.StartsWith("@@") || newText.StartsWith("@(\"@\")"))
+                )
                 {
                     _currentSession?.Dismiss();
                     return _next.Exec(pguidCmdGroup, nCmdID, nCmdexecopt, pvaIn, pvaOut);
@@ -148,7 +175,11 @@ internal sealed class RazorCommandFilter : IOleCommandTarget
             }
         }
 
-        if (!handled && last.StartsWith("@") && !(last.StartsWith("@@") || last.StartsWith("@(\"@\")")))
+        if (
+            !handled
+            && last.StartsWith("@")
+            && !(last.StartsWith("@@") || last.StartsWith("@(\"@\")"))
+        )
         {
             return _next.Exec(pguidCmdGroup, nCmdID, nCmdexecopt, pvaIn, pvaOut);
         }
@@ -211,8 +242,15 @@ internal sealed class RazorCommandFilter : IOleCommandTarget
 
                         var newText = last + character;
 
-                        if (_currentSession == null || character == ' ' || character == '/' || character == ':' || (!string.IsNullOrWhiteSpace(classText) && character == '!') ||
-                            newText.StartsWith("@@") || newText.StartsWith("@(\"@\")"))
+                        if (
+                            _currentSession == null
+                            || character == ' '
+                            || character == '/'
+                            || character == ':'
+                            || (!string.IsNullOrWhiteSpace(classText) && character == '!')
+                            || newText.StartsWith("@@")
+                            || newText.StartsWith("@(\"@\")")
+                        )
                         {
                             _currentSession?.Dismiss();
                             StartSession();
@@ -232,7 +270,12 @@ internal sealed class RazorCommandFilter : IOleCommandTarget
                         {
                             break;
                         }
-                        if (_currentSession == null || classText.EndsWith("/") || classText.EndsWith(":") || classText.Trim() == "!")
+                        if (
+                            _currentSession == null
+                            || classText.EndsWith("/")
+                            || classText.EndsWith(":")
+                            || classText.Trim() == "!"
+                        )
                         {
                             _currentSession?.Dismiss();
                             StartSession();
@@ -275,7 +318,9 @@ internal sealed class RazorCommandFilter : IOleCommandTarget
     private void Filter()
     {
         if (_currentSession == null || _currentSession.SelectedCompletionSet == null)
+        {
             return;
+        }
 
         _currentSession.SelectedCompletionSet.Filter();
         _currentSession.SelectedCompletionSet.SelectBestMatch();
@@ -287,7 +332,9 @@ internal sealed class RazorCommandFilter : IOleCommandTarget
     bool Cancel()
     {
         if (_currentSession == null)
+        {
             return false;
+        }
 
         _currentSession.Dismiss();
 
@@ -299,8 +346,14 @@ internal sealed class RazorCommandFilter : IOleCommandTarget
     /// </summary>
     bool Complete(bool force)
     {
-        if (_currentSession == null || _currentSession.SelectedCompletionSet == null || _currentSession.SelectedCompletionSet.SelectionStatus == null)
+        if (
+            _currentSession == null
+            || _currentSession.SelectedCompletionSet == null
+            || _currentSession.SelectedCompletionSet.SelectionStatus == null
+        )
+        {
             return false;
+        }
 
         if (!_currentSession.SelectedCompletionSet.SelectionStatus.IsSelected)
         {
@@ -315,7 +368,11 @@ internal sealed class RazorCommandFilter : IOleCommandTarget
             }
         }
 
-        var completionText = _currentSession.SelectedCompletionSet.SelectionStatus.Completion?.InsertionText;
+        var completionText = _currentSession
+            .SelectedCompletionSet
+            .SelectionStatus
+            .Completion
+            ?.InsertionText;
 
         if (string.IsNullOrWhiteSpace(completionText))
         {
@@ -345,11 +402,14 @@ internal sealed class RazorCommandFilter : IOleCommandTarget
     bool StartSession()
     {
         if (_currentSession != null && _currentSession.IsDismissed == false)
+        {
             return false;
+        }
 
-        var caretPoint =
-            _textView.Caret.Position.Point.GetPoint(
-            textBuffer => !textBuffer.ContentType.IsOfType("projection"), PositionAffinity.Predecessor);
+        var caretPoint = _textView.Caret.Position.Point.GetPoint(
+            textBuffer => !textBuffer.ContentType.IsOfType("projection"),
+            PositionAffinity.Predecessor
+        );
 
         if (!caretPoint.HasValue)
         {
@@ -364,7 +424,11 @@ internal sealed class RazorCommandFilter : IOleCommandTarget
 
         if (completionActive)
         {
-            _currentSession = _broker.GetSessions(_textView).FirstOrDefault(s => s.SelectedCompletionSet?.DisplayName?.Contains("Shim") == false);
+            _currentSession = _broker
+                .GetSessions(_textView)
+                .FirstOrDefault(s =>
+                    s.SelectedCompletionSet?.DisplayName?.Contains("Shim") == false
+                );
 
             if (_currentSession is not null)
             {
@@ -389,7 +453,11 @@ internal sealed class RazorCommandFilter : IOleCommandTarget
         if (!completionActive || _currentSession is null)
         {
             DismissOtherSessions();
-            _currentSession = _broker.CreateCompletionSession(_textView, snapshot.CreateTrackingPoint(caret, PointTrackingMode.Positive), true);
+            _currentSession = _broker.CreateCompletionSession(
+                _textView,
+                snapshot.CreateTrackingPoint(caret, PointTrackingMode.Positive),
+                true
+            );
             _currentSession.Dismissed += (sender, args) => _currentSession = null;
             _currentSession.Start();
         }

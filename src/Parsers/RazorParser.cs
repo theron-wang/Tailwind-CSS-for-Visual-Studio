@@ -1,7 +1,7 @@
-﻿using Microsoft.VisualStudio.Text;
-using Microsoft.VisualStudio.Text.Editor;
-using System;
+﻿using System;
 using System.Collections.Generic;
+using Microsoft.VisualStudio.Text;
+using Microsoft.VisualStudio.Text.Editor;
 
 namespace TailwindCSSIntellisense.Parsers;
 
@@ -13,9 +13,16 @@ internal static class RazorParser
     /// <param name="snapshot">The text snapshot</param>
     /// <param name="trigger">The trigger, such as the caret or the quick info location</param>
     /// <param name="fullClassScope">The output SnapshotSpan of the <b>entire</b> class scope</param>
-    public static bool IsInClassScope(ITextSnapshot snapshot, SnapshotPoint trigger, out SnapshotSpan? fullClassScope)
+    public static bool IsInClassScope(
+        ITextSnapshot snapshot,
+        SnapshotPoint trigger,
+        out SnapshotSpan? fullClassScope
+    )
     {
-        var expandedSearchText = snapshot.GetText(0, Math.Min((int)trigger + 2000, snapshot.Length));
+        var expandedSearchText = snapshot.GetText(
+            0,
+            Math.Min((int)trigger + 2000, snapshot.Length)
+        );
 
         foreach (var match in ClassRegexHelper.GetClassesRazor(expandedSearchText))
         {
@@ -40,7 +47,11 @@ internal static class RazorParser
     /// <param name="fullClassScope">The output SnapshotSpan of the <b>entire</b> class scope</param>
     public static bool IsCursorInClassScope(ITextView textView, out SnapshotSpan? fullClassScope)
     {
-        return IsInClassScope(textView.TextSnapshot, textView.Caret.Position.BufferPosition, out fullClassScope);
+        return IsInClassScope(
+            textView.TextSnapshot,
+            textView.Caret.Position.BufferPosition,
+            out fullClassScope
+        );
     }
 
     /// <summary>
@@ -50,9 +61,20 @@ internal static class RazorParser
     {
         var start = Math.Max(0, (int)span.Start - 2000);
 
-        foreach (var scope in ClassRegexHelper.GetClassesRazorEnumerator(span.Snapshot.GetText(start, Math.Min(span.Snapshot.Length, (int)span.End + 2000) - start)))
+        foreach (
+            var scope in ClassRegexHelper.GetClassesRazorEnumerator(
+                span.Snapshot.GetText(
+                    start,
+                    Math.Min(span.Snapshot.Length, (int)span.End + 2000) - start
+                )
+            )
+        )
         {
-            var potentialReturn = new SnapshotSpan(span.Snapshot, start + scope.Index, scope.Length);
+            var potentialReturn = new SnapshotSpan(
+                span.Snapshot,
+                start + scope.Index,
+                scope.Length
+            );
 
             if (!potentialReturn.IntersectsWith(span))
             {
@@ -70,7 +92,14 @@ internal static class RazorParser
     {
         var start = Math.Max(0, (int)span.Start - 2000);
 
-        foreach (var scope in ClassRegexHelper.GetClassesRazorEnumerator(span.Snapshot.GetText(start, Math.Min(span.Snapshot.Length, (int)span.End + 2000) - start)))
+        foreach (
+            var scope in ClassRegexHelper.GetClassesRazorEnumerator(
+                span.Snapshot.GetText(
+                    start,
+                    Math.Min(span.Snapshot.Length, (int)span.End + 2000) - start
+                )
+            )
+        )
         {
             var text = ClassRegexHelper.GetClassTextGroup(scope);
             var potentialReturn = new SnapshotSpan(span.Snapshot, start + text.Index, text.Length);
@@ -96,7 +125,14 @@ internal static class RazorParser
         // For GetApplicableTo, we want what is before.
         var checkPoint = point == 0 ? point : point - 1;
 
-        foreach (var scope in ClassRegexHelper.GetClassesRazorEnumerator(point.Snapshot.GetText(start, Math.Min(point.Snapshot.Length, (int)point + 2000) - start)))
+        foreach (
+            var scope in ClassRegexHelper.GetClassesRazorEnumerator(
+                point.Snapshot.GetText(
+                    start,
+                    Math.Min(point.Snapshot.Length, (int)point + 2000) - start
+                )
+            )
+        )
         {
             var text = ClassRegexHelper.GetClassTextGroup(scope);
             var lower = start + scope.Index;
@@ -109,7 +145,11 @@ internal static class RazorParser
 
             foreach (var token in ClassRegexHelper.SplitRazorClasses(text.Value))
             {
-                var potentialReturn = new SnapshotSpan(point.Snapshot, start + text.Index + token.Index, token.Length);
+                var potentialReturn = new SnapshotSpan(
+                    point.Snapshot,
+                    start + text.Index + token.Index,
+                    token.Length
+                );
 
                 if (!potentialReturn.Contains(checkPoint))
                 {

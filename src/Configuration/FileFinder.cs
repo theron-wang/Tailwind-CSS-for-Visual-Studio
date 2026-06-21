@@ -1,12 +1,12 @@
-﻿using Community.VisualStudio.Toolkit;
-using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Shell.Interop;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Community.VisualStudio.Toolkit;
+using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Shell.Interop;
 
 namespace TailwindCSSIntellisense.Configuration;
 
@@ -20,7 +20,9 @@ public sealed class FileFinder
     /// Finds all Javascript files (.js) within the solution
     /// </summary>
     /// <returns>The absolute paths to all Javascript files</returns>
-    internal Task<List<string>> GetJavascriptFilesAsync() => FindAllFilesAsync(DefaultConfigurationFileNames.Extensions);
+    internal Task<List<string>> GetJavascriptFilesAsync() =>
+        FindAllFilesAsync(DefaultConfigurationFileNames.Extensions);
+
     /// <summary>
     /// Finds all CSS files (.css) within the solution
     /// </summary>
@@ -64,7 +66,9 @@ public sealed class FileFinder
         return TraverseAllProjectsAndFindFilesOfTypeAsync(extensions);
     }
 
-    internal async Task<List<string>> TraverseAllProjectsAndFindFilesOfTypeAsync(IEnumerable<string> extensions)
+    internal async Task<List<string>> TraverseAllProjectsAndFindFilesOfTypeAsync(
+        IEnumerable<string> extensions
+    )
     {
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
         var projects = await GetAllProjectsAsync();
@@ -81,8 +85,10 @@ public sealed class FileFinder
 
             var files = Directory
                 .EnumerateFiles(miscPath, "*.*", SearchOption.AllDirectories)
-                .Where(file => extensions.Contains(Path.GetExtension(file).ToLower()) &&
-                               !file.Split(Path.DirectorySeparatorChar).Contains("node_modules"));
+                .Where(file =>
+                    extensions.Contains(Path.GetExtension(file).ToLower())
+                    && !file.Split(Path.DirectorySeparatorChar).Contains("node_modules")
+                );
             return [.. files];
         }
 
@@ -90,24 +96,40 @@ public sealed class FileFinder
 
         foreach (var project in projects)
         {
-            projectItems.AddRange(GetProjectItems([.. project.Children.Where(c => c is not null).Select(c => c!)], extensions));
+            projectItems.AddRange(
+                GetProjectItems(
+                    [.. project.Children.Where(c => c is not null).Select(c => c!)],
+                    extensions
+                )
+            );
         }
 
         return [.. projectItems.Select(i => i.Name)];
     }
 
-    private List<SolutionItem> GetProjectItems(List<SolutionItem> projectItems, IEnumerable<string> extensions)
+    private List<SolutionItem> GetProjectItems(
+        List<SolutionItem> projectItems,
+        IEnumerable<string> extensions
+    )
     {
         var list = new List<SolutionItem>();
         foreach (var item in projectItems)
         {
-            if (item.Type == SolutionItemType.PhysicalFile && extensions.Contains(Path.GetExtension(item.Name)))
+            if (
+                item.Type == SolutionItemType.PhysicalFile
+                && extensions.Contains(Path.GetExtension(item.Name))
+            )
             {
                 list.Add(item);
             }
             else if (item.Type == SolutionItemType.PhysicalFolder)
             {
-                list.AddRange(GetProjectItems([.. item.Children.Where(c => c is not null).Select(c => c!)], extensions));
+                list.AddRange(
+                    GetProjectItems(
+                        [.. item.Children.Where(c => c is not null).Select(c => c!)],
+                        extensions
+                    )
+                );
             }
         }
 

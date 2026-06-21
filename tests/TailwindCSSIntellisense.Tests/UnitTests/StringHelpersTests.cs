@@ -1,5 +1,3 @@
-using TailwindCSSIntellisense.Helpers;
-
 namespace TailwindCSSIntellisense.Tests.UnitTests;
 
 public class StringHelpersTests

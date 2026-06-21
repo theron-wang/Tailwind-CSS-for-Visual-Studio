@@ -5,7 +5,6 @@ namespace TailwindCSSIntellisense.Initialization;
 
 internal abstract class ClassTypeBase
 {
-
     [JsonPropertyName("s")]
     public string Stem { get; set; } = null!;
 

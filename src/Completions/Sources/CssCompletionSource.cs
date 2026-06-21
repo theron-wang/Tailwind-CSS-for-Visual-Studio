@@ -1,11 +1,11 @@
-﻿using Microsoft.VisualStudio.Imaging.Interop;
-using Microsoft.VisualStudio.Language.Intellisense;
-using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Text;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.VisualStudio.Imaging.Interop;
+using Microsoft.VisualStudio.Language.Intellisense;
+using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Text;
 using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Options;
 using TailwindCSSIntellisense.Settings;
@@ -19,7 +19,24 @@ internal class CssCompletionSource : ClassCompletionGenerator, ICompletionSource
 {
     private UnsetProjectCompletionValues? _unsetProjectCompletionValues;
 
-    public CssCompletionSource(ITextBuffer textBuffer, ProjectConfigurationManager completionUtils, ColorIconGenerator colorIconGenerator, DescriptionGenerator descriptionGenerator, SettingsProvider settingsProvider, CompletionConfiguration completionConfiguration, ProjectConfigurationInitializer projectCompletionInit) : base(textBuffer, completionUtils, colorIconGenerator, descriptionGenerator, settingsProvider, completionConfiguration, projectCompletionInit)
+    public CssCompletionSource(
+        ITextBuffer textBuffer,
+        ProjectConfigurationManager completionUtils,
+        ColorIconGenerator colorIconGenerator,
+        DescriptionGenerator descriptionGenerator,
+        SettingsProvider settingsProvider,
+        CompletionConfiguration completionConfiguration,
+        ProjectConfigurationInitializer projectCompletionInit
+    )
+        : base(
+            textBuffer,
+            completionUtils,
+            colorIconGenerator,
+            descriptionGenerator,
+            settingsProvider,
+            completionConfiguration,
+            projectCompletionInit
+        )
     {
         Initialize();
     }
@@ -29,7 +46,10 @@ internal class CssCompletionSource : ClassCompletionGenerator, ICompletionSource
     /// </summary>
     /// <param name="session">VS provided</param>
     /// <param name="completionSets">VS provided</param>
-    void ICompletionSource.AugmentCompletionSession(ICompletionSession session, IList<CompletionSet> completionSets)
+    void ICompletionSource.AugmentCompletionSession(
+        ICompletionSession session,
+        IList<CompletionSet> completionSets
+    )
     {
         if (_settings is null)
         {
@@ -38,7 +58,12 @@ internal class CssCompletionSource : ClassCompletionGenerator, ICompletionSource
 
         _showAutocomplete ??= _settings.EnableTailwindCss;
 
-        if (_showAutocomplete == false || _settings.ConfigurationFiles.Count == 0 || _projectCompletionValues is null || _unsetProjectCompletionValues is null)
+        if (
+            _showAutocomplete == false
+            || _settings.ConfigurationFiles.Count == 0
+            || _projectCompletionValues is null
+            || _unsetProjectCompletionValues is null
+        )
         {
             return;
         }
@@ -69,26 +94,82 @@ internal class CssCompletionSource : ClassCompletionGenerator, ICompletionSource
                         case "@tailwind":
                             completions =
                             [
-                                new("base", "base", "base", ProjectConfigurationManager.TailwindLogo, null),
-                                new("components", "components", "components", ProjectConfigurationManager.TailwindLogo, null),
-                                new("utilities", "utilities", "utilities", ProjectConfigurationManager.TailwindLogo, null),
-                                new("screens", "screens", "screens", ProjectConfigurationManager.TailwindLogo, null),
-                                new("variants", "variants", "variants", ProjectConfigurationManager.TailwindLogo, null)
+                                new(
+                                    "base",
+                                    "base",
+                                    "base",
+                                    ProjectConfigurationManager.TailwindLogo,
+                                    null
+                                ),
+                                new(
+                                    "components",
+                                    "components",
+                                    "components",
+                                    ProjectConfigurationManager.TailwindLogo,
+                                    null
+                                ),
+                                new(
+                                    "utilities",
+                                    "utilities",
+                                    "utilities",
+                                    ProjectConfigurationManager.TailwindLogo,
+                                    null
+                                ),
+                                new(
+                                    "screens",
+                                    "screens",
+                                    "screens",
+                                    ProjectConfigurationManager.TailwindLogo,
+                                    null
+                                ),
+                                new(
+                                    "variants",
+                                    "variants",
+                                    "variants",
+                                    ProjectConfigurationManager.TailwindLogo,
+                                    null
+                                ),
                             ];
                             break;
                         case "@layer":
                             completions =
                             [
-                                new("base", "base", "base", ProjectConfigurationManager.TailwindLogo, null),
-                                new("components", "components", "components", ProjectConfigurationManager.TailwindLogo, null),
-                                new("utilities", "utilities", "utilities", ProjectConfigurationManager.TailwindLogo, null)
+                                new(
+                                    "base",
+                                    "base",
+                                    "base",
+                                    ProjectConfigurationManager.TailwindLogo,
+                                    null
+                                ),
+                                new(
+                                    "components",
+                                    "components",
+                                    "components",
+                                    ProjectConfigurationManager.TailwindLogo,
+                                    null
+                                ),
+                                new(
+                                    "utilities",
+                                    "utilities",
+                                    "utilities",
+                                    ProjectConfigurationManager.TailwindLogo,
+                                    null
+                                ),
                             ];
                             break;
                         case "@media":
                             completions = [];
                             foreach (var screen in _projectCompletionValues.Breakpoints)
                             {
-                                completions.Add(new($"screen({screen})", $"screen({screen})", $"screen({screen})", ProjectConfigurationManager.TailwindLogo, null));
+                                completions.Add(
+                                    new(
+                                        $"screen({screen})",
+                                        $"screen({screen})",
+                                        $"screen({screen})",
+                                        ProjectConfigurationManager.TailwindLogo,
+                                        null
+                                    )
+                                );
                             }
                             break;
                     }
@@ -99,10 +180,34 @@ internal class CssCompletionSource : ClassCompletionGenerator, ICompletionSource
                     {
                         completions =
                         [
-                            new("reference", "reference", "Don't emit CSS variables for these theme values.", ProjectConfigurationManager.TailwindLogo, null),
-                            new("inline", "inline", "Inline these theme values into generated utilities instead of using var(…).", ProjectConfigurationManager.TailwindLogo, null),
-                            new("static", "static", "Always emit these theme values into the CSS file instead of only when used.", ProjectConfigurationManager.TailwindLogo, null),
-                            new("default", "default", "Allow these theme values to be overriden by JS configs and plugins.", ProjectConfigurationManager.TailwindLogo, null)
+                            new(
+                                "reference",
+                                "reference",
+                                "Don't emit CSS variables for these theme values.",
+                                ProjectConfigurationManager.TailwindLogo,
+                                null
+                            ),
+                            new(
+                                "inline",
+                                "inline",
+                                "Inline these theme values into generated utilities instead of using var(…).",
+                                ProjectConfigurationManager.TailwindLogo,
+                                null
+                            ),
+                            new(
+                                "static",
+                                "static",
+                                "Always emit these theme values into the CSS file instead of only when used.",
+                                ProjectConfigurationManager.TailwindLogo,
+                                null
+                            ),
+                            new(
+                                "default",
+                                "default",
+                                "Allow these theme values to be overriden by JS configs and plugins.",
+                                ProjectConfigurationManager.TailwindLogo,
+                                null
+                            ),
                         ];
                     }
                 }
@@ -114,19 +219,68 @@ internal class CssCompletionSource : ClassCompletionGenerator, ICompletionSource
                     completions =
                     [
                         // Directive completions are hard-coded in as there are only two of them
-                        new("@tailwind", "@tailwind", "Use the @tailwind directive to insert Tailwind’s base, components, utilities and variants styles into your CSS.", ProjectConfigurationManager.TailwindLogo, null),
-                        new("@config", "@config", "Use the @config directive to specify which config file Tailwind should use when compiling that CSS file. This is useful for projects that need to use different configuration files for different CSS entry points.", ProjectConfigurationManager.TailwindLogo, null)
+                        new(
+                            "@tailwind",
+                            "@tailwind",
+                            "Use the @tailwind directive to insert Tailwind’s base, components, utilities and variants styles into your CSS.",
+                            ProjectConfigurationManager.TailwindLogo,
+                            null
+                        ),
+                        new(
+                            "@config",
+                            "@config",
+                            "Use the @config directive to specify which config file Tailwind should use when compiling that CSS file. This is useful for projects that need to use different configuration files for different CSS entry points.",
+                            ProjectConfigurationManager.TailwindLogo,
+                            null
+                        ),
                     ];
                 }
                 else
                 {
-                    completions = [
-                        new("@theme", "@theme", "Use the @theme directive to specify which config file Tailwind should use when compiling that CSS file.", ProjectConfigurationManager.TailwindLogo, null),
-                        new("@source", "@source", "Use the @source directive to explicitly specify source files that aren't picked up by Tailwind's automatic content detection.", ProjectConfigurationManager.TailwindLogo, null),
-                        new("@utility", "@utility", "Use the @utility directive to define a custom utility.", ProjectConfigurationManager.TailwindLogo, null),
-                        new("@custom-variant", "@custom-variant", "Use the @custom-variant directive to add a custom variant in your project.", ProjectConfigurationManager.TailwindLogo, null),
-                        new("@config", "@config", "Use the @config directive to specify which config file Tailwind should use when compiling that CSS file.", ProjectConfigurationManager.TailwindLogo, null),
-                        new("@plugin", "@plugin", "Use the @plugin directive to include a JS plugin in your Tailwind CSS build.", ProjectConfigurationManager.TailwindLogo, null)
+                    completions =
+                    [
+                        new(
+                            "@theme",
+                            "@theme",
+                            "Use the @theme directive to specify which config file Tailwind should use when compiling that CSS file.",
+                            ProjectConfigurationManager.TailwindLogo,
+                            null
+                        ),
+                        new(
+                            "@source",
+                            "@source",
+                            "Use the @source directive to explicitly specify source files that aren't picked up by Tailwind's automatic content detection.",
+                            ProjectConfigurationManager.TailwindLogo,
+                            null
+                        ),
+                        new(
+                            "@utility",
+                            "@utility",
+                            "Use the @utility directive to define a custom utility.",
+                            ProjectConfigurationManager.TailwindLogo,
+                            null
+                        ),
+                        new(
+                            "@custom-variant",
+                            "@custom-variant",
+                            "Use the @custom-variant directive to add a custom variant in your project.",
+                            ProjectConfigurationManager.TailwindLogo,
+                            null
+                        ),
+                        new(
+                            "@config",
+                            "@config",
+                            "Use the @config directive to specify which config file Tailwind should use when compiling that CSS file.",
+                            ProjectConfigurationManager.TailwindLogo,
+                            null
+                        ),
+                        new(
+                            "@plugin",
+                            "@plugin",
+                            "Use the @plugin directive to include a JS plugin in your Tailwind CSS build.",
+                            ProjectConfigurationManager.TailwindLogo,
+                            null
+                        ),
                     ];
                 }
             }
@@ -135,7 +289,15 @@ internal class CssCompletionSource : ClassCompletionGenerator, ICompletionSource
         {
             if (IsUsingApplyDirective(session))
             {
-                var classRaw = applicableTo.GetText(snapshot).Split(["@apply"], StringSplitOptions.None).Last().TrimStart().Split(' ').Last() ?? "";
+                var classRaw =
+                    applicableTo
+                        .GetText(snapshot)
+                        .Split(["@apply"], StringSplitOptions.None)
+                        .Last()
+                        .TrimStart()
+                        .Split(' ')
+                        .Last()
+                    ?? "";
 
                 completions = GetCompletions(classRaw);
             }
@@ -143,13 +305,25 @@ internal class CssCompletionSource : ClassCompletionGenerator, ICompletionSource
             {
                 completions.Add(
                     // @apply completion is the only completion in this context
-                    new Completion("@apply", "@apply", "Use @apply to inline any existing utility classes into your own custom CSS.", ProjectConfigurationManager.TailwindLogo, null)
+                    new Completion(
+                        "@apply",
+                        "@apply",
+                        "Use @apply to inline any existing utility classes into your own custom CSS.",
+                        ProjectConfigurationManager.TailwindLogo,
+                        null
+                    )
                 );
                 if (_projectCompletionValues.Version >= TailwindVersion.V4)
                 {
                     completions.Add(
                         // @apply completion is the only completion in this context
-                        new Completion("@variant", "@variant", "Use the @variant directive to apply a Tailwind variant to styles in your CSS.", ProjectConfigurationManager.TailwindLogo, null)
+                        new Completion(
+                            "@variant",
+                            "@variant",
+                            "Use the @variant directive to apply a Tailwind variant to styles in your CSS.",
+                            ProjectConfigurationManager.TailwindLogo,
+                            null
+                        )
                     );
                 }
             }
@@ -157,15 +331,22 @@ internal class CssCompletionSource : ClassCompletionGenerator, ICompletionSource
             {
                 completions =
                 [
-                    new Completion("theme()", "theme()",
-                    _projectCompletionValues.Version >= TailwindVersion.V4 ?
-                        "Deprecated - use CSS theme variables instead." :
-                        "Use the theme() function to access your Tailwind config values using dot notation.",
-                    ProjectConfigurationManager.TailwindLogo, null)
+                    new Completion(
+                        "theme()",
+                        "theme()",
+                        _projectCompletionValues.Version >= TailwindVersion.V4
+                            ? "Deprecated - use CSS theme variables instead."
+                            : "Use the theme() function to access your Tailwind config values using dot notation.",
+                        ProjectConfigurationManager.TailwindLogo,
+                        null
+                    ),
                 ];
             }
         }
-        else if (IsCaretInBlock(session, out _, "@theme") && _projectCompletionValues.Version >= TailwindVersion.V4)
+        else if (
+            IsCaretInBlock(session, out _, "@theme")
+            && _projectCompletionValues.Version >= TailwindVersion.V4
+        )
         {
             var text = line.GetText();
 
@@ -175,10 +356,15 @@ internal class CssCompletionSource : ClassCompletionGenerator, ICompletionSource
             }
 
             completions =
-                [.._unsetProjectCompletionValues.ThemeStems
-                .Select(t =>
-                    new Completion(t, t, "", ProjectConfigurationManager.TailwindLogo, null)
-                )];
+            [
+                .. _unsetProjectCompletionValues.ThemeStems.Select(t => new Completion(
+                    t,
+                    t,
+                    "",
+                    ProjectConfigurationManager.TailwindLogo,
+                    null
+                )),
+            ];
         }
 
         if (completionSets.Count == 1)
@@ -187,21 +373,48 @@ internal class CssCompletionSource : ClassCompletionGenerator, ICompletionSource
 
             if (defaultCompletionSet.Completions.Count > 0)
             {
-                var addToBeginning = ThreadHelper.JoinableTaskFactory.Run(General.GetLiveInstanceAsync).TailwindCompletionsComeFirst;
+                var addToBeginning = ThreadHelper
+                    .JoinableTaskFactory.Run(General.GetLiveInstanceAsync)
+                    .TailwindCompletionsComeFirst;
 
                 if (addToBeginning)
                 {
                     // Cast to Completion3 to gain access to IconMoniker
                     // Return new Completion3 so session commit will actually commit the text
-                    completions.AddRange(defaultCompletionSet.Completions
-                        .Cast<Completion3>()
-                        .Select(c => new Completion3(c.DisplayText, c.InsertionText, c.Description, new ImageMoniker() { Guid = c.IconMoniker.Guid, Id = c.IconMoniker.Id }, c.IconAutomationText)));
+                    completions.AddRange(
+                        defaultCompletionSet
+                            .Completions.Cast<Completion3>()
+                            .Select(c => new Completion3(
+                                c.DisplayText,
+                                c.InsertionText,
+                                c.Description,
+                                new ImageMoniker()
+                                {
+                                    Guid = c.IconMoniker.Guid,
+                                    Id = c.IconMoniker.Id,
+                                },
+                                c.IconAutomationText
+                            ))
+                    );
                 }
                 else
                 {
-                    completions.InsertRange(0, defaultCompletionSet.Completions
-                        .Cast<Completion3>()
-                        .Select(c => new Completion3(c.DisplayText, c.InsertionText, c.Description, new ImageMoniker() { Guid = c.IconMoniker.Guid, Id = c.IconMoniker.Id }, c.IconAutomationText)));
+                    completions.InsertRange(
+                        0,
+                        defaultCompletionSet
+                            .Completions.Cast<Completion3>()
+                            .Select(c => new Completion3(
+                                c.DisplayText,
+                                c.InsertionText,
+                                c.Description,
+                                new ImageMoniker()
+                                {
+                                    Guid = c.IconMoniker.Guid,
+                                    Id = c.IconMoniker.Id,
+                                },
+                                c.IconAutomationText
+                            ))
+                    );
                 }
             }
 
@@ -210,7 +423,8 @@ internal class CssCompletionSource : ClassCompletionGenerator, ICompletionSource
                 defaultCompletionSet.DisplayName,
                 applicableTo,
                 completions,
-                defaultCompletionSet.CompletionBuilders);
+                defaultCompletionSet.CompletionBuilders
+            );
 
             // Overrides the original completion set so there aren't two different completion tabs
             completionSets.Clear();
@@ -218,12 +432,9 @@ internal class CssCompletionSource : ClassCompletionGenerator, ICompletionSource
         }
         else
         {
-            completionSets.Add(new TailwindCssCompletionSet(
-                "All",
-                "All",
-                applicableTo,
-                completions,
-                []));
+            completionSets.Add(
+                new TailwindCssCompletionSet("All", "All", applicableTo, completions, [])
+            );
         }
     }
 
@@ -250,10 +461,17 @@ internal class CssCompletionSource : ClassCompletionGenerator, ICompletionSource
             start += 1;
         }
 
-        return snapshot.CreateTrackingSpan(new SnapshotSpan(start, end), SpanTrackingMode.EdgeInclusive);
+        return snapshot.CreateTrackingSpan(
+            new SnapshotSpan(start, end),
+            SpanTrackingMode.EdgeInclusive
+        );
     }
 
-    private bool IsCaretInBlock(ICompletionSession session, out bool isInBaseDirectiveBlock, params string[] directives)
+    private bool IsCaretInBlock(
+        ICompletionSession session,
+        out bool isInBaseDirectiveBlock,
+        params string[] directives
+    )
     {
         var startPos = new SnapshotPoint(session.TextView.TextSnapshot, 0);
         var caretPos = session.TextView.Caret.Position.BufferPosition;
@@ -268,14 +486,20 @@ internal class CssCompletionSource : ClassCompletionGenerator, ICompletionSource
 
         // If no open brace ('{') is found or close brace ('{') is closer to caret than open brace
         // AND also there are no @media or @layer directives
-        if ((lastIndexOfOpenBrace == -1 || lastIndexOfCloseBrace > lastIndexOfOpenBrace) && lastIndexOfCloserDirective == -1)
+        if (
+            (lastIndexOfOpenBrace == -1 || lastIndexOfCloseBrace > lastIndexOfOpenBrace)
+            && lastIndexOfCloserDirective == -1
+        )
         {
             isInBaseDirectiveBlock = false;
             return false;
         }
         else if (lastIndexOfCloserDirective != -1)
         {
-            var indexOfOpeningBraceClosestToCloserDirective = text.IndexOf('{', lastIndexOfCloserDirective);
+            var indexOfOpeningBraceClosestToCloserDirective = text.IndexOf(
+                '{',
+                lastIndexOfCloserDirective
+            );
 
             if (indexOfOpeningBraceClosestToCloserDirective == lastIndexOfOpenBrace)
             {
@@ -291,7 +515,10 @@ internal class CssCompletionSource : ClassCompletionGenerator, ICompletionSource
                 }
 
                 // Caret is after @ directive and before the opening brace
-                if (lastIndexOfCloserDirective < caretPos.Position && indexOfOpeningBraceClosestToCloserDirective == -1)
+                if (
+                    lastIndexOfCloserDirective < caretPos.Position
+                    && indexOfOpeningBraceClosestToCloserDirective == -1
+                )
                 {
                     isInBaseDirectiveBlock = false;
                     return false;
@@ -302,14 +529,22 @@ internal class CssCompletionSource : ClassCompletionGenerator, ICompletionSource
 
                 isInBaseDirectiveBlock = true;
 
-                var indexOfSecondToLastCloseBrace = text.LastIndexOf('}', lastIndexOfCloseBrace - 1);
+                var indexOfSecondToLastCloseBrace = text.LastIndexOf(
+                    '}',
+                    lastIndexOfCloseBrace - 1
+                );
 
                 if (indexOfSecondToLastCloseBrace == -1)
                 {
                     return true;
                 }
 
-                return !string.IsNullOrWhiteSpace(text.Substring(indexOfSecondToLastCloseBrace, lastIndexOfCloseBrace - indexOfSecondToLastCloseBrace));
+                return !string.IsNullOrWhiteSpace(
+                    text.Substring(
+                        indexOfSecondToLastCloseBrace,
+                        lastIndexOfCloseBrace - indexOfSecondToLastCloseBrace
+                    )
+                );
             }
         }
         else
@@ -343,7 +578,8 @@ internal class CssCompletionSource : ClassCompletionGenerator, ICompletionSource
         }
         else
         {
-            return text.EndsWith(";") || string.IsNullOrWhiteSpace(text.Substring(lastIndexOfSemicolon + 1));
+            return text.EndsWith(";")
+                || string.IsNullOrWhiteSpace(text.Substring(lastIndexOfSemicolon + 1));
         }
     }
 
@@ -379,6 +615,9 @@ internal class CssCompletionSource : ClassCompletionGenerator, ICompletionSource
     protected override async Task OnConfigurationUpdatedAsync()
     {
         // _projectCompletionValues is non-null as per base definition
-        _unsetProjectCompletionValues = await _projectCompletionInit.GetUnsetCompletionConfigurationAsync(_projectCompletionValues!.Version);
+        _unsetProjectCompletionValues =
+            await _projectCompletionInit.GetUnsetCompletionConfigurationAsync(
+                _projectCompletionValues!.Version
+            );
     }
 }

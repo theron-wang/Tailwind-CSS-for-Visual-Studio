@@ -1,7 +1,8 @@
-﻿using Microsoft.VisualStudio.Text;
-using System.IO;
+﻿using System.IO;
+using Microsoft.VisualStudio.Text;
 
 namespace TailwindCSSIntellisense.Helpers;
+
 internal static class LegacyRazorEditorHelper
 {
     /// <summary>
@@ -10,6 +11,9 @@ internal static class LegacyRazorEditorHelper
     internal static bool IsLegacyRazorEditor(this ITextBuffer textBuffer)
     {
         var fileName = textBuffer.GetFileName();
-        return !string.IsNullOrEmpty(fileName) && (Path.GetExtension(fileName) == ".cshtml" || Path.GetExtension(fileName) == ".razor");
+        return !string.IsNullOrEmpty(fileName)
+            && (
+                Path.GetExtension(fileName) == ".cshtml" || Path.GetExtension(fileName) == ".razor"
+            );
     }
 }

@@ -1,13 +1,13 @@
-﻿using Community.VisualStudio.Toolkit;
-using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Threading;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.ComponentModel.Composition;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Community.VisualStudio.Toolkit;
+using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Threading;
 using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Initialization;
 using TailwindCSSIntellisense.Settings;
@@ -26,7 +26,10 @@ public sealed class ProjectConfigurationInitializer
 
     internal List<int> Opacity { get; set; } = [];
 
-    private readonly Dictionary<TailwindVersion, UnsetProjectCompletionValues> _unsetProjectCompletionConfigurations = [];
+    private readonly Dictionary<
+        TailwindVersion,
+        UnsetProjectCompletionValues
+    > _unsetProjectCompletionConfigurations = [];
 
     private readonly SemaphoreSlim _initializeLock = new(1, 1);
     private readonly SemaphoreSlim _unsetConfigsLock = new(1, 1);
@@ -101,8 +104,7 @@ public sealed class ProjectConfigurationInitializer
             // Initial load of settings, which then triggers class loading based on the versions of the config files
             await SettingsProvider.GetSettingsAsync();
 
-            await VS.StatusBar.ShowMessageAsync(
-                "Tailwind CSS IntelliSense initialized");
+            await VS.StatusBar.ShowMessageAsync("Tailwind CSS IntelliSense initialized");
 
             return true;
         }
@@ -111,13 +113,16 @@ public sealed class ProjectConfigurationInitializer
             await ex.LogAsync();
 
             await VS.StatusBar.ShowMessageAsync(
-                "Tailwind CSS initialization failed: check extension output");
+                "Tailwind CSS initialization failed: check extension output"
+            );
 
             return false;
         }
     }
 
-    public async Task<UnsetProjectCompletionValues> GetUnsetCompletionConfigurationAsync(TailwindVersion version)
+    public async Task<UnsetProjectCompletionValues> GetUnsetCompletionConfigurationAsync(
+        TailwindVersion version
+    )
     {
         await InitializeAsync();
 
@@ -168,36 +173,34 @@ public sealed class ProjectConfigurationInitializer
                 {
                     if (string.IsNullOrWhiteSpace(v))
                     {
-                        classes.Add(new TailwindClass()
-                        {
-                            Name = classType.Stem
-                        });
+                        classes.Add(new TailwindClass() { Name = classType.Stem });
                     }
                     else
                     {
                         if (v.Contains("{s}"))
                         {
-                            classes.Add(new TailwindClass()
-                            {
-                                Name = classType.Stem + "-" + v.Replace("{s}", "{0}"),
-                                UseSpacing = true
-                            });
+                            classes.Add(
+                                new TailwindClass()
+                                {
+                                    Name = classType.Stem + "-" + v.Replace("{s}", "{0}"),
+                                    UseSpacing = true,
+                                }
+                            );
                         }
                         else if (v.Contains("{c}"))
                         {
-                            classes.Add(new TailwindClass()
-                            {
-                                Name = classType.Stem + "-" + v.Replace("{c}", "{0}"),
-                                UseColors = true,
-                                UseOpacity = classType.UseOpacity == true
-                            });
+                            classes.Add(
+                                new TailwindClass()
+                                {
+                                    Name = classType.Stem + "-" + v.Replace("{c}", "{0}"),
+                                    UseColors = true,
+                                    UseOpacity = classType.UseOpacity == true,
+                                }
+                            );
                         }
                         else
                         {
-                            classes.Add(new TailwindClass()
-                            {
-                                Name = classType.Stem + "-" + v
-                            });
+                            classes.Add(new TailwindClass() { Name = classType.Stem + "-" + v });
                         }
                     }
                 }
@@ -215,49 +218,57 @@ public sealed class ProjectConfigurationInitializer
                         {
                             if (string.IsNullOrWhiteSpace(v))
                             {
-                                classes.Add(new TailwindClass()
-                                {
-                                    Name = classType.Stem + "-" + subvariant.Stem
-                                });
+                                classes.Add(
+                                    new TailwindClass()
+                                    {
+                                        Name = classType.Stem + "-" + subvariant.Stem,
+                                    }
+                                );
                             }
                             else
                             {
-                                classes.Add(new TailwindClass()
-                                {
-                                    Name = classType.Stem + "-" + subvariant.Stem + "-" + v
-                                });
+                                classes.Add(
+                                    new TailwindClass()
+                                    {
+                                        Name = classType.Stem + "-" + subvariant.Stem + "-" + v,
+                                    }
+                                );
                             }
                         }
                     }
 
                     if (subvariant.Stem.Contains("{c}"))
                     {
-                        classes.Add(new TailwindClass()
-                        {
-                            Name = classType.Stem + "-" + subvariant.Stem.Replace("{c}", "{0}"),
-                            // Notify the completion provider to show color options
-                            UseColors = true,
-                            UseOpacity = classType.UseOpacity == true
-                        });
+                        classes.Add(
+                            new TailwindClass()
+                            {
+                                Name = classType.Stem + "-" + subvariant.Stem.Replace("{c}", "{0}"),
+                                // Notify the completion provider to show color options
+                                UseColors = true,
+                                UseOpacity = classType.UseOpacity == true,
+                            }
+                        );
                     }
                     else if (subvariant.Stem.Contains("{s}"))
                     {
-                        classes.Add(new TailwindClass()
-                        {
-                            Name = classType.Stem + "-" + subvariant.Stem.Replace("{s}", "{0}"),
-                            // Notify the completion provider to show spacing options
-                            UseSpacing = true
-                        });
+                        classes.Add(
+                            new TailwindClass()
+                            {
+                                Name = classType.Stem + "-" + subvariant.Stem.Replace("{s}", "{0}"),
+                                // Notify the completion provider to show spacing options
+                                UseSpacing = true,
+                            }
+                        );
                     }
                 }
             }
 
-            if ((classType.DirectVariants == null || classType.DirectVariants.Count == 0) && (classType.Subvariants == null || classType.Subvariants.Count == 0))
+            if (
+                (classType.DirectVariants == null || classType.DirectVariants.Count == 0)
+                && (classType.Subvariants == null || classType.Subvariants.Count == 0)
+            )
             {
-                var newClass = new TailwindClass()
-                {
-                    Name = classType.Stem
-                };
+                var newClass = new TailwindClass() { Name = classType.Stem };
                 if (classType.UseColors == true)
                 {
                     newClass.UseColors = true;
@@ -276,15 +287,17 @@ public sealed class ProjectConfigurationInitializer
 
             if (classType.HasNegative == true)
             {
-                var negativeClasses = classes.Select(c =>
-                {
-                    return new TailwindClass()
+                var negativeClasses = classes
+                    .Select(c =>
                     {
-                        Name = $"-{c.Name}",
-                        UseColors = c.UseColors,
-                        UseSpacing = c.UseSpacing
-                    };
-                }).ToList();
+                        return new TailwindClass()
+                        {
+                            Name = $"-{c.Name}",
+                            UseColors = c.UseColors,
+                            UseSpacing = c.UseSpacing,
+                        };
+                    })
+                    .ToList();
 
                 project.Classes.AddRange(negativeClasses);
             }
@@ -296,7 +309,10 @@ public sealed class ProjectConfigurationInitializer
                 string name;
                 if (stem.Contains('{'))
                 {
-                    var replace = stem.Substring(stem.IndexOf('{'), stem.IndexOf('}') - stem.IndexOf('{') + 1);
+                    var replace = stem.Substring(
+                        stem.IndexOf('{'),
+                        stem.IndexOf('}') - stem.IndexOf('{') + 1
+                    );
                     name = stem.Replace(replace, "");
                 }
                 else
@@ -310,13 +326,15 @@ public sealed class ProjectConfigurationInitializer
                 }
                 else
                 {
-                    if (project.Classes.All(c => (c.Name == name && c.HasArbitrary == false) || c.Name != name))
+                    if (
+                        project.Classes.All(c =>
+                            (c.Name == name && c.HasArbitrary == false) || c.Name != name
+                        )
+                    )
                     {
-                        project.Classes.Add(new TailwindClass()
-                        {
-                            Name = name,
-                            HasArbitrary = true
-                        });
+                        project.Classes.Add(
+                            new TailwindClass() { Name = name, HasArbitrary = true }
+                        );
                     }
                 }
             }
@@ -328,7 +346,7 @@ public sealed class ProjectConfigurationInitializer
             { "md", "768px" },
             { "lg", "1024px" },
             { "xl", "1280px" },
-            { "2xl", "1536px" }
+            { "2xl", "1536px" },
         };
 
         _unsetProjectCompletionConfigurations[TailwindVersion.V3] = project;
@@ -357,8 +375,9 @@ public sealed class ProjectConfigurationInitializer
         Opacity = result.Opacity;
 
         var fractions = new[] { 2, 3, 4, 6, 12 }
-            .SelectMany(d => Enumerable.Range(1, d - 1)
-            .Select(n => new { Numerator = n, Denominator = d }))
+            .SelectMany(d =>
+                Enumerable.Range(1, d - 1).Select(n => new { Numerator = n, Denominator = d })
+            )
             .Where(f => f.Numerator < 12)
             .Select(f => $"{f.Numerator}/{f.Denominator}")
             .ToList();
@@ -373,69 +392,75 @@ public sealed class ProjectConfigurationInitializer
                 {
                     if (string.IsNullOrWhiteSpace(v))
                     {
-                        classes.Add(new TailwindClass()
-                        {
-                            Name = classType.Stem
-                        });
+                        classes.Add(new TailwindClass() { Name = classType.Stem });
                     }
                     else
                     {
                         if (v.Contains("{s}"))
                         {
-                            classes.Add(new TailwindClass()
-                            {
-                                Name = classType.Stem + "-" + v.Replace("{s}", "{0}"),
-                                UseSpacing = true
-                            });
+                            classes.Add(
+                                new TailwindClass()
+                                {
+                                    Name = classType.Stem + "-" + v.Replace("{s}", "{0}"),
+                                    UseSpacing = true,
+                                }
+                            );
                         }
                         else if (v.Contains("{c}"))
                         {
-                            classes.Add(new TailwindClass()
-                            {
-                                Name = classType.Stem + "-" + v.Replace("{c}", "{0}"),
-                                UseColors = true,
-                                UseOpacity = true
-                            });
+                            classes.Add(
+                                new TailwindClass()
+                                {
+                                    Name = classType.Stem + "-" + v.Replace("{c}", "{0}"),
+                                    UseColors = true,
+                                    UseOpacity = true,
+                                }
+                            );
                         }
                         else if (v.Contains("{n}"))
                         {
-                            classes.Add(new TailwindClass()
-                            {
-                                Name = classType.Stem + "-" + v.Replace("{n}", "{0}"),
-                                UseNumbers = true
-                            });
+                            classes.Add(
+                                new TailwindClass()
+                                {
+                                    Name = classType.Stem + "-" + v.Replace("{n}", "{0}"),
+                                    UseNumbers = true,
+                                }
+                            );
                         }
                         else if (v.Contains("{%}"))
                         {
-                            classes.Add(new TailwindClass()
-                            {
-                                Name = classType.Stem + "-" + v.Replace("{%}", "{0}"),
-                                UsePercent = true
-                            });
+                            classes.Add(
+                                new TailwindClass()
+                                {
+                                    Name = classType.Stem + "-" + v.Replace("{%}", "{0}"),
+                                    UsePercent = true,
+                                }
+                            );
                         }
                         else if (v.Contains("{f}"))
                         {
-                            classes.Add(new TailwindClass()
-                            {
-                                Name = classType.Stem + "-" + v.Replace("{f}", "{0}"),
-                                UseFractions = true
-                            });
+                            classes.Add(
+                                new TailwindClass()
+                                {
+                                    Name = classType.Stem + "-" + v.Replace("{f}", "{0}"),
+                                    UseFractions = true,
+                                }
+                            );
 
                             // Auto-generate fractions
-                            classes.AddRange(fractions.Select(f =>
-                            {
-                                return new TailwindClass()
+                            classes.AddRange(
+                                fractions.Select(f =>
                                 {
-                                    Name = classType.Stem + "-" + v.Replace("{f}", f)
-                                };
-                            }));
+                                    return new TailwindClass()
+                                    {
+                                        Name = classType.Stem + "-" + v.Replace("{f}", f),
+                                    };
+                                })
+                            );
                         }
                         else
                         {
-                            classes.Add(new TailwindClass()
-                            {
-                                Name = classType.Stem + "-" + v
-                            });
+                            classes.Add(new TailwindClass() { Name = classType.Stem + "-" + v });
                         }
                     }
                 }
@@ -453,38 +478,44 @@ public sealed class ProjectConfigurationInitializer
                         {
                             if (string.IsNullOrWhiteSpace(v))
                             {
-                                classes.Add(new TailwindClass()
-                                {
-                                    Name = classType.Stem + "-" + subvariant.Stem
-                                });
+                                classes.Add(
+                                    new TailwindClass()
+                                    {
+                                        Name = classType.Stem + "-" + subvariant.Stem,
+                                    }
+                                );
                             }
                             else
                             {
-                                classes.Add(new TailwindClass()
-                                {
-                                    Name = classType.Stem + "-" + subvariant.Stem + "-" + v
-                                });
+                                classes.Add(
+                                    new TailwindClass()
+                                    {
+                                        Name = classType.Stem + "-" + subvariant.Stem + "-" + v,
+                                    }
+                                );
                             }
                         }
                     }
 
                     if (subvariant.HasArbitrary == true)
                     {
-                        classes.Add(new TailwindClass()
-                        {
-                            Name = classType.Stem + "-" + subvariant.Stem + "-",
-                            HasArbitrary = true
-                        });
+                        classes.Add(
+                            new TailwindClass()
+                            {
+                                Name = classType.Stem + "-" + subvariant.Stem + "-",
+                                HasArbitrary = true,
+                            }
+                        );
                     }
                 }
             }
 
-            if ((classType.DirectVariants == null || classType.DirectVariants.Count == 0) && (classType.Subvariants == null || classType.Subvariants.Count == 0))
+            if (
+                (classType.DirectVariants == null || classType.DirectVariants.Count == 0)
+                && (classType.Subvariants == null || classType.Subvariants.Count == 0)
+            )
             {
-                var newClass = new TailwindClass()
-                {
-                    Name = classType.Stem
-                };
+                var newClass = new TailwindClass() { Name = classType.Stem };
                 if (classType.UseColors == true)
                 {
                     newClass.UseColors = true;
@@ -514,50 +545,67 @@ public sealed class ProjectConfigurationInitializer
                 classes.Add(newClass);
             }
 
-            if (classType.HasArbitrary == true || classType.UseFractions == true || classType.UseSpacing == true || classType.UsePercent == true ||
-                classType.UseColors == true || classType.UseNumbers == true)
+            if (
+                classType.HasArbitrary == true
+                || classType.UseFractions == true
+                || classType.UseSpacing == true
+                || classType.UsePercent == true
+                || classType.UseColors == true
+                || classType.UseNumbers == true
+            )
             {
-                classes.Add(new TailwindClass()
-                {
-                    Name = classType.Stem.Replace("{c}", "")
-                        .Replace("{s}", "")
-                        .Replace("{n}", "")
-                        .Replace("{%}", "")
-                        .Replace("{f}", "").TrimEnd('-') + "-",
-                    HasArbitrary = true
-                });
+                classes.Add(
+                    new TailwindClass()
+                    {
+                        Name =
+                            classType
+                                .Stem.Replace("{c}", "")
+                                .Replace("{s}", "")
+                                .Replace("{n}", "")
+                                .Replace("{%}", "")
+                                .Replace("{f}", "")
+                                .TrimEnd('-') + "-",
+                        HasArbitrary = true,
+                    }
+                );
             }
 
             project.Classes.AddRange(classes);
 
             if (classType.HasNegative == true)
             {
-                var negativeClasses = classes.Select(c =>
-                {
-                    return new TailwindClass()
+                var negativeClasses = classes
+                    .Select(c =>
                     {
-                        Name = $"-{c.Name}",
-                        UseColors = c.UseColors,
-                        UseSpacing = c.UseSpacing,
-                        UseNumbers = c.UseNumbers,
-                        UsePercent = c.UsePercent,
-                        UseFractions = c.UseFractions,
-                        UseOpacity = c.UseOpacity,
-                        HasArbitrary = c.HasArbitrary
-                    };
-                }).ToList();
+                        return new TailwindClass()
+                        {
+                            Name = $"-{c.Name}",
+                            UseColors = c.UseColors,
+                            UseSpacing = c.UseSpacing,
+                            UseNumbers = c.UseNumbers,
+                            UsePercent = c.UsePercent,
+                            UseFractions = c.UseFractions,
+                            UseOpacity = c.UseOpacity,
+                            HasArbitrary = c.HasArbitrary,
+                        };
+                    })
+                    .ToList();
 
                 project.Classes.AddRange(negativeClasses);
             }
         }
 
-        foreach (var breakpoints in project.CssVariables.Where(v => v.Key.StartsWith("--breakpoint-")))
+        foreach (
+            var breakpoints in project.CssVariables.Where(v => v.Key.StartsWith("--breakpoint-"))
+        )
         {
             var breakpointName = breakpoints.Key.Replace("--breakpoint-", "");
             project.Breakpoints[breakpointName] = breakpoints.Value;
         }
 
-        foreach (var containers in project.CssVariables.Where(v => v.Key.StartsWith("--container-")))
+        foreach (
+            var containers in project.CssVariables.Where(v => v.Key.StartsWith("--container-"))
+        )
         {
             var breakpointName = containers.Key.Replace("--container-", "");
             project.Containers[breakpointName] = containers.Value;

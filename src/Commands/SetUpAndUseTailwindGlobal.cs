@@ -1,9 +1,9 @@
-﻿using Community.VisualStudio.Toolkit;
-using Microsoft.VisualStudio.Shell;
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Community.VisualStudio.Toolkit;
+using Microsoft.VisualStudio.Shell;
 using TailwindCSSIntellisense.Node;
 using TailwindCSSIntellisense.Settings;
 
@@ -32,14 +32,19 @@ internal sealed class SetUpAndUseTailwindGlobal : BaseCommand<SetUpAndUseTailwin
     {
         if (!TailwindSetUpProcess.IsSettingUp)
         {
-            var directory = Path.GetDirectoryName(SolutionExplorerSelection.CurrentSelectedItemFullPath);
+            var directory = Path.GetDirectoryName(
+                SolutionExplorerSelection.CurrentSelectedItemFullPath
+            );
             // Check again to see if there were any changes since the last settings cache
             // User may have manually run the setup command, for example
             SettingsProvider.RefreshSettings();
             var settings = await SettingsProvider.GetSettingsAsync();
 
-            var hasConfig = settings.ConfigurationFiles.Count > 0 && settings.ConfigurationFiles.Any(c =>
-                !string.IsNullOrWhiteSpace(c.Path) && File.Exists(c.Path));
+            var hasConfig =
+                settings.ConfigurationFiles.Count > 0
+                && settings.ConfigurationFiles.Any(c =>
+                    !string.IsNullOrWhiteSpace(c.Path) && File.Exists(c.Path)
+                );
 
             var configFile = await TailwindSetUpProcess.RunAsync(directory, false, !hasConfig);
 
@@ -52,13 +57,18 @@ internal sealed class SetUpAndUseTailwindGlobal : BaseCommand<SetUpAndUseTailwin
             settings.BuildFiles.Add(new() { Input = configFile! });
             await SettingsProvider.OverrideSettingsAsync(settings, directory);
 
-            var file = await PhysicalFile.FromFileAsync(SolutionExplorerSelection.CurrentSelectedItemFullPath);
+            var file = await PhysicalFile.FromFileAsync(
+                SolutionExplorerSelection.CurrentSelectedItemFullPath
+            );
 
             if (file is not null && file.ContainingProject is not null)
             {
                 // tailwind.extension.json is placed in the same directory as tailwind.css
                 var tailwindExtensionJson = await SettingsProvider.GetFilePathAsync();
-                await file.ContainingProject.AddExistingFilesAsync(configFile!, tailwindExtensionJson);
+                await file.ContainingProject.AddExistingFilesAsync(
+                    configFile!,
+                    tailwindExtensionJson
+                );
             }
         }
     }

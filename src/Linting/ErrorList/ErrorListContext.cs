@@ -2,6 +2,7 @@
 using TailwindCSSIntellisense.Linting.Validators;
 
 namespace TailwindCSSIntellisense.Linting.ErrorList;
+
 internal class ErrorListContext
 {
     public Validator Validator { get; set; } = null!;

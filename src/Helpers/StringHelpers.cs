@@ -52,11 +52,20 @@ internal static class StringHelpers
     {
         var list = new List<string>(items);
         if (list.Count == 0)
+        {
             return string.Empty;
+        }
+
         if (list.Count == 1)
+        {
             return list[0];
+        }
+
         if (list.Count == 2)
+        {
             return $"{list[0]} and {list[1]}";
+        }
+
         return string.Join(", ", list.GetRange(0, list.Count - 1)) + $" and {list.Last()}";
     }
 
@@ -68,7 +77,9 @@ internal static class StringHelpers
         int[] curr = new int[n + 1];
 
         for (int j = 0; j <= n; j++)
+        {
             prev[j] = j;
+        }
 
         for (int i = 1; i <= m; i++)
         {

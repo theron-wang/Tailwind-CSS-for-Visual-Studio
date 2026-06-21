@@ -1,12 +1,12 @@
-﻿using Microsoft.VisualStudio.Language.StandardClassification;
-using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Text.Adornments;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using Microsoft.VisualStudio.Language.StandardClassification;
+using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Text.Adornments;
 
 namespace TailwindCSSIntellisense.Helpers;
 
@@ -29,7 +29,12 @@ internal static class DescriptionUIHelper
     /// <param name="mediaQueries">A list of media queries</param>
     /// <param name="desc">The description, already formatted via DescriptionGenerator</param>
     /// <returns></returns>
-    internal static ContainerElement GetDescriptionAsUIFormatted(string fullClass, string variantTotal, string[] mediaQueries, string desc)
+    internal static ContainerElement GetDescriptionAsUIFormatted(
+        string fullClass,
+        string variantTotal,
+        string[] mediaQueries,
+        string desc
+    )
     {
         variantTotal ??= "&";
         var mediaQueryElements = new List<ClassifiedTextElement>();
@@ -43,13 +48,21 @@ internal static class DescriptionUIHelper
             totalIndent += singleIndent;
         }
 
-        var mediaQueryContainerElement = new ContainerElement(ContainerElementStyle.Stacked, mediaQueryElements);
+        var mediaQueryContainerElement = new ContainerElement(
+            ContainerElementStyle.Stacked,
+            mediaQueryElements
+        );
 
         var classElement = new ContainerElement(
-                    ContainerElementStyle.Wrapped,
-                    new ClassifiedTextElement(
-                        new ClassifiedTextRun(PredefinedClassificationTypeNames.Literal, $"{totalIndent}{variantTotal.Replace("&", $".{CssEscape(fullClass)}")} {{", ClassifiedTextRunStyle.UseClassificationFont)
-                    ));
+            ContainerElementStyle.Wrapped,
+            new ClassifiedTextElement(
+                new ClassifiedTextRun(
+                    PredefinedClassificationTypeNames.Literal,
+                    $"{totalIndent}{variantTotal.Replace("&", $".{CssEscape(fullClass)}")} {{",
+                    ClassifiedTextRunStyle.UseClassificationFont
+                )
+            )
+        );
 
         totalIndent += singleIndent;
 
@@ -57,12 +70,19 @@ internal static class DescriptionUIHelper
 
         foreach (var l in desc.Split('\n'))
         {
-            descriptionLines.Add(FormatKeyValuePair(l, totalIndent, ImportantModifierHelper.IsImportantModifier(fullClass)));
+            descriptionLines.Add(
+                FormatKeyValuePair(
+                    l,
+                    totalIndent,
+                    ImportantModifierHelper.IsImportantModifier(fullClass)
+                )
+            );
         }
 
         var descriptionElement = new ContainerElement(
             ContainerElementStyle.Stacked,
-            descriptionLines);
+            descriptionLines
+        );
 
         var closingBrackets = new List<ClassifiedTextElement>();
 
@@ -70,21 +90,26 @@ internal static class DescriptionUIHelper
         {
             totalIndent = totalIndent.Substring(2);
 
-            closingBrackets.Add(new ClassifiedTextElement(
-                new ClassifiedTextRun(PredefinedClassificationTypeNames.Identifier, totalIndent + "}", ClassifiedTextRunStyle.UseClassificationFont)
-            ));
+            closingBrackets.Add(
+                new ClassifiedTextElement(
+                    new ClassifiedTextRun(
+                        PredefinedClassificationTypeNames.Identifier,
+                        totalIndent + "}",
+                        ClassifiedTextRunStyle.UseClassificationFont
+                    )
+                )
+            );
         }
 
-        var closingBracket = new ContainerElement(
-            ContainerElementStyle.Stacked, closingBrackets
-        );
+        var closingBracket = new ContainerElement(ContainerElementStyle.Stacked, closingBrackets);
 
         return new ContainerElement(
-                        ContainerElementStyle.Stacked,
-                        mediaQueryContainerElement,
-                        classElement,
-                        descriptionElement,
-                        closingBracket);
+            ContainerElementStyle.Stacked,
+            mediaQueryContainerElement,
+            classElement,
+            descriptionElement,
+            closingBracket
+        );
     }
 
     /// <summary>
@@ -95,24 +120,39 @@ internal static class DescriptionUIHelper
     /// <param name="desc">The description, already formatted via DescriptionGenerator</param>
     /// <param name="isImportant">!important or not</param>
     /// <returns></returns>
-    internal static ContainerElement GetDescriptionAsUIFormattedV4(string fullClass, string variantTotal, string desc)
+    internal static ContainerElement GetDescriptionAsUIFormattedV4(
+        string fullClass,
+        string variantTotal,
+        string desc
+    )
     {
         variantTotal ??= "";
 
         const string singleIndent = "  ";
 
         var classElement = new ContainerElement(
-                    ContainerElementStyle.Wrapped,
-                    new ClassifiedTextElement(
-                        new ClassifiedTextRun(PredefinedClassificationTypeNames.Type, $".{CssEscape(fullClass)}", ClassifiedTextRunStyle.UseClassificationFont),
-                            new ClassifiedTextRun(PredefinedClassificationTypeNames.Identifier, " {", ClassifiedTextRunStyle.UseClassificationFont)
-                    ));
+            ContainerElementStyle.Wrapped,
+            new ClassifiedTextElement(
+                new ClassifiedTextRun(
+                    PredefinedClassificationTypeNames.Type,
+                    $".{CssEscape(fullClass)}",
+                    ClassifiedTextRunStyle.UseClassificationFont
+                ),
+                new ClassifiedTextRun(
+                    PredefinedClassificationTypeNames.Identifier,
+                    " {",
+                    ClassifiedTextRunStyle.UseClassificationFont
+                )
+            )
+        );
 
         string totalIndent = singleIndent;
 
         var descriptionLines = new List<ClassifiedTextElement>();
 
-        var variants = variantTotal.Replace("{0}", "").Split(['{'], System.StringSplitOptions.RemoveEmptyEntries);
+        var variants = variantTotal
+            .Replace("{0}", "")
+            .Split(['{'], System.StringSplitOptions.RemoveEmptyEntries);
 
         foreach (var variant in variants)
         {
@@ -131,7 +171,13 @@ internal static class DescriptionUIHelper
 
                 var keyValuePair = $"{parts[0].Trim()};";
 
-                descriptionLines.Add(FormatKeyValuePair(keyValuePair, totalIndent, ImportantModifierHelper.IsImportantModifier(fullClass)));
+                descriptionLines.Add(
+                    FormatKeyValuePair(
+                        keyValuePair,
+                        totalIndent,
+                        ImportantModifierHelper.IsImportantModifier(fullClass)
+                    )
+                );
 
                 trimmed = trimmed.Replace(keyValuePair, "").Trim();
             }
@@ -142,9 +188,18 @@ internal static class DescriptionUIHelper
             }
             else
             {
-                descriptionLines.Add(new ClassifiedTextElement(
-                   new ClassifiedTextRun(PredefinedClassificationTypeNames.WhiteSpace, totalIndent, ClassifiedTextRunStyle.UseClassificationFont),
-                        new ClassifiedTextRun(PredefinedClassificationTypeNames.Literal, $"{trimmed} {{", ClassifiedTextRunStyle.UseClassificationFont)
+                descriptionLines.Add(
+                    new ClassifiedTextElement(
+                        new ClassifiedTextRun(
+                            PredefinedClassificationTypeNames.WhiteSpace,
+                            totalIndent,
+                            ClassifiedTextRunStyle.UseClassificationFont
+                        ),
+                        new ClassifiedTextRun(
+                            PredefinedClassificationTypeNames.Literal,
+                            $"{trimmed} {{",
+                            ClassifiedTextRunStyle.UseClassificationFont
+                        )
                     )
                 );
             }
@@ -159,9 +214,15 @@ internal static class DescriptionUIHelper
             if (trimmed.StartsWith("}"))
             {
                 totalIndent = totalIndent.Substring(2);
-                descriptionLines.Add(new ClassifiedTextElement(
-                    new ClassifiedTextRun(PredefinedClassificationTypeNames.Identifier, totalIndent + "}", ClassifiedTextRunStyle.UseClassificationFont)
-                ));
+                descriptionLines.Add(
+                    new ClassifiedTextElement(
+                        new ClassifiedTextRun(
+                            PredefinedClassificationTypeNames.Identifier,
+                            totalIndent + "}",
+                            ClassifiedTextRunStyle.UseClassificationFont
+                        )
+                    )
+                );
                 trimmed = trimmed.TrimStart('}').Trim();
 
                 if (string.IsNullOrWhiteSpace(trimmed))
@@ -174,13 +235,24 @@ internal static class DescriptionUIHelper
             {
                 if (trimmed.StartsWith("@"))
                 {
-                    descriptionLines.Add(FormatMediaQuery(trimmed.TrimEnd('{').Trim(), totalIndent));
+                    descriptionLines.Add(
+                        FormatMediaQuery(trimmed.TrimEnd('{').Trim(), totalIndent)
+                    );
                 }
                 else
                 {
-                    descriptionLines.Add(new ClassifiedTextElement(
-                       new ClassifiedTextRun(PredefinedClassificationTypeNames.WhiteSpace, totalIndent, ClassifiedTextRunStyle.UseClassificationFont),
-                            new ClassifiedTextRun(PredefinedClassificationTypeNames.Literal, trimmed, ClassifiedTextRunStyle.UseClassificationFont)
+                    descriptionLines.Add(
+                        new ClassifiedTextElement(
+                            new ClassifiedTextRun(
+                                PredefinedClassificationTypeNames.WhiteSpace,
+                                totalIndent,
+                                ClassifiedTextRunStyle.UseClassificationFont
+                            ),
+                            new ClassifiedTextRun(
+                                PredefinedClassificationTypeNames.Literal,
+                                trimmed,
+                                ClassifiedTextRunStyle.UseClassificationFont
+                            )
                         )
                     );
                 }
@@ -190,36 +262,59 @@ internal static class DescriptionUIHelper
             else if (trimmed.EndsWith("}"))
             {
                 totalIndent = totalIndent.Substring(2);
-                descriptionLines.Add(new ClassifiedTextElement(
-                    new ClassifiedTextRun(PredefinedClassificationTypeNames.Identifier, totalIndent + "}", ClassifiedTextRunStyle.UseClassificationFont)
-                ));
+                descriptionLines.Add(
+                    new ClassifiedTextElement(
+                        new ClassifiedTextRun(
+                            PredefinedClassificationTypeNames.Identifier,
+                            totalIndent + "}",
+                            ClassifiedTextRunStyle.UseClassificationFont
+                        )
+                    )
+                );
                 continue;
             }
 
-            descriptionLines.Add(FormatKeyValuePair(trimmed, totalIndent, ImportantModifierHelper.IsImportantModifier(fullClass)));
+            descriptionLines.Add(
+                FormatKeyValuePair(
+                    trimmed,
+                    totalIndent,
+                    ImportantModifierHelper.IsImportantModifier(fullClass)
+                )
+            );
         }
-
 
         while (totalIndent.Length > 0)
         {
             totalIndent = totalIndent.Substring(2);
 
-            descriptionLines.Add(new ClassifiedTextElement(
-                new ClassifiedTextRun(PredefinedClassificationTypeNames.Identifier, totalIndent + "}", ClassifiedTextRunStyle.UseClassificationFont)
-            ));
+            descriptionLines.Add(
+                new ClassifiedTextElement(
+                    new ClassifiedTextRun(
+                        PredefinedClassificationTypeNames.Identifier,
+                        totalIndent + "}",
+                        ClassifiedTextRunStyle.UseClassificationFont
+                    )
+                )
+            );
         }
 
         var descriptionElement = new ContainerElement(
             ContainerElementStyle.Stacked,
-            descriptionLines);
+            descriptionLines
+        );
 
         return new ContainerElement(
-                        ContainerElementStyle.Stacked,
-                        classElement,
-                        descriptionElement);
+            ContainerElementStyle.Stacked,
+            classElement,
+            descriptionElement
+        );
     }
 
-    private static ClassifiedTextElement FormatKeyValuePair(string text, string totalIndent, bool isImportant)
+    private static ClassifiedTextElement FormatKeyValuePair(
+        string text,
+        string totalIndent,
+        bool isImportant
+    )
     {
         var line = text.Trim();
 
@@ -246,28 +341,61 @@ internal static class DescriptionUIHelper
             }
         }
 
-        List<ClassifiedTextRun> runs = [
-            new ClassifiedTextRun(PredefinedClassificationTypeNames.WhiteSpace, totalIndent, ClassifiedTextRunStyle.UseClassificationFont),
-            new ClassifiedTextRun(PredefinedClassificationTypeNames.MarkupAttribute, keyword, ClassifiedTextRunStyle.UseClassificationFont),
-            new ClassifiedTextRun(PredefinedClassificationTypeNames.Identifier, ": ", ClassifiedTextRunStyle.UseClassificationFont),
-            new ClassifiedTextRun(PredefinedClassificationTypeNames.MarkupAttributeValue, value + (isImportant ? " !important" : ""), ClassifiedTextRunStyle.UseClassificationFont)
+        List<ClassifiedTextRun> runs =
+        [
+            new ClassifiedTextRun(
+                PredefinedClassificationTypeNames.WhiteSpace,
+                totalIndent,
+                ClassifiedTextRunStyle.UseClassificationFont
+            ),
+            new ClassifiedTextRun(
+                PredefinedClassificationTypeNames.MarkupAttribute,
+                keyword,
+                ClassifiedTextRunStyle.UseClassificationFont
+            ),
+            new ClassifiedTextRun(
+                PredefinedClassificationTypeNames.Identifier,
+                ": ",
+                ClassifiedTextRunStyle.UseClassificationFont
+            ),
+            new ClassifiedTextRun(
+                PredefinedClassificationTypeNames.MarkupAttributeValue,
+                value + (isImportant ? " !important" : ""),
+                ClassifiedTextRunStyle.UseClassificationFont
+            ),
         ];
 
         if (!string.IsNullOrWhiteSpace(comment))
         {
-            runs.Add(new ClassifiedTextRun(PredefinedClassificationTypeNames.Comment, $" {comment}", ClassifiedTextRunStyle.UseClassificationFont));
+            runs.Add(
+                new ClassifiedTextRun(
+                    PredefinedClassificationTypeNames.Comment,
+                    $" {comment}",
+                    ClassifiedTextRunStyle.UseClassificationFont
+                )
+            );
         }
 
         if (!string.IsNullOrWhiteSpace(after))
         {
-            runs.Add(new ClassifiedTextRun(PredefinedClassificationTypeNames.MarkupAttributeValue, $" {after}", ClassifiedTextRunStyle.UseClassificationFont));
+            runs.Add(
+                new ClassifiedTextRun(
+                    PredefinedClassificationTypeNames.MarkupAttributeValue,
+                    $" {after}",
+                    ClassifiedTextRunStyle.UseClassificationFont
+                )
+            );
         }
 
-        runs.Add(new ClassifiedTextRun(PredefinedClassificationTypeNames.Identifier, ";", ClassifiedTextRunStyle.UseClassificationFont));
-
-        return new ClassifiedTextElement(
-           runs
+        runs.Add(
+            new ClassifiedTextRun(
+                PredefinedClassificationTypeNames.Identifier,
+                ";",
+                ClassifiedTextRunStyle.UseClassificationFont
+            )
         );
+
+        return new ClassifiedTextElement(runs);
     }
 
     private static ClassifiedTextElement FormatMediaQuery(string mediaQuery, string totalIndent)
@@ -276,15 +404,33 @@ internal static class DescriptionUIHelper
         var openParen = mediaQuery.IndexOf('(', query.Length);
 
         var text = new List<ClassifiedTextRun>
-            {
-                new(PredefinedClassificationTypeNames.WhiteSpace, totalIndent, ClassifiedTextRunStyle.UseClassificationFont),
-                new(PredefinedClassificationTypeNames.Keyword, query, ClassifiedTextRunStyle.UseClassificationFont),
-                new(PredefinedClassificationTypeNames.WhiteSpace, " ", ClassifiedTextRunStyle.UseClassificationFont)
-            };
+        {
+            new(
+                PredefinedClassificationTypeNames.WhiteSpace,
+                totalIndent,
+                ClassifiedTextRunStyle.UseClassificationFont
+            ),
+            new(
+                PredefinedClassificationTypeNames.Keyword,
+                query,
+                ClassifiedTextRunStyle.UseClassificationFont
+            ),
+            new(
+                PredefinedClassificationTypeNames.WhiteSpace,
+                " ",
+                ClassifiedTextRunStyle.UseClassificationFont
+            ),
+        };
 
         if (openParen == -1)
         {
-            text.Add(new(PredefinedClassificationTypeNames.Identifier, mediaQuery.Substring(query.Length).Trim() + " {", ClassifiedTextRunStyle.UseClassificationFont));
+            text.Add(
+                new(
+                    PredefinedClassificationTypeNames.Identifier,
+                    mediaQuery.Substring(query.Length).Trim() + " {",
+                    ClassifiedTextRunStyle.UseClassificationFont
+                )
+            );
             return new ClassifiedTextElement(text);
         }
 
@@ -297,25 +443,61 @@ internal static class DescriptionUIHelper
 
         if (!string.IsNullOrWhiteSpace(intermediate))
         {
-            text.Add(new ClassifiedTextRun(PredefinedClassificationTypeNames.Identifier, $"{intermediate} ", ClassifiedTextRunStyle.UseClassificationFont));
+            text.Add(
+                new ClassifiedTextRun(
+                    PredefinedClassificationTypeNames.Identifier,
+                    $"{intermediate} ",
+                    ClassifiedTextRunStyle.UseClassificationFont
+                )
+            );
         }
 
-        text.Add(new ClassifiedTextRun(PredefinedClassificationTypeNames.Identifier, "(", ClassifiedTextRunStyle.UseClassificationFont));
+        text.Add(
+            new ClassifiedTextRun(
+                PredefinedClassificationTypeNames.Identifier,
+                "(",
+                ClassifiedTextRunStyle.UseClassificationFont
+            )
+        );
 
         if (colon == -1)
         {
-            text.Add(new ClassifiedTextRun(PredefinedClassificationTypeNames.MarkupNode, inner, ClassifiedTextRunStyle.UseClassificationFont));
+            text.Add(
+                new ClassifiedTextRun(
+                    PredefinedClassificationTypeNames.MarkupNode,
+                    inner,
+                    ClassifiedTextRunStyle.UseClassificationFont
+                )
+            );
         }
         else
         {
             var first = inner.Substring(0, colon + 1);
             var second = inner.Substring(colon + 1);
 
-            text.Add(new ClassifiedTextRun(PredefinedClassificationTypeNames.MarkupAttribute, first, ClassifiedTextRunStyle.UseClassificationFont));
-            text.Add(new ClassifiedTextRun(PredefinedClassificationTypeNames.MarkupAttributeValue, second, ClassifiedTextRunStyle.UseClassificationFont));
+            text.Add(
+                new ClassifiedTextRun(
+                    PredefinedClassificationTypeNames.MarkupAttribute,
+                    first,
+                    ClassifiedTextRunStyle.UseClassificationFont
+                )
+            );
+            text.Add(
+                new ClassifiedTextRun(
+                    PredefinedClassificationTypeNames.MarkupAttributeValue,
+                    second,
+                    ClassifiedTextRunStyle.UseClassificationFont
+                )
+            );
         }
 
-        text.Add(new ClassifiedTextRun(PredefinedClassificationTypeNames.Identifier, ") {", ClassifiedTextRunStyle.UseClassificationFont));
+        text.Add(
+            new ClassifiedTextRun(
+                PredefinedClassificationTypeNames.Identifier,
+                ") {",
+                ClassifiedTextRunStyle.UseClassificationFont
+            )
+        );
 
         return new ClassifiedTextElement(text);
     }
@@ -327,18 +509,21 @@ internal static class DescriptionUIHelper
     /// <param name="desc">The description, already formatted via DescriptionGenerator</param>
     /// <param name="isImportant">!important or not</param>
     /// <returns></returns>
-    internal static UIElement GetDescriptionAsWPFFormatted(string fullClass, string desc, bool isImportant)
+    internal static UIElement GetDescriptionAsWPFFormatted(
+        string fullClass,
+        string desc,
+        bool isImportant
+    )
     {
-        var classElement = new StackPanel
-        {
-            Orientation = Orientation.Horizontal
-        };
-        classElement.Children.Add(new TextBlock
-        {
-            Text = $".{CssEscape(fullClass)} {{",
-            FontFamily = new FontFamily("Consolas"),
-            Foreground = (Brush)Application.Current.Resources[VsBrushes.GrayTextKey]
-        });
+        var classElement = new StackPanel { Orientation = Orientation.Horizontal };
+        classElement.Children.Add(
+            new TextBlock
+            {
+                Text = $".{CssEscape(fullClass)} {{",
+                FontFamily = new FontFamily("Consolas"),
+                Foreground = (Brush)Application.Current.Resources[VsBrushes.GrayTextKey],
+            }
+        );
 
         const string singleIndent = "  ";
         string totalIndent = singleIndent;
@@ -350,12 +535,15 @@ internal static class DescriptionUIHelper
 
             if (line.EndsWith("{"))
             {
-                descriptionPanel.Children.Add(new TextBlock
-                {
-                    Text = totalIndent + line,
-                    FontFamily = new FontFamily("Consolas"),
-                    Foreground = (Brush)Application.Current.Resources[VsBrushes.VizSurfaceStrongBlueMediumKey]
-                });
+                descriptionPanel.Children.Add(
+                    new TextBlock
+                    {
+                        Text = totalIndent + line,
+                        FontFamily = new FontFamily("Consolas"),
+                        Foreground = (Brush)
+                            Application.Current.Resources[VsBrushes.VizSurfaceStrongBlueMediumKey],
+                    }
+                );
 
                 totalIndent += singleIndent;
 
@@ -364,12 +552,14 @@ internal static class DescriptionUIHelper
             else if (line.EndsWith("}"))
             {
                 totalIndent = totalIndent.Substring(2);
-                descriptionPanel.Children.Add(new TextBlock
-                {
-                    Text = totalIndent + line,
-                    FontFamily = new FontFamily("Consolas"),
-                    Foreground = (Brush)Application.Current.Resources[VsBrushes.GrayTextKey]
-                });
+                descriptionPanel.Children.Add(
+                    new TextBlock
+                    {
+                        Text = totalIndent + line,
+                        FontFamily = new FontFamily("Consolas"),
+                        Foreground = (Brush)Application.Current.Resources[VsBrushes.GrayTextKey],
+                    }
+                );
                 continue;
             }
 
@@ -392,46 +582,56 @@ internal static class DescriptionUIHelper
 
             var linePanel = new StackPanel { Orientation = Orientation.Horizontal };
 
-            linePanel.Children.Add(new TextBlock
-            {
-                Text = totalIndent,
-                FontFamily = new FontFamily("Consolas")
-            });
-            linePanel.Children.Add(new TextBlock
-            {
-                Text = keyword,
-                FontFamily = new FontFamily("Consolas"),
-                Foreground = (Brush)Application.Current.Resources[VsBrushes.VizSurfaceStrongBlueMediumKey]
-            });
-            linePanel.Children.Add(new TextBlock
-            {
-                Text = ": ",
-                FontFamily = new FontFamily("Consolas"),
-                Foreground = (Brush)Application.Current.Resources[VsBrushes.GrayTextKey]
-            });
-            linePanel.Children.Add(new TextBlock
-            {
-                Text = value + (isImportant ? " !important" : ""),
-                FontFamily = new FontFamily("Consolas"),
-                Foreground = (Brush)Application.Current.Resources[VsBrushes.GrayTextKey]
-            });
+            linePanel.Children.Add(
+                new TextBlock { Text = totalIndent, FontFamily = new FontFamily("Consolas") }
+            );
+            linePanel.Children.Add(
+                new TextBlock
+                {
+                    Text = keyword,
+                    FontFamily = new FontFamily("Consolas"),
+                    Foreground = (Brush)
+                        Application.Current.Resources[VsBrushes.VizSurfaceStrongBlueMediumKey],
+                }
+            );
+            linePanel.Children.Add(
+                new TextBlock
+                {
+                    Text = ": ",
+                    FontFamily = new FontFamily("Consolas"),
+                    Foreground = (Brush)Application.Current.Resources[VsBrushes.GrayTextKey],
+                }
+            );
+            linePanel.Children.Add(
+                new TextBlock
+                {
+                    Text = value + (isImportant ? " !important" : ""),
+                    FontFamily = new FontFamily("Consolas"),
+                    Foreground = (Brush)Application.Current.Resources[VsBrushes.GrayTextKey],
+                }
+            );
 
             if (comment is not null)
             {
-                linePanel.Children.Add(new TextBlock
-                {
-                    Text = $" {comment}",
-                    FontFamily = new FontFamily("Consolas"),
-                    Foreground = (Brush)Application.Current.Resources[VsBrushes.VizSurfaceGreenMediumKey]
-                });
+                linePanel.Children.Add(
+                    new TextBlock
+                    {
+                        Text = $" {comment}",
+                        FontFamily = new FontFamily("Consolas"),
+                        Foreground = (Brush)
+                            Application.Current.Resources[VsBrushes.VizSurfaceGreenMediumKey],
+                    }
+                );
             }
 
-            linePanel.Children.Add(new TextBlock
-            {
-                Text = ";",
-                FontFamily = new FontFamily("Consolas"),
-                Foreground = (Brush)Application.Current.Resources[VsBrushes.GrayTextKey]
-            });
+            linePanel.Children.Add(
+                new TextBlock
+                {
+                    Text = ";",
+                    FontFamily = new FontFamily("Consolas"),
+                    Foreground = (Brush)Application.Current.Resources[VsBrushes.GrayTextKey],
+                }
+            );
 
             descriptionPanel.Children.Add(linePanel);
         }
@@ -440,7 +640,7 @@ internal static class DescriptionUIHelper
         {
             Text = "}",
             FontFamily = new FontFamily("Consolas"),
-            Foreground = (Brush)Application.Current.Resources[VsBrushes.GrayTextKey]
+            Foreground = (Brush)Application.Current.Resources[VsBrushes.GrayTextKey],
         };
 
         var containerPanel = new StackPanel();
