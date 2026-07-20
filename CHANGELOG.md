@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.14.1 (July 19th, 2026)
+
+- Prevent warnings from being recognized as errors in the Tailwind setup process
+- Prevent JSON parsing exceptions resulting from differences in locales ([#152](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/issues/152))
+- Stop `@plugin` with block statements from breaking parsing of configuration files
+
 ## 1.14.0 (June 19th, 2026)
 
 - Fix a bug where only the last item added to the blocklist is counted
