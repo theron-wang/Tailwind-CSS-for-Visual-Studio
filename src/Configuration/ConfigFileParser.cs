@@ -499,11 +499,7 @@ internal static class ConfigFileParser
                     // { is also a terminator for @plugin, so we'll handle that here
                     if (directive == "plugin")
                     {
-                        var plugin = directiveParameter
-                            .Replace("\"", "")
-                            .Replace("'", "")
-                            .TrimEnd(';')
-                            .Trim();
+                        var plugin = directiveParameter.Replace("\"", "").Replace("'", "").Trim();
 
                         var pluginAbsPath = PathHelpers.GetAbsolutePath(
                             Path.GetDirectoryName(path)!,
@@ -526,8 +522,6 @@ internal static class ConfigFileParser
                         {
                             imports.Add($"@plugin{pluginAbsPath}");
                         }
-
-                        continue;
                     }
 
                     directiveParameter = directiveParameter.Trim();
