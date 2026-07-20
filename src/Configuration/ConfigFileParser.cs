@@ -52,6 +52,8 @@ internal static class ConfigFileParser
             Arguments =
                 $"/c node \"{scriptLocation}\" \"{Path.GetFileName(path)}\" {(isAPlugin ? "--plugin" : "")}",
             WorkingDirectory = Path.GetDirectoryName(path),
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8,
         };
 
         var localNodePath = await GetNodeModulesFromConfigFilePathAsync(path);
@@ -497,11 +499,7 @@ internal static class ConfigFileParser
                     // { is also a terminator for @plugin, so we'll handle that here
                     if (directive == "plugin")
                     {
-                        var plugin = directiveParameter
-                            .Replace("\"", "")
-                            .Replace("'", "")
-                            .TrimEnd(';')
-                            .Trim();
+                        var plugin = directiveParameter.Replace("\"", "").Replace("'", "").Trim();
 
                         var pluginAbsPath = PathHelpers.GetAbsolutePath(
                             Path.GetDirectoryName(path)!,
@@ -524,8 +522,6 @@ internal static class ConfigFileParser
                         {
                             imports.Add($"@plugin{pluginAbsPath}");
                         }
-
-                        continue;
                     }
 
                     directiveParameter = directiveParameter.Trim();
@@ -1067,6 +1063,7 @@ internal static class ConfigFileParser
             FileName = "cmd",
             Arguments = $"/c node -e \"console.log(require.resolve('{package}'))\"",
             WorkingDirectory = Path.GetDirectoryName(configFileLocation)!,
+            StandardOutputEncoding = Encoding.UTF8,
         };
 
         var localNodePath = await GetNodeModulesFromConfigFilePathAsync(configFileLocation);

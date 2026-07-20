@@ -4,6 +4,7 @@ using System.ComponentModel.Composition;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Community.VisualStudio.Toolkit;
 using Microsoft.VisualStudio.Threading;
@@ -59,6 +60,7 @@ internal class DirectoryVersionFinder : IDisposable
             FileName = "cmd",
             Arguments = "/C npm list tailwindcss @tailwindcss/cli --depth=0",
             WorkingDirectory = directory,
+            StandardOutputEncoding = Encoding.UTF8,
         };
 
         string output;
@@ -81,6 +83,7 @@ internal class DirectoryVersionFinder : IDisposable
                 FileName = "cmd",
                 Arguments = "/C npm list tailwindcss @tailwindcss/cli --depth=0 -g",
                 WorkingDirectory = directory,
+                StandardOutputEncoding = Encoding.UTF8,
             };
 
             using var process = Process.Start(processInfo);
@@ -145,6 +148,7 @@ internal class DirectoryVersionFinder : IDisposable
                 ? $"/C \"{settings.TailwindCliPath}\" --help"
                 : "/C npm list tailwindcss --depth=0",
             WorkingDirectory = directory,
+            StandardOutputEncoding = Encoding.UTF8,
         };
 
         string output;
@@ -167,6 +171,7 @@ internal class DirectoryVersionFinder : IDisposable
                 FileName = "cmd",
                 Arguments = "/C npm list tailwindcss --depth=0 -g",
                 WorkingDirectory = directory,
+                StandardOutputEncoding = Encoding.UTF8,
             };
 
             using var process = Process.Start(processInfo);
