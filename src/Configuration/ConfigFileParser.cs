@@ -52,6 +52,8 @@ internal static class ConfigFileParser
             Arguments =
                 $"/c node \"{scriptLocation}\" \"{Path.GetFileName(path)}\" {(isAPlugin ? "--plugin" : "")}",
             WorkingDirectory = Path.GetDirectoryName(path),
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8,
         };
 
         var localNodePath = await GetNodeModulesFromConfigFilePathAsync(path);
@@ -1067,6 +1069,7 @@ internal static class ConfigFileParser
             FileName = "cmd",
             Arguments = $"/c node -e \"console.log(require.resolve('{package}'))\"",
             WorkingDirectory = Path.GetDirectoryName(configFileLocation)!,
+            StandardOutputEncoding = Encoding.UTF8,
         };
 
         var localNodePath = await GetNodeModulesFromConfigFilePathAsync(configFileLocation);

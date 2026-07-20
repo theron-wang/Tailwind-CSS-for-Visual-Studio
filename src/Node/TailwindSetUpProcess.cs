@@ -2,6 +2,7 @@
 using System.ComponentModel.Composition;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 using Community.VisualStudio.Toolkit;
 using Microsoft.VisualStudio.Shell;
@@ -41,6 +42,8 @@ internal sealed class TailwindSetUpProcess
             FileName = "cmd",
             WorkingDirectory = directory,
             Arguments = "/C npm install -D tailwindcss @tailwindcss/cli",
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8,
         };
 
         try
@@ -120,10 +123,6 @@ internal sealed class TailwindSetUpProcess
                     var ex = new Exception(e.Data);
                     await LogErrorAsync(ex);
                 }
-            })
-            .FileAndForget(
-                nameof(TailwindCSSIntellisense) + "/TailwindSetUpProcess/ErrorDataReceived"
-            );
             })
             .FileAndForget(
                 nameof(TailwindCSSIntellisense) + "/TailwindSetUpProcess/ErrorDataReceived"

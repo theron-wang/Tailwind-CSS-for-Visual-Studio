@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
@@ -88,6 +89,7 @@ internal static class CheckForUpdates
             FileName = "cmd",
             Arguments = $"/C npm outdated --json",
             WorkingDirectory = workingDir,
+            StandardOutputEncoding = Encoding.UTF8,
         };
 
         string output;
@@ -177,6 +179,7 @@ internal static class CheckForUpdates
             FileName = "cmd",
             Arguments = $"/C npm install {module}@{relevantPackage.Wanted}",
             WorkingDirectory = Path.GetDirectoryName(folder),
+            StandardErrorEncoding = Encoding.UTF8,
         };
 
         string error;
