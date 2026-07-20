@@ -183,15 +183,19 @@ internal static class CheckForUpdates
         };
 
         string error;
+        var failed = false;
 
         using (var process = Process.Start(processInfo))
         {
             error = await process.StandardError.ReadToEndAsync();
 
             await process.WaitForExitAsync();
+
+            failed = process.ExitCode != 0;
         }
 
-        if (!string.IsNullOrWhiteSpace(error))
+        // error may be non-empty but status code may still be 0 if the "error" is really a warning
+        if (!string.IsNullOrWhiteSpace(error) && failed)
         {
             var ex = new Exception(error);
             await ex.LogAsync();
