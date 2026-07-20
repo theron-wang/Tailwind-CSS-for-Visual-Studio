@@ -115,11 +115,15 @@ internal sealed class TailwindSetUpProcess
         ThreadHelper
             .JoinableTaskFactory.RunAsync(async () =>
             {
-                if (e.Data != null)
+                if (e.Data != null && !e.Data.Contains("warn"))
                 {
                     var ex = new Exception(e.Data);
                     await LogErrorAsync(ex);
                 }
+            })
+            .FileAndForget(
+                nameof(TailwindCSSIntellisense) + "/TailwindSetUpProcess/ErrorDataReceived"
+            );
             })
             .FileAndForget(
                 nameof(TailwindCSSIntellisense) + "/TailwindSetUpProcess/ErrorDataReceived"
