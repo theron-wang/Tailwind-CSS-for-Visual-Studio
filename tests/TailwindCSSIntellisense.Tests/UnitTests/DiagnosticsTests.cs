@@ -103,7 +103,7 @@ public class DiagnosticsTests : IDisposable
     {
         var errors = GetErrors(
             new InvalidSourceDiagnostics(),
-            "@source inline(\"{p}-{px}\");",
+            "@source inline(\"{p}-{px}\"); @source inline('{p}-{px}');",
             new ProjectCompletionValues { Version = TailwindVersion.V4 }
         );
 

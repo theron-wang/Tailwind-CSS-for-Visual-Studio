@@ -8,7 +8,7 @@ namespace TailwindCSSIntellisense.Parsers;
 internal static class CssParser
 {
     private static readonly Regex _segmentRegex = new(
-        @"[@;{}](?:""(?:[^""\\]|\\.)*""|[^;{}])*",
+        @"[@;{}](?:""(?:[^""\\]|\\.)*""|'(?:[^'\\]|\\.)*'|[^;{}])*",
         RegexOptions.Compiled,
         TimeSpan.FromSeconds(1)
     );
