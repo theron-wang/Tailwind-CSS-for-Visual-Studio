@@ -99,6 +99,40 @@ public class DiagnosticsTests : IDisposable
     }
 
     [Fact]
+    public void InvalidSourceDiagnostics_HandlesValidInlineSource()
+    {
+        var errors = GetErrors(
+            new InvalidSourceDiagnostics(),
+            "@source inline(\"{p}-{px}\");",
+            new ProjectCompletionValues { Version = TailwindVersion.V4 }
+        );
+
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void InvalidSourceDiagnostics_FlagsInvalidInlineSource()
+    {
+        var errors = GetErrors(
+            new InvalidSourceDiagnostics(),
+            """
+@source none;
+@source inline(invalid;
+""",
+            new ProjectCompletionValues { Version = TailwindVersion.V4 }
+        );
+
+        Assert.Equal(2, errors.Count);
+        Assert.All(errors, error => Assert.Equal(ErrorType.InvalidSource, error.ErrorType));
+        Assert.Contains(
+            errors,
+            error =>
+                error.ErrorMessage.Contains("inline") && error.ErrorMessage.Contains("is invalid")
+        );
+        Assert.Contains(errors, error => error.ErrorMessage.Contains("source(none)"));
+    }
+
+    [Fact]
     public void UsedBlocklistClassDiagnostics_FlagsBlockedClass()
     {
         var values = new ProjectCompletionValues { Version = TailwindVersion.V3 };
