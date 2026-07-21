@@ -26,6 +26,7 @@ jobs:
         run: dotnet test tests/TailwindCSSIntellisense.Tests/TailwindCSSIntellisense.Tests.csproj --configuration Release --verbosity normal
 
       - name: Check formatting
+        if: always()
         run: |
           dotnet tool restore
           dotnet csharpier check .
