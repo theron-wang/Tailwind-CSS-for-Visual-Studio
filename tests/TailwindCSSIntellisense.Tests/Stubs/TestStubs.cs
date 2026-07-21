@@ -83,6 +83,12 @@ namespace Microsoft.VisualStudio.Threading { }
 
 namespace Microsoft.VisualStudio.Text
 {
+    public enum SpanTrackingMode
+    {
+        EdgeExclusive,
+        EdgeInclusive,
+    }
+
     public readonly struct Span(int start, int length)
     {
         public int Start { get; } = start;
@@ -104,6 +110,7 @@ namespace Microsoft.VisualStudio.Text
     public interface ITextSnapshot
     {
         int Length { get; }
+        char this[int index] { get; }
         string GetText(int startIndex, int length);
     }
 
@@ -111,6 +118,7 @@ namespace Microsoft.VisualStudio.Text
     {
         private readonly string _text = text;
         public int Length => _text.Length;
+        public char this[int index] => _text[index];
 
         public string GetText(int startIndex, int length)
         {
@@ -153,19 +161,79 @@ namespace Microsoft.VisualStudio.Text
 
     public interface ITrackingSpan { }
 
-    public readonly struct SnapshotSpan(ITextSnapshot snapshot, int start, int length)
+    public readonly struct SnapshotPoint(ITextSnapshot snapshot, int position)
     {
         public ITextSnapshot Snapshot { get; } = snapshot;
-        public Span Span { get; } = new(start, length);
+        public int Position { get; } = position;
 
-        public int Start => Span.Start;
-        public int End => Span.End;
+        public static SnapshotPoint operator +(SnapshotPoint point, int value)
+        {
+            return new SnapshotPoint(point.Snapshot, point.Position + value);
+        }
+
+        public static SnapshotPoint operator -(SnapshotPoint point, int value)
+        {
+            return new SnapshotPoint(point.Snapshot, point.Position - value);
+        }
+
+        public static implicit operator int(SnapshotPoint point)
+        {
+            return point.Position;
+        }
+
+        public static bool operator <(SnapshotPoint left, int right)
+        {
+            return left.Position < right;
+        }
+
+        public static bool operator >(SnapshotPoint left, int right)
+        {
+            return left.Position > right;
+        }
+
+        public static bool operator <=(SnapshotPoint left, int right)
+        {
+            return left.Position <= right;
+        }
+
+        public static bool operator >=(SnapshotPoint left, int right)
+        {
+            return left.Position >= right;
+        }
+    }
+
+    public sealed class FakeTrackingSpan(int start, int length) : ITrackingSpan
+    {
+        public int Start { get; } = start;
+        public int Length { get; } = length;
+    }
+
+    public readonly struct SnapshotSpan
+    {
+        public SnapshotSpan(ITextSnapshot snapshot, int start, int length)
+        {
+            Snapshot = snapshot;
+            Span = new(start, length);
+        }
+
+        public SnapshotSpan(SnapshotPoint start, int length)
+        {
+            Snapshot = start.Snapshot;
+            Span = new(start.Position, length);
+        }
+
+        public ITextSnapshot Snapshot { get; }
+        public Span Span { get; }
+
+        public SnapshotPoint Start => new(Snapshot, Span.Start);
+        public SnapshotPoint End => new(Snapshot, Span.End);
+        public int Length => Span.Length;
 
         public bool IsEmpty => Span.IsEmpty;
 
         public string GetText()
         {
-            return Snapshot.GetText(Start, Span.Length);
+            return Snapshot.GetText(Span.Start, Span.Length);
         }
 
         public bool Contains(SnapshotSpan other)
@@ -189,6 +257,28 @@ namespace Microsoft.VisualStudio.Text
         public override int GetHashCode()
         {
             return HashCode.Combine(Snapshot, Span.Start, Span.Length);
+        }
+    }
+
+    public static class TextSnapshotExtensions
+    {
+        public static ITrackingSpan CreateTrackingSpan(
+            this ITextSnapshot snapshot,
+            int start,
+            int length,
+            SpanTrackingMode mode
+        )
+        {
+            return new FakeTrackingSpan(start, length);
+        }
+
+        public static ITrackingSpan CreateTrackingSpan(
+            this ITextSnapshot snapshot,
+            SnapshotSpan span,
+            SpanTrackingMode mode
+        )
+        {
+            return new FakeTrackingSpan((int)span.Start, span.Length);
         }
     }
 }
@@ -285,14 +375,31 @@ namespace TailwindCSSIntellisense.Linting
 {
     internal sealed class LinterUtilities
     {
-        public ErrorSeverity GetErrorSeverity(ErrorType type) => ErrorSeverity.None;
+        public static Func<ErrorType, ErrorSeverity> GetErrorSeverityHandler { get; set; } =
+            _ => ErrorSeverity.Warning;
 
-        public IEnumerable<Tuple<string, string>> CheckForClassDuplicates(
+        public static Func<
+            IEnumerable<string>,
+            ProjectCompletionValues,
+            IEnumerable<(
+                string className,
+                string errorMessage,
+                IEnumerable<string> conflictingClasses
+            )>
+        > CheckForClassDuplicatesHandler { get; set; } = (_, _) => [];
+
+        public ErrorSeverity GetErrorSeverity(ErrorType type) => GetErrorSeverityHandler(type);
+
+        public IEnumerable<(
+            string className,
+            string errorMessage,
+            IEnumerable<string> conflictingClasses
+        )> CheckForClassDuplicates(
             IEnumerable<string> classes,
             ProjectCompletionValues projectCompletionValues
         )
         {
-            return [];
+            return CheckForClassDuplicatesHandler(classes, projectCompletionValues);
         }
     }
 }
@@ -404,22 +511,4 @@ namespace TailwindCSSIntellisense.Settings
 namespace TailwindCSSIntellisense.Configuration
 {
     public class CompletionConfiguration { }
-}
-
-namespace TailwindCSSIntellisense.Linting.Validators.Diagnostics
-{
-    public class DiagnosticsAggregator()
-    {
-        internal IEnumerable<Error> GetErrors(
-            SnapshotSpan span,
-            bool isCss,
-            ProjectCompletionValues projectCompletionValues,
-            Func<string, IEnumerable<Match>> findClasses,
-            Func<string, IEnumerable<Match>> splitClasses,
-            Func<SnapshotSpan, bool> shouldNotAddErrors
-        )
-        {
-            return [];
-        }
-    }
 }
