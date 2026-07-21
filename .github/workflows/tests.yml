@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  run-tests:
+  tests:
     runs-on: windows-latest
 
     steps:
@@ -22,19 +22,10 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      - run: dotnet test tests/TailwindCSSIntellisense.Tests/TailwindCSSIntellisense.Tests.csproj --configuration Release --verbosity normal
+      - name: Run tests
+        run: dotnet test tests/TailwindCSSIntellisense.Tests/TailwindCSSIntellisense.Tests.csproj --configuration Release --verbosity normal
 
-  check-formatting:
-    runs-on: windows-latest
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 10.0.x
-
-      - run: dotnet tool restore
-      - run: dotnet csharpier check .
+      - name: Check formatting
+        run: |
+          dotnet tool restore
+          dotnet csharpier check .
