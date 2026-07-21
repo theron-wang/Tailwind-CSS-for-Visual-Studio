@@ -100,6 +100,10 @@
     <Compile Include="../../src/Linting/Suggestion.cs" Link="Source/Linting/Suggestion.cs" />
     <Compile Include="../../src/Linting/SuggestionFix.cs" Link="Source/Linting/SuggestionFix.cs" />
     <Compile
+      Include="../../src/Linting/Validators/Diagnostics/*.cs"
+      Link="Source/Linting/Validators/Diagnostics/%(Filename)%(Extension)"
+    />
+    <Compile
       Include="../../src/Linting/Validators/CssValidator.cs"
       Link="Source/Linting/CssValidator.cs"
     />
