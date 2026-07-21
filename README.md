@@ -7,16 +7,32 @@ Bring IntelliSense, linting, class sorting, build tools, and more to Tailwind CS
 
 > **Note**: This extension best supports Tailwind CSS v3+.
 
-- [Download from the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=TheronWang.TailwindCSSIntellisense)
-- [Getting Started Guide](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/blob/main/Getting-Started.md)
+**[Download from the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=TheronWang.TailwindCSSIntellisense)** · **[Getting Started Guide](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/blob/main/Getting-Started.md)** · **[Changelog](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/blob/main/CHANGELOG.md)**
 
-## Changelog
+---
 
-For information on recent updates, see [the changelog](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/blob/main/CHANGELOG.md).
+## ❤️ Support This Project
 
-## Disclaimer
+This extension is built and maintained solo, in my free time, for the whole VS community.
 
-This is **not** an official Tailwind CSS extension and has **no affiliation** with Tailwind Labs Inc.
+If it's saved you time or made your workflow better, please consider **[sponsoring development on GitHub](https://github.com/sponsors/theron-wang)** — even a small donation helps keep it going and directly funds new features and bug fixes.
+
+---
+
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Setup](#setup)
+- [Features](#features)
+  - [IntelliSense](#intellisense)
+  - [Linting](#linting)
+  - [Class Sorting](#class-sorting)
+  - [Build Integration](#build-integration)
+  - [NPM Integration](#npm-integration)
+  - [Extension Options](#extension-options)
+- [Troubleshooting](#troubleshooting)
+- [Support & Feedback](#support--feedback)
+- [Disclaimer](#disclaimer)
 
 ## Prerequisites
 
@@ -24,15 +40,15 @@ This extension uses `npm` and `node`, so you should have them installed.
 
 To check whether `npm` is installed, run `npm -v` in the terminal.
 
-If you do not have `npm` installed, follow the [official install guide](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) from the npm docs.
+If you don't have `npm` installed, follow the [official install guide](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) from the npm docs.
 
 ## Setup
 
-The extension activates when:
-- Your solution contains a `tailwind.config.{js,cjs,mjs,ts,cts,mts}` file for Tailwind v3, or
-- You are using Tailwind v4 and importing it in a `.css` file with `@import "tailwindcss"`
+The extension activates automatically when:
+- Your solution contains a `tailwind.config.{js,cjs,mjs,ts,cts,mts}` file (Tailwind v3), or
+- You're using Tailwind v4 and importing it in a `.css` file with `@import "tailwindcss"`
 
-If the config file is not detected, right-click it in Solution Explorer and select **Set as configuration file**.
+If the config file isn't detected automatically, right-click it in Solution Explorer and select **Set as configuration file**.
 
 ## Features
 
@@ -40,7 +56,9 @@ If the config file is not detected, right-click it in Solution Explorer and sele
 
 Get Tailwind class suggestions in Razor, HTML, and CSS files:
 
-![Intellisense Demo](https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/IntelliSense-Demo-1.gif)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/IntelliSense-Demo-1.gif" width="700" alt="IntelliSense suggesting Tailwind classes in a Razor file" />
+</p>
 
 ### Linting
 
@@ -48,9 +66,11 @@ Automatically flags:
 - Conflicting classes
 - Invalid `theme()`, `screen()`, or `@tailwind` usage
 
-Note: Visual Studio might still flag some Tailwind features like `@apply` as errors. Extensions cannot override these tags.
+> **Note**: Visual Studio may still flag some Tailwind features like `@apply` as errors — extensions can't override these built-in warnings.
 
-![Linter](https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/Linter.png)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/Linter.png" width="700" alt="Linter flagging conflicting Tailwind classes" />
+</p>
 
 ### Class Sorting
 
@@ -58,25 +78,38 @@ Sort Tailwind classes:
 - Automatically on save or build
 - Manually from the **Tools** menu
 
-![Class Sort Demo 1](https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/class-sort-demo.gif)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/class-sort-demo.gif" width="700" alt="Classes being automatically sorted on save" />
+</p>
 
-![Class Sort Demo 2](https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/Class-Sort-2.png)
+<table align="center">
+<tr>
+<td align="center"><img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/Class-Sort-2.png" width="380" alt="Manual class sort from the Tools menu" /></td>
+</tr>
+</table>
 
 ### Build Integration
 
-The extension can build your Tailwind CSS output when you build your project, or manually from the **Build** menu.
+The extension can build your Tailwind CSS output automatically on project build, or manually from the **Build** menu.
+
 - Make sure your input and output CSS files are defined
 - Output and errors appear in the Build output window
 
-![Build Demo 1](https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/Build-Demo-1.png)
-
-![Build Demo 2](https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/Build-Demo-2.png)
+<table align="center">
+<tr>
+<td align="center"><img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/Build-Demo-1.png" width="380" alt="Build integration output" /></td>
+<td align="center"><img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/Build-Demo-2.png" width="380" alt="Build menu with Tailwind build option" /></td>
+</tr>
+</table>
 
 To configure build and configuration files, right-click `.js`, `.ts`, or `.css` files:
 
-![Customizability Build 1](https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/Customizability-Build-1.png)
-
-![Customizability Build 2](https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/Customizability-Build-2.png)
+<table align="center">
+<tr>
+<td align="center"><img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/Customizability-Build-1.png" width="380" alt="Setting the configuration file via right-click" /></td>
+<td align="center"><img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/Customizability-Build-2.png" width="380" alt="Configuring build settings via right-click" /></td>
+</tr>
+</table>
 
 Project-specific settings are saved in a `tailwind.extension.json` file in your project root.
 
@@ -84,40 +117,46 @@ Project-specific settings are saved in a `tailwind.extension.json` file in your 
 
 Start quickly by right-clicking your project and selecting a startup task:
 
-![NPM Shortcut 1](https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/NPM-Shortcuts-1.png)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/NPM-Shortcuts-1.png" width="700" alt="NPM startup task shortcuts in the right-click menu" />
+</p>
 
-Using the Tailwind CLI?
-- Set its path under **Tools > Options > Tailwind CSS IntelliSense > Tailwind CLI path**
-- Click **Set up Tailwind CSS (use CLI)**
+**Using the Tailwind CLI?**
+1. Set its path under **Tools > Options > Tailwind CSS IntelliSense > Tailwind CLI path**
+2. Click **Set up Tailwind CSS (use CLI)**
 
-Want to use a custom build script?
-- Define it in your `package.json`
-- Set the script name in the extension options (`npm run your-script-name`)
+**Want to use a custom build script?**
+1. Define it in your `package.json`
+2. Set the script name in the extension options (`npm run your-script-name`)
 
 ### Extension Options
 
-Find global extension settings in:
+Global extension settings live under:
 
 > **Tools > Options > Tailwind CSS IntelliSense**
 
-More details: [Getting Started – Extension Configuration](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/blob/main/Getting-Started.md#extension-configuration)
+See [Getting Started – Extension Configuration](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/blob/main/Getting-Started.md#extension-configuration) for details.
 
 ## Troubleshooting
 
 ### Build Issues
 
-If your CSS is not updating:
-- Check the **Build output** window for Tailwind errors.
+If your CSS isn't updating, check the **Build output** window for Tailwind errors.
 
-![Build Error Output](https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/Troubleshooting-Build.png)<br>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/Troubleshooting-Build.png" width="700" alt="Build output window showing a Tailwind error" />
+</p>
 
 ### Extension Issues
 
-If the extension crashes or behaves unexpectedly:
-- Check the Extensions output window for detailed logs.
+If the extension crashes or behaves unexpectedly, check the **Extensions** output window for detailed logs.
 
-## Support
+## Support & Feedback
 
-To report issues or share feature suggestions, feel free to create an issue [on GitHub](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/issues/new).
+Found a bug or have a feature request? [Open an issue on GitHub](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/issues/new).
 
-If this extension has helped you, please consider [leaving a small donation](https://github.com/sponsors/theron-wang) to support development!
+Enjoying the extension? A rating on the [Marketplace listing](https://marketplace.visualstudio.com/items?itemName=TheronWang.TailwindCSSIntellisense) or a **[donation](https://github.com/sponsors/theron-wang)** goes a long way toward keeping it maintained. 🙏
+
+## Disclaimer
+
+This is **not** an official Tailwind CSS extension and has **no affiliation** with Tailwind Labs Inc.
