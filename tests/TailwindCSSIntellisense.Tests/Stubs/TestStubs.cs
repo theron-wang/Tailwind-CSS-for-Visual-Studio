@@ -176,9 +176,29 @@ namespace Microsoft.VisualStudio.Text
             return new SnapshotPoint(point.Snapshot, point.Position - value);
         }
 
-        public static explicit operator int(SnapshotPoint point)
+        public static implicit operator int(SnapshotPoint point)
         {
             return point.Position;
+        }
+
+        public static bool operator <(SnapshotPoint left, int right)
+        {
+            return left.Position < right;
+        }
+
+        public static bool operator >(SnapshotPoint left, int right)
+        {
+            return left.Position > right;
+        }
+
+        public static bool operator <=(SnapshotPoint left, int right)
+        {
+            return left.Position <= right;
+        }
+
+        public static bool operator >=(SnapshotPoint left, int right)
+        {
+            return left.Position >= right;
         }
     }
 
@@ -355,18 +375,26 @@ namespace TailwindCSSIntellisense.Linting
 {
     internal sealed class LinterUtilities
     {
-        public static Func<ErrorType, ErrorSeverity> GetErrorSeverityHandler { get; set; } = _ =>
-            ErrorSeverity.Warning;
+        public static Func<ErrorType, ErrorSeverity> GetErrorSeverityHandler { get; set; } =
+            _ => ErrorSeverity.Warning;
 
         public static Func<
             IEnumerable<string>,
             ProjectCompletionValues,
-            IEnumerable<(string className, string errorMessage, IEnumerable<string> conflictingClasses)>
+            IEnumerable<(
+                string className,
+                string errorMessage,
+                IEnumerable<string> conflictingClasses
+            )>
         > CheckForClassDuplicatesHandler { get; set; } = (_, _) => [];
 
         public ErrorSeverity GetErrorSeverity(ErrorType type) => GetErrorSeverityHandler(type);
 
-        public IEnumerable<(string className, string errorMessage, IEnumerable<string> conflictingClasses)> CheckForClassDuplicates(
+        public IEnumerable<(
+            string className,
+            string errorMessage,
+            IEnumerable<string> conflictingClasses
+        )> CheckForClassDuplicates(
             IEnumerable<string> classes,
             ProjectCompletionValues projectCompletionValues
         )
