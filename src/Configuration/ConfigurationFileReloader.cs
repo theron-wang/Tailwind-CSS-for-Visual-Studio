@@ -31,7 +31,7 @@ public sealed class ConfigurationFileReloader : IDisposable
 
     private readonly SemaphoreSlim _importToConfigSemaphore = new(1, 1);
     private readonly Dictionary<string, HashSet<ConfigurationFile>> _importToConfigurationFiles =
-    [];
+        new(StringComparer.InvariantCultureIgnoreCase);
 
     /// <summary>
     /// Initializes the class to subscribe to relevant events
@@ -57,13 +57,13 @@ public sealed class ConfigurationFileReloader : IDisposable
 
         try
         {
-            if (_importToConfigurationFiles.TryGetValue(import.ToLower(), out var values))
+            if (_importToConfigurationFiles.TryGetValue(import, out var values))
             {
                 values.Add(config);
             }
             else
             {
-                _importToConfigurationFiles[import.ToLower()] = [config];
+                _importToConfigurationFiles[import] = [config];
             }
         }
         finally
@@ -79,6 +79,17 @@ public sealed class ConfigurationFileReloader : IDisposable
     )]
     private void OnFileSave(string file)
     {
+        // DocumentEvents.Saved is raised synchronously by Visual Studio. Do not wait for the
+        // imports collection here, since doing so can block the UI thread during file operations.
+        ThreadHelper
+            .JoinableTaskFactory.RunAsync(() => OnFileSaveAsync(file))
+            .FileAndForget(
+                nameof(TailwindCSSIntellisense) + "/ConfigurationFileReloader/OnFileSave"
+            );
+    }
+
+    private async Task OnFileSaveAsync(string file)
+    {
         List<ConfigurationFile> configFiles = [];
 
         var configFile = _settings.ConfigurationFiles.FirstOrDefault(c =>
@@ -90,10 +101,10 @@ public sealed class ConfigurationFileReloader : IDisposable
             configFiles.Add(configFile);
         }
 
-        _importToConfigSemaphore.Wait();
+        await _importToConfigSemaphore.WaitAsync();
         try
         {
-            if (_importToConfigurationFiles.TryGetValue(file.ToLower(), out var values))
+            if (_importToConfigurationFiles.TryGetValue(file, out var values))
             {
                 configFiles.AddRange(values);
             }
@@ -103,22 +114,19 @@ public sealed class ConfigurationFileReloader : IDisposable
             _importToConfigSemaphore.Release();
         }
 
-        foreach (var config in configFiles)
-        {
-            ThreadHelper
-                .JoinableTaskFactory.RunAsync(() =>
+        await Task.WhenAll(
+            configFiles
+                .Distinct()
+                .Select(config =>
                     CompletionConfiguration.ReloadCustomAttributesAsync(config, _settings)
                 )
-                .FileAndForget(
-                    nameof(TailwindCSSIntellisense) + "/ConfigurationFileReloader/OnFileSave"
-                );
-        }
+        );
     }
 
     private async Task OnSettingsChangedAsync(TailwindSettings settings)
     {
-        _settings = settings;
         var added = settings.ConfigurationFiles.Except(_settings.ConfigurationFiles).ToList();
+        _settings = settings;
 
         await _importToConfigSemaphore.WaitAsync();
 

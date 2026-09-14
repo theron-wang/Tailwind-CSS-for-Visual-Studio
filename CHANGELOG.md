@@ -1,5 +1,9 @@
 # Changelog
 
+# 1.14.3 (September 13th, 2026)
+
+- Potentially fix some file-saving related performance issues
+
 ## 1.14.2 (July 21st, 2026)
 
 - Fix a linter false positive resulting from CSS segment-breaking characters (;{}) inside quotes in `@source` directives ([#154](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/issues/154))
