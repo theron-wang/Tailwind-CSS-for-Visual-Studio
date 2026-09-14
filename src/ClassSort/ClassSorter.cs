@@ -122,6 +122,7 @@ internal sealed class ClassSorter : IDisposable
         }
         if (
             _tailwindSettings.EnableTailwindCss
+            && _tailwindSettings.ConfigurationFiles.Count > 0
             && _tailwindSettings.SortClassesType == SortClassesOptions.OnSave
         )
         {
@@ -160,6 +161,7 @@ internal sealed class ClassSorter : IDisposable
     {
         if (
             _tailwindSettings.EnableTailwindCss
+            && _tailwindSettings.ConfigurationFiles.Count > 0
             && _tailwindSettings.SortClassesType == SortClassesOptions.OnBuild
         )
         {
@@ -185,6 +187,7 @@ internal sealed class ClassSorter : IDisposable
 
         if (
             _tailwindSettings.EnableTailwindCss
+            && _tailwindSettings.ConfigurationFiles.Count > 0
             && _tailwindSettings.SortClassesType != SortClassesOptions.None
         )
         {

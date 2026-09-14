@@ -170,6 +170,12 @@ internal sealed class TailwindBuildProcess : IDisposable
     )]
     private void OnFileSave(string filePath)
     {
+        // Avoid doing any save-triggered work in solutions where Tailwind is not configured.
+        if (_settings.ConfigurationFiles.Count == 0)
+        {
+            return;
+        }
+
         if (
             Path.GetFileName(filePath)
                 .Equals("package.json", StringComparison.InvariantCultureIgnoreCase)
