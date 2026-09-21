@@ -2,6 +2,7 @@
 using System.ComponentModel.Composition;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.VisualStudio.Threading;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Initialization;
 
@@ -72,6 +73,10 @@ internal sealed class ClassSortUtilities
 
     public async Task<Dictionary<string, int>> GetClassOrderAsync(TailwindVersion version)
     {
+        // A synchronous linter caller may wait on this cache while another load is in progress.
+        // Keep the semaphore owner and resource loading independent of the UI thread.
+        await TaskScheduler.Default;
+
         await _classOrderLock.WaitAsync();
 
         try

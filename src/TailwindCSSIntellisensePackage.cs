@@ -106,25 +106,29 @@ public sealed class TailwindCSSIntellisensePackage : AsyncPackage, IDisposable
         _configurationFileReloader = await VS.GetMefServiceAsync<ConfigurationFileReloader>();
 
         // Reload Intellisense and build so everything starts clean in the new project/folder
+        VS.Events.SolutionEvents.OnAfterOpenSolution += SolutionOpened;
         VS.Events.SolutionEvents.OnAfterOpenProject += ProjectLoaded;
         VS.Events.SolutionEvents.OnAfterOpenFolder += FolderOpened;
 
         // Just in case this extension loads after projects are loaded, initialize:
 
-        if (await VS.Solutions.IsOpenAsync())
+        if (await VS.Solutions.IsOpenAsync() && !await VS.Solutions.IsOpeningAsync())
         {
             FolderOpened();
         }
     }
 
     /// <summary>
-    /// On project open. project does not need to be supplied.
+    /// Initialize after the solution has opened so configuration discovery sees all projects.
     /// </summary>
-    /// <param name="project">Can be null or anything, does not affect output.</param>
-    private void ProjectLoaded(Project? project = null)
+    /// <param name="solution">The opened solution.</param>
+    private void SolutionOpened(Solution? solution)
     {
         FolderOpened();
     }
+
+    // Also handle projects added after the solution has finished opening.
+    private void ProjectLoaded(Project? project) => FolderOpened();
 
     /// <summary>
     /// On folder open. folderName does not need to be supplied.
@@ -139,6 +143,11 @@ public sealed class TailwindCSSIntellisensePackage : AsyncPackage, IDisposable
 
     private async Task BeginInitializationAsync()
     {
+        if (await VS.Solutions.IsOpeningAsync())
+        {
+            return;
+        }
+
         // Ensure only ONE initialize method is running at a time. If this method is called multiple times in
         // quick succession, this method is only run once.
         if (!await _initializeLock.WaitAsync(0))
@@ -170,6 +179,7 @@ public sealed class TailwindCSSIntellisensePackage : AsyncPackage, IDisposable
     {
         if (_classSorter != null)
         {
+            VS.Events.SolutionEvents.OnAfterOpenSolution -= SolutionOpened;
             VS.Events.SolutionEvents.OnAfterOpenProject -= ProjectLoaded;
             VS.Events.SolutionEvents.OnAfterOpenFolder -= FolderOpened;
         }
