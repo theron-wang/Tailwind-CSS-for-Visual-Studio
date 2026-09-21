@@ -1,6 +1,10 @@
 # Changelog
 
-# 1.14.3 (September 13th, 2026)
+## 1.14.4 (September 20th, 2026)
+
+- Potential fixes for deadlocks on configuration file reloads
+
+## 1.14.3 (September 13th, 2026)
 
 - Potentially fix some file-saving related performance issues
 

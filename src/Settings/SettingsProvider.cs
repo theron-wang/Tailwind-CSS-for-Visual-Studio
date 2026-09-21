@@ -569,7 +569,26 @@ public sealed class SettingsProvider : IDisposable
     /// </summary>
     private async Task<string?> GetTailwindProjectDirectoryAsync()
     {
-        var projects = await VS.Solutions.GetAllProjectsAsync(ProjectStateFilter.All);
+        // Editor services can request settings before every project has loaded.
+        // Return uncached defaults until solution-open initialization can discover the right file.
+        if (await VS.Solutions.IsOpeningAsync())
+        {
+            return null;
+        }
+
+        var solution = await VS.Solutions.GetCurrentSolutionAsync();
+        var solutionDirectory = Path.GetDirectoryName(solution?.FullPath);
+        if (
+            solutionDirectory is not null
+            && File.Exists(Path.Combine(solutionDirectory, ExtensionConfigFileName))
+        )
+        {
+            return solutionDirectory;
+        }
+
+        var projects = (await VS.Solutions.GetAllProjectsAsync(ProjectStateFilter.All))
+            ?.OrderBy(p => p.FullPath, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
         if (projects == null || projects.Any() == false)
         {
