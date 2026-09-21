@@ -64,15 +64,10 @@ internal sealed class SetUpAndUseTailwindGlobal : BaseCommand<SetUpAndUseTailwin
             if (file is not null && file.ContainingProject is not null)
             {
                 // tailwind.extension.json is placed in the same directory as tailwind.css
-                var tailwindExtensionJson = await SettingsProvider.GetFilePathAsync();
-
-                if (tailwindExtensionJson is not null)
-                {
-                    await file.ContainingProject.AddExistingFilesAsync(
-                        configFile!,
-                        tailwindExtensionJson
-                    );
-                }
+                await file.ContainingProject.AddExistingFilesAsync(
+                    configFile,
+                    Path.Combine(directory, SettingsProvider.ExtensionConfigFileName)
+                );
             }
         }
     }

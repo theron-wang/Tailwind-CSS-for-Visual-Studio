@@ -46,7 +46,7 @@ public sealed class SettingsProvider : IDisposable
     [Import]
     public ProjectConfigurationManager ProjectConfigurationManager { get; set; } = null!;
 
-    private const string ExtensionConfigFileName = "tailwind.extension.json";
+    public const string ExtensionConfigFileName = "tailwind.extension.json";
 
     private Task? _fileWritingTask;
     private TailwindSettings? _cachedSettings;
@@ -520,18 +520,6 @@ public sealed class SettingsProvider : IDisposable
         VS.Events.SolutionEvents.OnAfterOpenFolder -= InvalidateCacheAndSettingsChanged;
         VS.Events.SolutionEvents.OnAfterOpenSolution -= InvalidateCacheAndSettingsChanged;
         VS.Events.DocumentEvents.Saved -= OnFileSaved;
-    }
-
-    public async Task<string?> GetFilePathAsync()
-    {
-        var projDir = await GetTailwindProjectDirectoryAsync();
-
-        if (projDir is null)
-        {
-            return null;
-        }
-
-        return Path.Combine(projDir, ExtensionConfigFileName);
     }
 
     private async Task<string?> GetDesiredConfigurationDirectoryAsync(string? configPath)
