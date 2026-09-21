@@ -522,9 +522,16 @@ public sealed class SettingsProvider : IDisposable
         VS.Events.DocumentEvents.Saved -= OnFileSaved;
     }
 
-    public async Task<string> GetFilePathAsync()
+    public async Task<string?> GetFilePathAsync()
     {
-        return Path.Combine(await GetTailwindProjectDirectoryAsync(), ExtensionConfigFileName);
+        var projDir = await GetTailwindProjectDirectoryAsync();
+
+        if (projDir is null)
+        {
+            return null;
+        }
+
+        return Path.Combine(projDir, ExtensionConfigFileName);
     }
 
     private async Task<string?> GetDesiredConfigurationDirectoryAsync(string? configPath)
