@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.ComponentModel.Composition;
 using System.IO;
 using System.Text;
@@ -9,6 +9,7 @@ using Community.VisualStudio.Toolkit;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Differencing;
+using Microsoft.VisualStudio.Threading;
 using TailwindCSSIntellisense.ClassSort.Sorters;
 using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Options;
@@ -38,7 +39,9 @@ internal sealed class ClassSorter : IDisposable
     private SemaphoreSlim _initLock = new(1, 1);
     private Task? _initTask;
 
-    private readonly HashSet<string> _sorted = [];
+    private readonly ConcurrentDictionary<string, bool> _sorted = new(
+        StringComparer.OrdinalIgnoreCase
+    );
 
     public async Task InitializeAsync()
     {
@@ -70,6 +73,7 @@ internal sealed class ClassSorter : IDisposable
 
     public async Task SortAllAsync()
     {
+        await TaskScheduler.Default;
         await InitializeAsync();
         Sorting = true;
         try
@@ -116,9 +120,9 @@ internal sealed class ClassSorter : IDisposable
     )]
     private void DocumentSaved(string path)
     {
-        if (_sorted.Contains(path.ToLower()))
+        if (_sorted.ContainsKey(path))
         {
-            _sorted.Remove(path);
+            _sorted.TryRemove(path, out _);
         }
         if (
             _tailwindSettings.EnableTailwindCss
@@ -131,6 +135,7 @@ internal sealed class ClassSorter : IDisposable
                 .JoinableTaskFactory.RunAsync(
                     async delegate
                     {
+                        await TaskScheduler.Default;
                         try
                         {
                             await SortAsync(path, true);
@@ -178,11 +183,12 @@ internal sealed class ClassSorter : IDisposable
             return;
         }
 
-        if (!forceSort && _sorted.Contains(path))
+        if (!forceSort && _sorted.ContainsKey(path))
         {
             return;
         }
 
+        await TaskScheduler.Default;
         await InitializeAsync();
 
         if (
@@ -221,6 +227,7 @@ internal sealed class ClassSorter : IDisposable
                 // Reload - sometimes changes do not show up
                 if (await VS.Documents.IsOpenAsync(path))
                 {
+                    await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                     var view = await VS.Documents.GetDocumentViewAsync(path);
 
                     view?.Document?.Reload(
@@ -235,7 +242,8 @@ internal sealed class ClassSorter : IDisposable
                     );
                 }
             }
-            _sorted.Add(path.ToLower());
+
+            _sorted[path] = true;
         }
     }
 

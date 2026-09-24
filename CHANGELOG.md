@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.14.5 (September 24th, 2026)
+
+- Address potential performance issues by moving more features to background threads ([#158](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/issues/158))
+
 ## 1.14.4 (September 20th, 2026)
 
 - Potential fixes for deadlocks on configuration file reloads

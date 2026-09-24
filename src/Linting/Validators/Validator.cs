@@ -53,7 +53,8 @@ internal abstract class Validator : IDisposable
         _projectConfigurationManager = projectConfigurationManager;
         _completionConfiguration = completionConfiguration;
         _diagnosticsAggregator = diagnosticsAggregator;
-        _buffer.ChangedHighPriority += OnBufferChange;
+        // "Any ITextBuffer will be upcastable to an ITextBuffer2."
+        ((ITextBuffer2)_buffer).ChangedOnBackground += OnBufferChange;
         Linter.Saved += LinterOptionsChanged;
         _completionConfiguration.ConfigurationUpdated += ConfigurationUpdatedAsync;
 
@@ -252,7 +253,7 @@ internal abstract class Validator : IDisposable
 
     public void Dispose()
     {
-        _buffer.ChangedHighPriority -= OnBufferChange;
+        ((ITextBuffer2)_buffer).ChangedHighPriority -= OnBufferChange;
         Linter.Saved -= LinterOptionsChanged;
         _completionConfiguration.ConfigurationUpdated -= ConfigurationUpdatedAsync;
     }
