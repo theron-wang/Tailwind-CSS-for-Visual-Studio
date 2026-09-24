@@ -95,7 +95,7 @@ public sealed class FileFinder
                 return [];
             }
 
-            paths.Add(miscPath);
+            paths.Add(miscPath!);
         }
         else
         {
