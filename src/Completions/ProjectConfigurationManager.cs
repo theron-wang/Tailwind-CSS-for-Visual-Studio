@@ -341,6 +341,8 @@ public sealed class ProjectConfigurationManager : IDisposable
 
     public async Task OnSettingsChangedAsync(TailwindSettings settings)
     {
+        await TaskScheduler.Default;
+
         // Perform all async I/O (version detection, config file updates) before
         // acquiring the lock so we hold it only while mutating shared state.
         foreach (var buildFile in settings.BuildFiles)

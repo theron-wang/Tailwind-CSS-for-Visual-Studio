@@ -108,7 +108,7 @@ internal class ClassRegexHelper
 
                 foreach (var value in custom.Razor.Values)
                 {
-                    var newRegex = new Regex(value, RegexOptions.Compiled);
+                    var newRegex = new Regex(value, RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
                     if (newRegex.GetGroupNames().Contains("content") is false)
                     {
@@ -130,7 +130,7 @@ internal class ClassRegexHelper
 
                 foreach (var value in custom.HTML.Values)
                 {
-                    var newRegex = new Regex(value, RegexOptions.Compiled);
+                    var newRegex = new Regex(value, RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
                     if (newRegex.GetGroupNames().Contains("content") is false)
                     {
@@ -152,7 +152,7 @@ internal class ClassRegexHelper
 
                 foreach (var value in custom.JavaScript.Values)
                 {
-                    var newRegex = new Regex(value, RegexOptions.Compiled);
+                    var newRegex = new Regex(value, RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
                     if (newRegex.GetGroupNames().Contains("content") is false)
                     {

@@ -47,14 +47,13 @@ public sealed class SettingsProvider : IDisposable
     public ProjectConfigurationManager ProjectConfigurationManager { get; set; } = null!;
 
     public const string ExtensionConfigFileName = "tailwind.extension.json";
-
-    private Task? _fileWritingTask;
     private TailwindSettings? _cachedSettings;
 
     private readonly TimeSpan _invalidationInterval = TimeSpan.FromSeconds(5);
 
     private CancellationTokenSource _debounceCts = new();
     private readonly SemaphoreSlim _invocationLock = new(1, 1);
+    private readonly SemaphoreSlim _extensionConfigWriteLock = new(1, 1);
 
     /// <summary>
     /// Event that is raised when the settings are changed.
@@ -108,19 +107,9 @@ public sealed class SettingsProvider : IDisposable
 
             if (File.Exists(path))
             {
-                if (_fileWritingTask != null)
-                {
-                    if (_fileWritingTask.IsCompleted)
-                    {
-                        _fileWritingTask = null;
-                    }
-                    else
-                    {
-                        await _fileWritingTask;
-                    }
-                }
                 try
                 {
+                    await _extensionConfigWriteLock.WaitAsync();
                     using var fs = File.Open(
                         path,
                         FileMode.Open,
@@ -151,6 +140,10 @@ public sealed class SettingsProvider : IDisposable
                     {
                         changed = true;
                     }
+                }
+                finally
+                {
+                    _extensionConfigWriteLock.Release();
                 }
             }
             else
@@ -335,19 +328,6 @@ public sealed class SettingsProvider : IDisposable
         string? preferredSaveDirectory = null
     )
     {
-        // Prevents two tasks from writing to the same file at the same time
-        if (_fileWritingTask != null)
-        {
-            if (_fileWritingTask.IsCompleted)
-            {
-                _fileWritingTask = null;
-            }
-            else
-            {
-                await _fileWritingTask;
-            }
-        }
-
         if (settings.ConfigurationFiles is not null)
         {
             for (int i = 0; i < settings.ConfigurationFiles.Count; i++)
@@ -484,18 +464,26 @@ public sealed class SettingsProvider : IDisposable
                 projectRoot = desiredProjectRoot;
             }
 
-            using var fs = File.Open(
-                Path.Combine(projectRoot, ExtensionConfigFileName),
-                FileMode.Create,
-                FileAccess.ReadWrite,
-                FileShare.ReadWrite
-            );
-            _fileWritingTask = JsonSerializer.SerializeAsync(
-                fs,
-                projectSettings,
-                options: new() { WriteIndented = true }
-            );
-            await _fileWritingTask;
+            try
+            {
+                await _extensionConfigWriteLock.WaitAsync();
+                using var fs = File.Open(
+                    Path.Combine(projectRoot, ExtensionConfigFileName),
+                    FileMode.Create,
+                    FileAccess.ReadWrite,
+                    FileShare.ReadWrite
+                );
+
+                await JsonSerializer.SerializeAsync(
+                    fs,
+                    projectSettings,
+                    options: new() { WriteIndented = true }
+                );
+            }
+            finally
+            {
+                _extensionConfigWriteLock.Release();
+            }
         }
 
         _cachedSettings = settings;

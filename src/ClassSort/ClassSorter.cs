@@ -9,6 +9,7 @@ using Community.VisualStudio.Toolkit;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Differencing;
+using Microsoft.VisualStudio.Threading;
 using TailwindCSSIntellisense.ClassSort.Sorters;
 using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Options;
@@ -38,7 +39,7 @@ internal sealed class ClassSorter : IDisposable
     private SemaphoreSlim _initLock = new(1, 1);
     private Task? _initTask;
 
-    private readonly HashSet<string> _sorted = [];
+    private readonly HashSet<string> _sorted = new(StringComparer.OrdinalIgnoreCase);
 
     public async Task InitializeAsync()
     {
@@ -70,6 +71,7 @@ internal sealed class ClassSorter : IDisposable
 
     public async Task SortAllAsync()
     {
+        await TaskScheduler.Default;
         await InitializeAsync();
         Sorting = true;
         try
@@ -131,6 +133,7 @@ internal sealed class ClassSorter : IDisposable
                 .JoinableTaskFactory.RunAsync(
                     async delegate
                     {
+                        await TaskScheduler.Default;
                         try
                         {
                             await SortAsync(path, true);
@@ -183,6 +186,7 @@ internal sealed class ClassSorter : IDisposable
             return;
         }
 
+        await TaskScheduler.Default;
         await InitializeAsync();
 
         if (
@@ -221,6 +225,7 @@ internal sealed class ClassSorter : IDisposable
                 // Reload - sometimes changes do not show up
                 if (await VS.Documents.IsOpenAsync(path))
                 {
+                    await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                     var view = await VS.Documents.GetDocumentViewAsync(path);
 
                     view?.Document?.Reload(

@@ -66,6 +66,7 @@ public sealed partial class CompletionConfiguration
                 .Cast<Func<Task>>()
                 .Select(d => d());
 
+            await TaskScheduler.Default;
             await Task.WhenAll(tasks);
         }
 
@@ -93,6 +94,7 @@ public sealed partial class CompletionConfiguration
                 .Cast<Func<Task>>()
                 .Select(d => d());
 
+            await TaskScheduler.Default;
             await Task.WhenAll(tasks);
         }
 

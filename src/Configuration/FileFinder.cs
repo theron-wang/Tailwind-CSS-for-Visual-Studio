@@ -2,11 +2,11 @@
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using Community.VisualStudio.Toolkit;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
+using Microsoft.VisualStudio.Threading;
 
 namespace TailwindCSSIntellisense.Configuration;
 
@@ -16,6 +16,11 @@ namespace TailwindCSSIntellisense.Configuration;
 [Export]
 public sealed class FileFinder
 {
+    private static readonly HashSet<string> SkipFolders = new(
+        ["node_modules", "bin", "obj", ".vs", ".git"],
+        StringComparer.OrdinalIgnoreCase
+    );
+
     /// <summary>
     /// Finds all Javascript files (.js) within the solution
     /// </summary>
@@ -35,6 +40,7 @@ public sealed class FileFinder
     /// <returns>A <see cref="Task"/> which returns a <see cref="string"/> representing the folder path or <see langword="null"/> if the project does not exist</returns>
     internal async Task<string?> GetCurrentMiscellaneousProjectPathAsync()
     {
+        // ToSolutionItemAsync must be done on the UI thread
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
         var vsSolution = await VS.Services.GetSolutionAsync();
@@ -70,77 +76,61 @@ public sealed class FileFinder
         IEnumerable<string> extensions
     )
     {
-        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-        var projects = await GetAllProjectsAsync();
+        var solution = await VS.Solutions.GetCurrentSolutionAsync();
+        await TaskScheduler.Default;
 
-        if (projects.Count == 0)
+        var solutionPath = solution?.FullPath;
+        var extensionSet = new HashSet<string>(extensions, StringComparer.OrdinalIgnoreCase);
+
+        if (solutionPath is null)
         {
             // If no projects, probably misc
-            var miscPath = await GetCurrentMiscellaneousProjectPathAsync();
+            solutionPath = await GetCurrentMiscellaneousProjectPathAsync();
+            await TaskScheduler.Default;
 
-            if (string.IsNullOrEmpty(miscPath))
+            if (string.IsNullOrEmpty(solutionPath))
             {
                 return [];
             }
-
-            var files = Directory
-                .EnumerateFiles(miscPath, "*.*", SearchOption.AllDirectories)
-                .Where(file =>
-                    extensions.Contains(Path.GetExtension(file).ToLower())
-                    && !file.Split(Path.DirectorySeparatorChar).Contains("node_modules")
-                );
-            return [.. files];
         }
-
-        var projectItems = new List<SolutionItem>();
-
-        foreach (var project in projects)
+        else
         {
-            projectItems.AddRange(
-                GetProjectItems(
-                    [.. project.Children.Where(c => c is not null).Select(c => c!)],
-                    extensions
-                )
-            );
+            solutionPath = Path.GetDirectoryName(solutionPath);
         }
 
-        return [.. projectItems.Select(i => i.Name)];
-    }
-
-    private List<SolutionItem> GetProjectItems(
-        List<SolutionItem> projectItems,
-        IEnumerable<string> extensions
-    )
-    {
-        var list = new List<SolutionItem>();
-        foreach (var item in projectItems)
+        // Directory.Enumerate doesn't give the fine-grained control needed
+        var files = await Task.Run(() =>
         {
-            if (
-                item.Type == SolutionItemType.PhysicalFile
-                && extensions.Contains(Path.GetExtension(item.Name))
-            )
-            {
-                list.Add(item);
-            }
-            else if (item.Type == SolutionItemType.PhysicalFolder)
-            {
-                list.AddRange(
-                    GetProjectItems(
-                        [.. item.Children.Where(c => c is not null).Select(c => c!)],
-                        extensions
-                    )
-                );
-            }
-        }
+            var result = new List<string>();
+            var directories = new Stack<string>();
+            directories.Push(solutionPath!);
 
-        return list;
-    }
+            while (directories.Count > 0)
+            {
+                var directory = directories.Pop();
 
-    /// <summary>
-    /// Gets all projects, if not miscellaneous
-    /// </summary>
-    private async Task<List<SolutionItem>> GetAllProjectsAsync()
-    {
-        return (await VS.Solutions.GetAllProjectsAsync()).Cast<SolutionItem>().ToList();
+                foreach (var subdirectory in Directory.EnumerateDirectories(directory))
+                {
+                    var name = Path.GetFileName(subdirectory);
+
+                    if (!SkipFolders.Contains(name))
+                    {
+                        directories.Push(subdirectory);
+                    }
+                }
+
+                foreach (var file in Directory.EnumerateFiles(directory))
+                {
+                    if (extensionSet.Contains(Path.GetExtension(file)))
+                    {
+                        result.Add(file);
+                    }
+                }
+            }
+
+            return result;
+        });
+
+        return files;
     }
 }
