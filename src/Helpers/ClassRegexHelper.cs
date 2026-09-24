@@ -211,12 +211,13 @@ internal class ClassRegexHelper
         if (!_overrideNormal || _customNormalRegexes is null || _customNormalRegexes.Count == 0)
         {
             matches = (
-                (_customNormalRegexes?.SelectMany(regex => regex.Matches(text).Cast<Match>())) ?? []
+                (_customNormalRegexes?.SelectMany(regex => GetCustomRegexMatches(regex, text)))
+                ?? []
             ).Concat(_classRegex.Matches(text).Cast<Match>());
         }
         else
         {
-            matches = _customNormalRegexes.SelectMany(regex => regex.Matches(text).Cast<Match>());
+            matches = _customNormalRegexes.SelectMany(regex => GetCustomRegexMatches(regex, text));
         }
 
         return matches.SelectMany(
@@ -269,12 +270,12 @@ internal class ClassRegexHelper
         if (!_overrideRazor || _customRazorRegexes is null || _customRazorRegexes.Count == 0)
         {
             matches = (
-                (_customRazorRegexes?.SelectMany(regex => regex.Matches(text).Cast<Match>())) ?? []
+                (_customRazorRegexes?.SelectMany(regex => GetCustomRegexMatches(regex, text))) ?? []
             ).Concat(_razorClassRegex.Matches(text).Cast<Match>());
         }
         else
         {
-            matches = _customRazorRegexes.SelectMany(regex => regex.Matches(text).Cast<Match>());
+            matches = _customRazorRegexes.SelectMany(regex => GetCustomRegexMatches(regex, text));
         }
 
         return matches.SelectMany(
@@ -347,14 +348,14 @@ internal class ClassRegexHelper
         )
         {
             matches = (
-                (_customJavaScriptRegexes?.SelectMany(regex => regex.Matches(text).Cast<Match>()))
+                (_customJavaScriptRegexes?.SelectMany(regex => GetCustomRegexMatches(regex, text)))
                 ?? []
             ).Concat(_javaScriptClassRegex.Matches(text).Cast<Match>());
         }
         else
         {
             matches = _customJavaScriptRegexes.SelectMany(regex =>
-                regex.Matches(text).Cast<Match>()
+                GetCustomRegexMatches(regex, text)
             );
         }
 
@@ -410,7 +411,10 @@ internal class ClassRegexHelper
         foreach (var customRegex in _customRazorRegexes ?? [])
         {
             var lastMatchIndex = 0;
-            while (customRegex.Match(text, lastMatchIndex) is Match match && match.Success)
+            while (
+                GetCustomRegexMatch(customRegex, text, lastMatchIndex) is Match match
+                && match.Success
+            )
             {
                 lastMatchIndex = match.Index + match.Length;
                 var classText = GetClassTextGroup(match).Value;
@@ -537,7 +541,10 @@ internal class ClassRegexHelper
         foreach (var customRegex in _customNormalRegexes ?? [])
         {
             var lastMatchIndex = 0;
-            while (customRegex.Match(text, lastMatchIndex) is Match match && match.Success)
+            while (
+                GetCustomRegexMatch(customRegex, text, lastMatchIndex) is Match match
+                && match.Success
+            )
             {
                 lastMatchIndex = match.Index + match.Length;
                 var classText = GetClassTextGroup(match).Value;
@@ -620,7 +627,10 @@ internal class ClassRegexHelper
         foreach (var customRegex in _customJavaScriptRegexes ?? [])
         {
             var lastMatchIndex = 0;
-            while (customRegex.Match(text, lastMatchIndex) is Match match && match.Success)
+            while (
+                GetCustomRegexMatch(customRegex, text, lastMatchIndex) is Match match
+                && match.Success
+            )
             {
                 lastMatchIndex = match.Index + match.Length;
                 var classText = GetClassTextGroup(match).Value;
@@ -669,6 +679,30 @@ internal class ClassRegexHelper
     {
         var matches = _splitClassRegex.Matches(text).Cast<Match>();
         return matches;
+    }
+
+    private static IEnumerable<Match> GetCustomRegexMatches(Regex regex, string text)
+    {
+        try
+        {
+            return regex.Matches(text).Cast<Match>();
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            return [];
+        }
+    }
+
+    private static Match? GetCustomRegexMatch(Regex regex, string text, int startAt)
+    {
+        try
+        {
+            return regex.Match(text, startAt);
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            return null;
+        }
     }
 
     public static Group GetClassTextGroup(Match match)

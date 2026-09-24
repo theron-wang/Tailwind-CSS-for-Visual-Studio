@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Community.VisualStudio.Toolkit;
 using Microsoft.VisualStudio.Shell;
@@ -76,56 +77,66 @@ public sealed class FileFinder
         IEnumerable<string> extensions
     )
     {
-        var solution = await VS.Solutions.GetCurrentSolutionAsync();
+        var projects = await VS.Solutions.GetAllProjectsAsync();
         await TaskScheduler.Default;
 
-        var solutionPath = solution?.FullPath;
         var extensionSet = new HashSet<string>(extensions, StringComparer.OrdinalIgnoreCase);
 
-        if (solutionPath is null)
+        var paths = new List<string>();
+
+        if (!projects.Any())
         {
             // If no projects, probably misc
-            solutionPath = await GetCurrentMiscellaneousProjectPathAsync();
+            var miscPath = await GetCurrentMiscellaneousProjectPathAsync();
             await TaskScheduler.Default;
 
-            if (string.IsNullOrEmpty(solutionPath))
+            if (string.IsNullOrEmpty(miscPath))
             {
                 return [];
             }
+
+            paths.Add(miscPath);
         }
         else
         {
-            solutionPath = Path.GetDirectoryName(solutionPath);
+            paths.AddRange(projects.Select(p => Path.GetDirectoryName(p.FullPath)));
         }
 
         // Directory.Enumerate doesn't give the fine-grained control needed
         var files = await Task.Run(() =>
         {
             var result = new List<string>();
-            var directories = new Stack<string>();
-            directories.Push(solutionPath!);
+            var directories = new Stack<string>(paths);
 
             while (directories.Count > 0)
             {
                 var directory = directories.Pop();
 
-                foreach (var subdirectory in Directory.EnumerateDirectories(directory))
+                try
                 {
-                    var name = Path.GetFileName(subdirectory);
-
-                    if (!SkipFolders.Contains(name))
+                    foreach (var subdirectory in Directory.EnumerateDirectories(directory))
                     {
-                        directories.Push(subdirectory);
+                        var name = Path.GetFileName(subdirectory);
+
+                        if (!SkipFolders.Contains(name))
+                        {
+                            directories.Push(subdirectory);
+                        }
                     }
                 }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
 
-                foreach (var file in Directory.EnumerateFiles(directory))
+                try
                 {
-                    if (extensionSet.Contains(Path.GetExtension(file)))
+                    foreach (var file in Directory.EnumerateFiles(directory))
                     {
-                        result.Add(file);
+                        if (extensionSet.Contains(Path.GetExtension(file)))
+                        {
+                            result.Add(file);
+                        }
                     }
                 }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
             }
 
             return result;

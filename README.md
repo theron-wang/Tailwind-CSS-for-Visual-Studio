@@ -9,15 +9,11 @@ Bring IntelliSense, linting, class sorting, build tools, and more to Tailwind CS
 
 **[Download from the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=TheronWang.TailwindCSSIntellisense)** · **[Getting Started Guide](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/blob/main/Getting-Started.md)** · **[Changelog](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/blob/main/CHANGELOG.md)**
 
----
-
 ## ❤️ Support This Project
 
 This extension is built and maintained solo, in my free time, for the whole VS community.
 
 If it's saved you time or made your workflow better, please consider **[sponsoring development on GitHub](https://github.com/sponsors/theron-wang)** — even a small donation helps keep it going and directly funds new features and bug fixes.
-
----
 
 ## Table of Contents
 

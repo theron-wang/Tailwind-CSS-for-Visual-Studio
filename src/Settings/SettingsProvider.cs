@@ -423,13 +423,21 @@ public sealed class SettingsProvider : IDisposable
         {
             // Delete if empty, do not save if it doesn't exist yet
 
-            if (File.Exists(Path.Combine(projectRoot, ExtensionConfigFileName)))
+            try
             {
-                try
+                await _extensionConfigWriteLock.WaitAsync();
+                if (File.Exists(Path.Combine(projectRoot, ExtensionConfigFileName)))
                 {
-                    File.Delete(Path.Combine(projectRoot, ExtensionConfigFileName));
+                    try
+                    {
+                        File.Delete(Path.Combine(projectRoot, ExtensionConfigFileName));
+                    }
+                    catch { }
                 }
-                catch { }
+            }
+            finally
+            {
+                _extensionConfigWriteLock.Release();
             }
         }
         else
@@ -447,18 +455,27 @@ public sealed class SettingsProvider : IDisposable
                 )
             )
             {
-                if (File.Exists(Path.Combine(projectRoot, ExtensionConfigFileName)))
+                try
                 {
-                    try
+                    await _extensionConfigWriteLock.WaitAsync();
+
+                    if (File.Exists(Path.Combine(projectRoot, ExtensionConfigFileName)))
                     {
-                        File.Delete(Path.Combine(projectRoot, ExtensionConfigFileName));
+                        try
+                        {
+                            File.Delete(Path.Combine(projectRoot, ExtensionConfigFileName));
+                        }
+                        catch (Exception ex)
+                        {
+                            await ex.LogAsync(
+                                $"Tailwind CSS: Failed to delete old configuration file at ${Path.Combine(projectRoot, ExtensionConfigFileName)}"
+                            );
+                        }
                     }
-                    catch (Exception ex)
-                    {
-                        await ex.LogAsync(
-                            $"Tailwind CSS: Failed to delete old configuration file at ${Path.Combine(projectRoot, ExtensionConfigFileName)}"
-                        );
-                    }
+                }
+                finally
+                {
+                    _extensionConfigWriteLock.Release();
                 }
 
                 projectRoot = desiredProjectRoot;

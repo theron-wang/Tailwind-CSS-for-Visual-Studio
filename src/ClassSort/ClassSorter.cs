@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.ComponentModel.Composition;
 using System.IO;
 using System.Text;
@@ -39,7 +39,9 @@ internal sealed class ClassSorter : IDisposable
     private SemaphoreSlim _initLock = new(1, 1);
     private Task? _initTask;
 
-    private readonly HashSet<string> _sorted = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, bool> _sorted = new(
+        StringComparer.OrdinalIgnoreCase
+    );
 
     public async Task InitializeAsync()
     {
@@ -118,9 +120,9 @@ internal sealed class ClassSorter : IDisposable
     )]
     private void DocumentSaved(string path)
     {
-        if (_sorted.Contains(path.ToLower()))
+        if (_sorted.ContainsKey(path))
         {
-            _sorted.Remove(path);
+            _sorted.TryRemove(path, out _);
         }
         if (
             _tailwindSettings.EnableTailwindCss
@@ -181,7 +183,7 @@ internal sealed class ClassSorter : IDisposable
             return;
         }
 
-        if (!forceSort && _sorted.Contains(path))
+        if (!forceSort && _sorted.ContainsKey(path))
         {
             return;
         }
@@ -240,7 +242,8 @@ internal sealed class ClassSorter : IDisposable
                     );
                 }
             }
-            _sorted.Add(path.ToLower());
+
+            _sorted[path] = true;
         }
     }
 
