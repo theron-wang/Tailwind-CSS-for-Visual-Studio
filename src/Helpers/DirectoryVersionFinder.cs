@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Community.VisualStudio.Toolkit;
+using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Threading;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Settings;
@@ -120,6 +121,37 @@ internal class DirectoryVersionFinder : IDisposable
     }
 
     /// <summary>
+    /// Gets the cached tailwind version for the directory of the given file, if available. If not available, returns null and populates the cache in the background.
+    /// </summary>
+    /// <param name="file">The file for which to get the tailwind version.</param>
+    /// <param name="settings">The Tailwind settings.</param>
+    /// <returns>The cached tailwind version, or null if not available.</returns>
+    ///
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Reliability",
+        "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync",
+        Justification = "FileAndForget is ok"
+    )]
+    public TailwindVersion? GetCachedTailwindVersionAndPopulateInBackground(
+        string file,
+        TailwindSettings settings
+    )
+    {
+        var directory = Path.GetDirectoryName(file).ToLower();
+
+        if (_cache.TryGetValue(directory, out var version))
+        {
+            return version;
+        }
+
+        ThreadHelper
+            .JoinableTaskFactory.RunAsync(() => PopulateVersionVacheAsync(directory, settings))
+            .FileAndForget(nameof(TailwindCSSIntellisense) + "/PopulateVersionCache");
+
+        return null;
+    }
+
+    /// <summary>
     /// Gets the tailwind version for the directory of the given file. Caches the result, until a new project is opened.
     /// </summary>
     /// <param name="file">The file for which to get the tailwind version.</param>
@@ -136,6 +168,14 @@ internal class DirectoryVersionFinder : IDisposable
             return version;
         }
 
+        return await PopulateVersionVacheAsync(directory, settings);
+    }
+
+    private async Task<TailwindVersion> PopulateVersionVacheAsync(
+        string directory,
+        TailwindSettings settings
+    )
+    {
         var isCli = settings.UseCli && !string.IsNullOrWhiteSpace(settings.TailwindCliPath);
 
         var processInfo = new ProcessStartInfo()

@@ -44,11 +44,12 @@ internal sealed class RemoveAsInputFile : BaseCommand<RemoveAsInputFile>
             return;
         }
 
-        var version = ThreadHelper.JoinableTaskFactory.Run(() =>
-            DirectoryVersionFinder.GetTailwindVersionAsync(filePath, settings)
+        var version = DirectoryVersionFinder.GetCachedTailwindVersionAndPopulateInBackground(
+            filePath,
+            settings
         );
 
-        if (version >= TailwindVersion.V4)
+        if (version is null || version >= TailwindVersion.V4)
         {
             Command.Visible = false;
         }

@@ -41,11 +41,18 @@ internal sealed class SetAsConfigFile : BaseCommand<SetAsConfigFile>
             return;
         }
 
-        var version = ThreadHelper.JoinableTaskFactory.Run(() =>
-            DirectoryVersionFinder.GetTailwindVersionAsync(filePath, settings)
+        var version = DirectoryVersionFinder.GetCachedTailwindVersionAndPopulateInBackground(
+            filePath,
+            settings
         );
 
-        if (version == TailwindVersion.V3)
+        if (version is null)
+        {
+            Command.Visible = false;
+            return;
+        }
+
+        if (version == TailwindVersion.V4)
         {
             Command.Visible =
                 !settings.ConfigurationFiles.Any(c =>

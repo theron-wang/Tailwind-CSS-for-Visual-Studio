@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.14.6 (September 24th, 2026)
+
+- Fix UI hangs when right-clicking files in the Solution Explorer from context menu commands
+
 ## 1.14.5 (September 24th, 2026)
 
 - Address potential performance issues by moving more features to background threads ([#158](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/issues/158))
