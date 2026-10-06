@@ -17,7 +17,7 @@ internal abstract class DiagnosticsChecker(bool isCssOnly, ErrorType errorType)
 
     public ErrorType ErrorType { get; } = errorType;
 
-    public IEnumerable<Error> GetErrors(
+    public async IAsyncEnumerable<Error> GetErrorsAsync(
         SnapshotSpan span,
         ProjectCompletionValues projectCompletionValues,
         Func<string, IEnumerable<Match>> findClasses,
@@ -27,19 +27,24 @@ internal abstract class DiagnosticsChecker(bool isCssOnly, ErrorType errorType)
     {
         if (_linterUtilities.GetErrorSeverity(ErrorType) == ErrorSeverity.None)
         {
-            return [];
+            yield break;
         }
 
-        return GetErrorsImpl(
-            span,
-            projectCompletionValues,
-            findClasses,
-            splitClasses,
-            shouldNotAddErrors
-        );
+        await foreach (
+            var error in GetErrorsImplAsync(
+                span,
+                projectCompletionValues,
+                findClasses,
+                splitClasses,
+                shouldNotAddErrors
+            )
+        )
+        {
+            yield return error;
+        }
     }
 
-    protected abstract IEnumerable<Error> GetErrorsImpl(
+    protected abstract IAsyncEnumerable<Error> GetErrorsImplAsync(
         SnapshotSpan span,
         ProjectCompletionValues projectCompletionValues,
         Func<string, IEnumerable<Match>> findClasses,

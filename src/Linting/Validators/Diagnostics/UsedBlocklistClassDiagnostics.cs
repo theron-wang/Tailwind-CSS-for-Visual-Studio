@@ -12,7 +12,7 @@ namespace TailwindCSSIntellisense.Linting.Validators.Diagnostics;
 internal class UsedBlocklistClassDiagnostics()
     : DiagnosticsChecker(false, ErrorType.UsedBlocklistClass)
 {
-    protected override IEnumerable<Error> GetErrorsImpl(
+    protected override async IAsyncEnumerable<Error> GetErrorsImplAsync(
         SnapshotSpan span,
         ProjectCompletionValues projectCompletionValues,
         Func<string, IEnumerable<Match>> findClasses,

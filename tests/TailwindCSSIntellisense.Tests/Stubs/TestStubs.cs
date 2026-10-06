@@ -1,6 +1,4 @@
 using System.Collections;
-using System.Text.RegularExpressions;
-using Microsoft.VisualStudio.Text;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Configuration;
 
@@ -110,14 +108,19 @@ namespace Microsoft.VisualStudio.Text
     public interface ITextSnapshot
     {
         int Length { get; }
+        ITextBuffer TextBuffer { get; }
         char this[int index] { get; }
         string GetText(int startIndex, int length);
+        string GetFileNameSafe();
     }
 
-    public sealed class StringTextSnapshot(string text) : ITextSnapshot
+    public sealed class StringTextSnapshot(string text, ITextBuffer textBuffer) : ITextSnapshot
     {
         private readonly string _text = text;
         public int Length => _text.Length;
+
+        public ITextBuffer TextBuffer => textBuffer;
+
         public char this[int index] => _text[index];
 
         public string GetText(int startIndex, int length)
@@ -132,9 +135,14 @@ namespace Microsoft.VisualStudio.Text
         PropertyCollection Properties { get; }
     }
 
-    public sealed class FakeTextBuffer(string text) : ITextBuffer
+    public sealed class FakeTextBuffer : ITextBuffer
     {
-        public ITextSnapshot CurrentSnapshot { get; } = new StringTextSnapshot(text);
+        public FakeTextBuffer(string text)
+        {
+            CurrentSnapshot = new StringTextSnapshot(text, this);
+        }
+
+        public ITextSnapshot CurrentSnapshot { get; init; }
         public PropertyCollection Properties { get; } = new();
     }
 
@@ -381,7 +389,7 @@ namespace TailwindCSSIntellisense.Linting
         public static Func<
             IEnumerable<string>,
             ProjectCompletionValues,
-            IEnumerable<(
+            IAsyncEnumerable<(
                 string className,
                 string errorMessage,
                 IEnumerable<string> conflictingClasses
@@ -390,11 +398,11 @@ namespace TailwindCSSIntellisense.Linting
 
         public ErrorSeverity GetErrorSeverity(ErrorType type) => GetErrorSeverityHandler(type);
 
-        public IEnumerable<(
+        public IAsyncEnumerable<(
             string className,
             string errorMessage,
             IEnumerable<string> conflictingClasses
-        )> CheckForClassDuplicates(
+        )> CheckForClassDuplicatesAsync(
             IEnumerable<string> classes,
             ProjectCompletionValues projectCompletionValues
         )
@@ -453,7 +461,7 @@ namespace TailwindCSSIntellisense.Linting.Validators
         protected bool IsAlreadyChecked(SnapshotSpan scope) => false;
 
         protected abstract IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span);
-        protected abstract IEnumerable<Error> ComputeErrors(SnapshotSpan span);
+        protected abstract IAsyncEnumerable<Error> ComputeErrorsAsync(SnapshotSpan span);
     }
 }
 

@@ -11,7 +11,7 @@ namespace TailwindCSSIntellisense.Linting.Validators.Diagnostics;
 [Export(typeof(DiagnosticsChecker))]
 internal class CssConflictDiagnostics() : DiagnosticsChecker(false, ErrorType.CssConflict)
 {
-    protected override IEnumerable<Error> GetErrorsImpl(
+    protected override async IAsyncEnumerable<Error> GetErrorsImplAsync(
         SnapshotSpan span,
         ProjectCompletionValues projectCompletionValues,
         Func<string, IEnumerable<Match>> findClasses,
@@ -49,12 +49,15 @@ internal class CssConflictDiagnostics() : DiagnosticsChecker(false, ErrorType.Cs
         foreach (var grouping in classesByVariants)
         {
             alreadySeen.Clear();
-            foreach (
+            await foreach (
                 (
                     var className,
                     var errorMessage,
                     var conflictingClasses
-                ) in _linterUtilities.CheckForClassDuplicates(grouping, projectCompletionValues)
+                ) in _linterUtilities.CheckForClassDuplicatesAsync(
+                    grouping,
+                    projectCompletionValues
+                )
             )
             {
                 var classSpans = classesToLocations[className];

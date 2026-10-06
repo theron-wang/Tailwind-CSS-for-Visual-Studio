@@ -145,7 +145,7 @@ internal class DirectoryVersionFinder : IDisposable
         }
 
         ThreadHelper
-            .JoinableTaskFactory.RunAsync(() => PopulateVersionVacheAsync(directory, settings))
+            .JoinableTaskFactory.RunAsync(() => PopulateVersionCacheAsync(directory, settings))
             .FileAndForget(nameof(TailwindCSSIntellisense) + "/PopulateVersionCache");
 
         return null;
@@ -168,10 +168,10 @@ internal class DirectoryVersionFinder : IDisposable
             return version;
         }
 
-        return await PopulateVersionVacheAsync(directory, settings);
+        return await PopulateVersionCacheAsync(directory, settings);
     }
 
-    private async Task<TailwindVersion> PopulateVersionVacheAsync(
+    private async Task<TailwindVersion> PopulateVersionCacheAsync(
         string directory,
         TailwindSettings settings
     )

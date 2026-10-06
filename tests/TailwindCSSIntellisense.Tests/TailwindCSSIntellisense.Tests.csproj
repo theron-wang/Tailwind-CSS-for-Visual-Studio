@@ -26,6 +26,10 @@
 
   <ItemGroup>
     <Compile Include="../../src/Usings.cs" Link="Source/Usings.cs" />
+    <Compile
+      Include="../../src/Build/TailwindCliInterop.cs"
+      Link="Source/Build/TailwindCliInterop.cs"
+    />
     <Compile Include="../../src/Helpers/BraceExpander.cs" Link="Source/Helpers/BraceExpander.cs" />
     <Compile
       Include="../../src/Helpers/ClassRegexHelper.cs"
@@ -106,6 +110,10 @@
     <Compile
       Include="../../src/Linting/Validators/CssValidator.cs"
       Link="Source/Linting/CssValidator.cs"
+    />
+    <Compile
+      Include="../../src/Linting/Validators/Canonicalization/Canonicalizer.cs"
+      Link="Source/Linting/Canonicalizer.cs"
     />
     <Compile Include="../../src/Node/NpmHelpers.cs" Link="Source/Node/NpmHelpers.cs" />
   </ItemGroup>

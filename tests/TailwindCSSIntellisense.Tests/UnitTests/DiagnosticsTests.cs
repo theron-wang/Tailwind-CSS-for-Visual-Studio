@@ -25,9 +25,9 @@ public class DiagnosticsTests : IDisposable
     }
 
     [Fact]
-    public void DeprecatedAtRuleDiagnostics_FlagsVariantAtRule()
+    public async Task DeprecatedAtRuleDiagnostics_FlagsVariantAtRule()
     {
-        var errors = GetErrors(
+        var errors = await GetErrorsAsync(
             new DeprecatedAtRuleDiagnostics(),
             "@variant dark (&:is(.dark *));",
             new ProjectCompletionValues { Version = TailwindVersion.V4 }
@@ -40,12 +40,12 @@ public class DiagnosticsTests : IDisposable
     }
 
     [Fact]
-    public void InvalidScreenDiagnostics_FlagsUnknownScreen()
+    public async Task InvalidScreenDiagnostics_FlagsUnknownScreen()
     {
         var values = new ProjectCompletionValues { Version = TailwindVersion.V4 };
         values.Breakpoints["md"] = "768px";
 
-        var errors = GetErrors(new InvalidScreenDiagnostics(), "@screen lg { }", values);
+        var errors = await GetErrorsAsync(new InvalidScreenDiagnostics(), "@screen lg { }", values);
 
         var error = Assert.Single(errors);
         Assert.Equal(ErrorType.InvalidScreen, error.ErrorType);
@@ -53,9 +53,9 @@ public class DiagnosticsTests : IDisposable
     }
 
     [Fact]
-    public void InvalidTailwindDirectiveDiagnostics_V3FlagsPreflight()
+    public async Task InvalidTailwindDirectiveDiagnostics_V3FlagsPreflight()
     {
-        var errors = GetErrors(
+        var errors = await GetErrorsAsync(
             new InvalidTailwindDirectiveDiagnostics(),
             "@tailwind preflight;",
             new ProjectCompletionValues { Version = TailwindVersion.V3 }
@@ -68,12 +68,12 @@ public class DiagnosticsTests : IDisposable
     }
 
     [Fact]
-    public void InvalidConfigPathDiagnostics_FlagsUnknownThemePath()
+    public async Task InvalidConfigPathDiagnostics_FlagsUnknownThemePath()
     {
         var values = new ProjectCompletionValues { Version = TailwindVersion.V3 };
         values.SpacingMapper["4"] = "1rem";
 
-        var errors = GetErrors(
+        var errors = await GetErrorsAsync(
             new InvalidConfigPathDiagnostics(),
             ".x { margin: theme(spacing.5); }",
             values
@@ -85,9 +85,9 @@ public class DiagnosticsTests : IDisposable
     }
 
     [Fact]
-    public void InvalidSourceDiagnostics_FlagsWindowsStylePath()
+    public async Task InvalidSourceDiagnostics_FlagsWindowsStylePath()
     {
-        var errors = GetErrors(
+        var errors = await GetErrorsAsync(
             new InvalidSourceDiagnostics(),
             "@import \"tailwindcss\" source(\"C:\\\\styles\");",
             new ProjectCompletionValues { Version = TailwindVersion.V4 }
@@ -99,9 +99,9 @@ public class DiagnosticsTests : IDisposable
     }
 
     [Fact]
-    public void InvalidSourceDiagnostics_HandlesValidInlineSource()
+    public async Task InvalidSourceDiagnostics_HandlesValidInlineSource()
     {
-        var errors = GetErrors(
+        var errors = await GetErrorsAsync(
             new InvalidSourceDiagnostics(),
             "@source inline(\"{p}-{px}\"); @source inline('{p}-{px}');",
             new ProjectCompletionValues { Version = TailwindVersion.V4 }
@@ -111,9 +111,9 @@ public class DiagnosticsTests : IDisposable
     }
 
     [Fact]
-    public void InvalidSourceDiagnostics_FlagsInvalidInlineSource()
+    public async Task InvalidSourceDiagnostics_FlagsInvalidInlineSource()
     {
-        var errors = GetErrors(
+        var errors = await GetErrorsAsync(
             new InvalidSourceDiagnostics(),
             """
 @source none;
@@ -133,12 +133,12 @@ public class DiagnosticsTests : IDisposable
     }
 
     [Fact]
-    public void UsedBlocklistClassDiagnostics_FlagsBlockedClass()
+    public async Task UsedBlocklistClassDiagnostics_FlagsBlockedClass()
     {
         var values = new ProjectCompletionValues { Version = TailwindVersion.V3 };
         values.Blocklist.Add("foo");
 
-        var errors = GetErrors(
+        var errors = await GetErrorsAsync(
             new UsedBlocklistClassDiagnostics(),
             "<div class=\"foo bar foo\"></div>",
             values
@@ -149,7 +149,7 @@ public class DiagnosticsTests : IDisposable
     }
 
     [Fact]
-    public void CssConflictDiagnostics_FlagsConflictingClasses()
+    public async Task CssConflictDiagnostics_FlagsConflictingClasses()
     {
         LinterUtilities.CheckForClassDuplicatesHandler = (_, _) =>
             [
@@ -160,7 +160,7 @@ public class DiagnosticsTests : IDisposable
                 ),
             ];
 
-        var errors = GetErrors(
+        var errors = await GetErrorsAsync(
             new CssConflictDiagnostics(),
             "<div class=\"text-red-500 bg-red-500\"></div>",
             new ProjectCompletionValues { Version = TailwindVersion.V3 }
@@ -171,7 +171,7 @@ public class DiagnosticsTests : IDisposable
         Assert.Contains("same CSS properties", error.ErrorMessage);
     }
 
-    private static List<Error> GetErrors(
+    private static async Task<List<Error>> GetErrorsAsync(
         DiagnosticsChecker checker,
         string text,
         ProjectCompletionValues values
@@ -185,15 +185,103 @@ public class DiagnosticsTests : IDisposable
             Inject(checker, "_projectConfigurationManager", new ProjectConfigurationManager());
         }
 
-        return checker
-            .GetErrors(
+        return await CollectErrorsAsync(
+            checker.GetErrorsAsync(
                 span,
                 values,
                 ClassRegexHelper.GetClassesNormal,
                 ClassRegexHelper.SplitNonRazorClasses,
                 _ => false
             )
-            .ToList();
+        );
+    }
+
+    [Fact]
+    public async Task Aggregator_AwaitsDiagnosticsAndPreservesFilteringAndOrder()
+    {
+        var ready = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        var cssOnly = new AsyncDiagnosticsChecker(Task.CompletedTask, true);
+        var delayed = new AsyncDiagnosticsChecker(ready.Task);
+        var blocked = new UsedBlocklistClassDiagnostics();
+        foreach (var checker in new DiagnosticsChecker[] { cssOnly, delayed, blocked })
+        {
+            Inject(checker, "_linterUtilities", new LinterUtilities());
+        }
+        var aggregator = new DiagnosticsAggregator([cssOnly, delayed, blocked]);
+        var snapshot = new StringTextSnapshot("<div class=\"foo\"></div>");
+        var values = new ProjectCompletionValues
+        {
+            Version = TailwindVersion.V3,
+            Blocklist = ["foo"],
+        };
+
+        var collecting = CollectErrorsAsync(
+            aggregator.GetErrorsAsync(
+                new SnapshotSpan(snapshot, 0, snapshot.Length),
+                false,
+                values,
+                ClassRegexHelper.GetClassesNormal,
+                ClassRegexHelper.SplitNonRazorClasses,
+                _ => false
+            )
+        );
+
+        Assert.False(collecting.IsCompleted);
+        ready.SetResult(true);
+        var errors = await collecting.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(
+            new[] { ErrorType.CssConflict, ErrorType.UsedBlocklistClass },
+            errors.Select(error => error.ErrorType)
+        );
+    }
+
+    [Fact]
+    public async Task DisabledDiagnostics_DoNotAwaitTheirImplementation()
+    {
+        LinterUtilities.GetErrorSeverityHandler = _ => ErrorSeverity.None;
+        var ready = new TaskCompletionSource<bool>();
+
+        var errors = await GetErrorsAsync(
+                new AsyncDiagnosticsChecker(ready.Task),
+                "<div class=\"foo\"></div>",
+                new ProjectCompletionValues { Version = TailwindVersion.V3 }
+            )
+            .WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Empty(errors);
+    }
+
+    private static async Task<List<Error>> CollectErrorsAsync(IAsyncEnumerable<Error> errors)
+    {
+        var result = new List<Error>();
+        await foreach (var error in errors)
+        {
+            result.Add(error);
+        }
+        return result;
+    }
+
+    private sealed class AsyncDiagnosticsChecker(Task ready, bool isCssOnly = false)
+        : DiagnosticsChecker(isCssOnly, ErrorType.CssConflict)
+    {
+        protected override async IAsyncEnumerable<Error> GetErrorsImplAsync(
+            SnapshotSpan span,
+            ProjectCompletionValues projectCompletionValues,
+            Func<string, IEnumerable<System.Text.RegularExpressions.Match>> findClasses,
+            Func<string, IEnumerable<System.Text.RegularExpressions.Match>> splitClasses,
+            Func<SnapshotSpan, bool> shouldNotAddErrors
+        )
+        {
+            await ready;
+            yield return new Error
+            {
+                Span = span.Snapshot.CreateTrackingSpan(span, SpanTrackingMode.EdgeExclusive),
+                ErrorType = ErrorType.CssConflict,
+            };
+        }
     }
 
     private static void Inject(object instance, string fieldName, object value)

@@ -20,7 +20,7 @@ internal class InvalidScreenDiagnostics() : CssDiagnosticsChecker(ErrorType.Inva
         TimeSpan.FromSeconds(1)
     );
 
-    protected override IEnumerable<Error> GetErrorsImpl(
+    protected override async IAsyncEnumerable<Error> GetErrorsImplAsync(
         SnapshotSpan span,
         ProjectCompletionValues projectCompletionValues,
         Func<string, IEnumerable<Match>> findClasses,

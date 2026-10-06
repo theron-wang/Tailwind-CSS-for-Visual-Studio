@@ -24,21 +24,26 @@ internal class JSValidator : Validator
             diagnosticsAggregator
         ) { }
 
-    protected override IEnumerable<Error> ComputeErrors(SnapshotSpan span)
+    protected override async IAsyncEnumerable<Error> ComputeErrorsAsync(SnapshotSpan span)
     {
         if (_projectCompletionValues is null)
         {
-            return [];
+            yield break;
         }
 
-        return _diagnosticsAggregator.GetErrors(
-            span,
-            false,
-            _projectCompletionValues,
-            ClassRegexHelper.GetClassesJavaScript,
-            ClassRegexHelper.SplitNonRazorClasses,
-            IsAlreadyChecked
-        );
+        await foreach (
+            var error in _diagnosticsAggregator.GetErrorsAsync(
+                span,
+                false,
+                _projectCompletionValues,
+                ClassRegexHelper.GetClassesJavaScript,
+                ClassRegexHelper.SplitNonRazorClasses,
+                IsAlreadyChecked
+            )
+        )
+        {
+            yield return error;
+        }
     }
 
     protected override IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span)

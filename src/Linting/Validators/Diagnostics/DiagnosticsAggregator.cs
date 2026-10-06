@@ -14,7 +14,7 @@ internal class DiagnosticsAggregator([ImportMany] IEnumerable<DiagnosticsChecker
 {
     private readonly IEnumerable<DiagnosticsChecker> _generators = generators;
 
-    public IEnumerable<Error> GetErrors(
+    public async IAsyncEnumerable<Error> GetErrorsAsync(
         SnapshotSpan span,
         bool isCss,
         ProjectCompletionValues projectCompletionValues,
@@ -24,14 +24,20 @@ internal class DiagnosticsAggregator([ImportMany] IEnumerable<DiagnosticsChecker
     )
     {
         var applicableGenerators = isCss ? _generators : _generators.Where(g => !g.IsCssOnly);
-        return applicableGenerators.SelectMany(g =>
-            g.GetErrors(
-                span,
-                projectCompletionValues,
-                findClasses,
-                splitClasses,
-                shouldNotAddErrors
+        foreach (var generator in applicableGenerators)
+        {
+            await foreach (
+                var error in generator.GetErrorsAsync(
+                    span,
+                    projectCompletionValues,
+                    findClasses,
+                    splitClasses,
+                    shouldNotAddErrors
+                )
             )
-        );
+            {
+                yield return error;
+            }
+        }
     }
 }

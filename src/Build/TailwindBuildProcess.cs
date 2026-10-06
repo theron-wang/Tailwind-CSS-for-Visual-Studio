@@ -4,7 +4,6 @@ using System.ComponentModel.Composition;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,20 +20,17 @@ namespace TailwindCSSIntellisense.Build;
 /// <summary>
 /// Provides methods to start, stop, and manage the process to build Tailwind
 /// </summary>
-[Export]
+[Export(typeof(TailwindBuildProcess))]
 [PartCreationPolicy(CreationPolicy.Shared)]
 [System.Diagnostics.CodeAnalysis.SuppressMessage(
     "Usage",
     "VSTHRD102:Implement internal logic asynchronously",
     Justification = "Async methods called here are not expensive"
 )]
-internal sealed class TailwindBuildProcess : IDisposable
+internal class TailwindBuildProcess : TailwindCliInterop
 {
     [Import]
     internal ConfigFileScanner Scanner { get; set; } = null!;
-
-    [Import]
-    internal SettingsProvider SettingsProvider { get; set; } = null!;
 
     [Import]
     internal PackageJsonReader PackageJsonReader { get; set; } = null!;
@@ -50,25 +46,22 @@ internal sealed class TailwindBuildProcess : IDisposable
     private bool _startingBuilds;
     private readonly SemaphoreSlim _buildGate = new(1, 1);
 
-    // http://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/issues/120
-    // If we encounter a security error from powershell in running npx, use -ExecutionPolicy Unrestricted
-    private bool _encounteredSecurityError;
-
     private readonly Dictionary<string, string?> _configsToPackageJsons = [];
 
     private readonly Dictionary<string, Process> _outputFileToProcesses = [];
     private readonly Dictionary<Process, bool> _processToIsMinify = [];
     private Process? _secondaryProcess;
 
-    private TailwindSettings _settings = null!;
     private General _general = null!;
 
     private Guid _buildWindowGuid;
 
     /// <summary>
-    /// Initializes the class; subscribes to events, sets up members
+    /// Loads settings and build file mappings, then subscribes to build, save, and general settings events.
     /// </summary>
-    /// <param name="newProjectOpened">A <see cref="bool"/> which should only be set to <see langword="true"/> in <see cref="TailwindCSSIntellisensePackage.InitializeAsync"/></param>
+    /// <param name="newProjectOpened">Whether to stop existing processes and repeat initialization for a newly opened project.</param>
+    /// <returns>A task that completes when initialization is finished.</returns>
+    /// <remarks>Set <paramref name="newProjectOpened"/> to <see langword="true"/> only from <see cref="TailwindCSSIntellisensePackage.InitializeAsync"/>.</remarks>
     public async Task InitializeAsync(bool newProjectOpened = false)
     {
         if (newProjectOpened)
@@ -83,16 +76,14 @@ internal sealed class TailwindBuildProcess : IDisposable
             return;
         }
 
-        var settings = await SettingsProvider.GetSettingsAsync();
-
-        await SetFilePathsAsync(settings);
+        await InitializeSettingsAsync();
+        await SetFilePathsAsync(_settings);
 
         // Prevent more than one subscription when projects are changed
         if (_subscribed == false)
         {
             VS.Events.BuildEvents.ProjectBuildStarted += OnBuild;
             VS.Events.DocumentEvents.Saved += OnFileSave;
-            SettingsProvider.OnSettingsChanged += SettingsChangedAsync;
             General.Saved += OnGeneralSettingsChanged;
             _general = await General.GetLiveInstanceAsync();
             _subscribed = true;
@@ -100,11 +91,14 @@ internal sealed class TailwindBuildProcess : IDisposable
         _initialized = true;
     }
 
-    public void Dispose()
+    /// <summary>
+    /// Removes event subscriptions and disposes tracked build and npm script processes.
+    /// </summary>
+    public override void Dispose()
     {
+        base.Dispose();
         VS.Events.BuildEvents.ProjectBuildStarted -= OnBuild;
         VS.Events.DocumentEvents.Saved -= OnFileSave;
-        SettingsProvider.OnSettingsChanged -= SettingsChangedAsync;
         General.Saved -= OnGeneralSettingsChanged;
 
         foreach (var process in _outputFileToProcesses.Values)
@@ -118,6 +112,10 @@ internal sealed class TailwindBuildProcess : IDisposable
         _secondaryProcess = null;
     }
 
+    /// <summary>
+    /// Determines whether any tracked Tailwind or npm script process is active.
+    /// </summary>
+    /// <returns><see langword="true"/> if a process is active and building is enabled; otherwise, <see langword="false"/>.</returns>
     internal bool AreProcessesActive()
     {
         return _outputFileToProcesses.Values.Any(IsProcessActive)
@@ -125,27 +123,29 @@ internal sealed class TailwindBuildProcess : IDisposable
     }
 
     /// <summary>
-    /// A <see cref="bool"/> representing whether or not the build process is currently active
+    /// Determines whether a process is running while Tailwind building is enabled.
     /// </summary>
-    private bool IsProcessActive(Process? process)
+    /// <param name="process">The process to inspect, or <see langword="null"/>.</param>
+    /// <returns><see langword="true"/> if the process is running and building is enabled; otherwise, <see langword="false"/>.</returns>
+    protected override bool IsProcessActive(Process? process)
     {
         if (_settings?.BuildType == BuildProcessOptions.None)
         {
             return false;
         }
-        else
-        {
-            return process != null && process.HasExited == false;
-        }
+
+        return base.IsProcessActive(process);
     }
 
     /// <summary>
-    /// Binds to <see cref="SettingsProvider.OnSettingsChanged"/> which updates the file paths and restarts the process if needed
+    /// Updates CLI settings and build file mappings, restarting builds if processes were previously active.
     /// </summary>
-    /// <param name="settings">The settings to pass on to <see cref="SetFilePathsAsync(TailwindSettings)"/></param>
-    private async Task SettingsChangedAsync(TailwindSettings settings)
+    /// <param name="settings">The current extension settings.</param>
+    /// <returns>A task that completes when settings and any required build restarts have been applied.</returns>
+    protected override async Task SettingsChangedAsync(TailwindSettings settings)
     {
         var processActive = AreProcessesActive();
+        await base.SettingsChangedAsync(settings);
         await SetFilePathsAsync(settings);
 
         // Restart process since SetFilePathsAsync stops the process
@@ -155,14 +155,19 @@ internal sealed class TailwindBuildProcess : IDisposable
         }
     }
 
+    /// <summary>
+    /// Updates the general options used when reporting build output.
+    /// </summary>
+    /// <param name="general">The saved general options.</param>
     private void OnGeneralSettingsChanged(General general)
     {
         _general = general;
     }
 
     /// <summary>
-    /// Reloads if package.json has been modified + starts build process (OnBuild)
+    /// Handles saved files by refreshing build-script state or starting configured on-save builds.
     /// </summary>
+    /// <param name="filePath">The path of the saved file.</param>
     [System.Diagnostics.CodeAnalysis.SuppressMessage(
         "Reliability",
         "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync",
@@ -220,6 +225,10 @@ internal sealed class TailwindBuildProcess : IDisposable
         }
     }
 
+    /// <summary>
+    /// Starts configured automatic Tailwind builds when a Visual Studio project build begins.
+    /// </summary>
+    /// <param name="project">The project whose build started, or <see langword="null"/> when invoked without a project.</param>
     [System.Diagnostics.CodeAnalysis.SuppressMessage(
         "Reliability",
         "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync",
@@ -239,8 +248,10 @@ internal sealed class TailwindBuildProcess : IDisposable
     }
 
     /// <summary>
-    /// Starts the build process
+    /// Starts or submits builds for all configured input/output pairs while holding the build gate.
     /// </summary>
+    /// <param name="buildBehavior">The requested minification behavior, or the default to use configured behavior.</param>
+    /// <returns>A task that completes when build commands have been started or submitted, without waiting for watch processes to exit.</returns>
     internal async Task BuildAllAsync(BuildBehavior buildBehavior)
     {
         await _buildGate.WaitAsync();
@@ -290,6 +301,13 @@ internal sealed class TailwindBuildProcess : IDisposable
         }
     }
 
+    /// <summary>
+    /// Runs or reuses Tailwind and optional npm script processes for a single input/output pair.
+    /// </summary>
+    /// <param name="input">The input CSS file path.</param>
+    /// <param name="output">The output CSS file path.</param>
+    /// <param name="minify">Whether to minify the generated CSS.</param>
+    /// <returns>A task that completes when the required build commands have been started or submitted.</returns>
     private async Task BuildOneAsync(string input, string output, bool minify = false)
     {
         var config =
@@ -413,10 +431,12 @@ internal sealed class TailwindBuildProcess : IDisposable
                         );
                     }
 
-                    PostSetupProcess(process);
-
                     _outputFileToProcesses[output] = process;
                     _processToIsMinify[process] = minify;
+                    PostSetupProcess(
+                        process,
+                        () => RestartBuildProcess(process, input, output, minify)
+                    );
                 }
                 else if (_settings.OverrideBuild)
                 {
@@ -488,44 +508,16 @@ internal sealed class TailwindBuildProcess : IDisposable
                         return;
                     }
 
-                    ProcessStartInfo processInfo;
-
                     var watch =
                         _settings.BuildType == BuildProcessOptions.Default
                         || _settings.BuildType == BuildProcessOptions.ManualJIT;
                     // We need powershell to run --watch, otherwise the output file will not update.
                     // https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/issues/111
-                    if (watch)
-                    {
-                        processInfo = GetProcessStartInfo(dir, true);
-                        // If we encountered a security error, use -ExecutionPolicy Unrestricted
-                        processInfo.Arguments =
-                            $"{(_encounteredSecurityError ? "-ExecutionPolicy Unrestricted" : "")} -Command ";
-                    }
-                    else
-                    {
-                        processInfo = GetProcessStartInfo(dir);
-                        processInfo.Arguments = "/c ";
-                    }
-
-                    if (config.Version == TailwindVersion.V3)
-                    {
-                        processInfo.Arguments += GetCommand(
-                            config,
-                            $"-i \"{inputFile}\" -o \"{outputFile}\" -c \"{configFile}\" {(minify ? "--minify" : "")} {(watch ? "--watch" : "")}",
-                            !watch,
-                            watch
-                        );
-                    }
-                    else
-                    {
-                        processInfo.Arguments += GetCommand(
-                            config,
-                            $"-i \"{inputFile}\" -o \"{outputFile}\" {(minify ? "--minify" : "")} {(watch ? "--watch" : "")}",
-                            !watch,
-                            watch
-                        );
-                    }
+                    var processInfo = GetCliProcessStartInfo(
+                        config,
+                        $"-i \"{inputFile}\" -o \"{outputFile}\" {(config.Version == TailwindVersion.V3 ? $"-c \"{configFile}\"" : "")} {(minify ? "--minify" : "")} {(watch ? "--watch" : "")}",
+                        powershell: watch
+                    );
 
                     process = CreateAndStartProcess(processInfo);
 
@@ -534,10 +526,12 @@ internal sealed class TailwindBuildProcess : IDisposable
                         $"Build started in {processInfo.WorkingDirectory}: `{(watch ? "powershell" : "cmd")} {processInfo.Arguments}`"
                     );
 
-                    PostSetupProcess(process);
-
                     _outputFileToProcesses[output] = process;
                     _processToIsMinify[process] = minify;
+                    PostSetupProcess(
+                        process,
+                        () => RestartBuildProcess(process, input, output, minify)
+                    );
                 }
                 else if (_settings.OverrideBuild)
                 {
@@ -576,6 +570,13 @@ internal sealed class TailwindBuildProcess : IDisposable
         }
     }
 
+    /// <summary>
+    /// Starts or submits a single build while holding the shared build gate.
+    /// </summary>
+    /// <param name="input">The input CSS file path.</param>
+    /// <param name="output">The output CSS file path.</param>
+    /// <param name="minify">Whether to minify the generated CSS.</param>
+    /// <returns>A task that completes when the build command has been started or submitted and the gate has been released.</returns>
     private async Task BuildOneWithGateAsync(string input, string output, bool minify)
     {
         await _buildGate.WaitAsync();
@@ -590,7 +591,7 @@ internal sealed class TailwindBuildProcess : IDisposable
     }
 
     /// <summary>
-    /// Ends the build process
+    /// Stops all tracked Tailwind and npm script processes and clears build process tracking.
     /// </summary>
     internal void EndAllProcesses()
     {
@@ -618,8 +619,9 @@ internal sealed class TailwindBuildProcess : IDisposable
     }
 
     /// <summary>
-    /// Ends the build process
+    /// Stops a tracked build or npm script process and removes its build tracking information.
     /// </summary>
+    /// <param name="process">The process to stop and remove.</param>
     internal void EndProcess(Process process)
     {
         if (IsProcessActive(process))
@@ -634,19 +636,7 @@ internal sealed class TailwindBuildProcess : IDisposable
                 _secondaryProcess = null;
             }
 
-            // Tailwind --watch keeps building even with kill; use \x3 to say Ctrl+c to stop
-            // https://stackoverflow.com/questions/283128/how-do-i-send-ctrlc-to-a-process-in-c
-            process.StandardInput.WriteLine("\x3");
-            process.StandardInput.Close();
-            try
-            {
-                process.Kill();
-            }
-            catch (InvalidOperationException)
-            {
-                // The process may have already exited at this point, which is why this error could occur.
-                // Do nothing with this exception since the desired result is already achieved.
-            }
+            StopProcess(process);
         }
 
         _outputFileToProcesses.Remove(
@@ -659,37 +649,13 @@ internal sealed class TailwindBuildProcess : IDisposable
         _processToIsMinify.Remove(process);
     }
 
-    private string GetCommand(
-        ProjectCompletionValues project,
-        string args,
-        bool exit = false,
-        bool powershell = false
-    )
-    {
-        var suffix = exit ? " & exit" : "";
-        if (string.IsNullOrWhiteSpace(_settings.TailwindCliPath) || !_settings.UseCli)
-        {
-            if (project.Version == TailwindVersion.V3)
-            {
-                return $"npx tailwindcss {args}{suffix}";
-            }
-            else
-            {
-                return $"npx @tailwindcss/cli {args}{suffix}";
-            }
-        }
-        return powershell
-            ? $"\"& '{_settings.TailwindCliPath}' {args.Replace('\"', '\'')}\"{suffix}"
-            : $"\"\"{_settings.TailwindCliPath}\" {args}{suffix}\"";
-    }
-
     /// <summary>
-    /// Resets the file paths for the config file, output file, and input file
+    /// Refreshes build file mappings and output paths, stopping existing processes when the mappings are rebuilt.
     /// </summary>
-    /// <param name="settings">The settings to consume</param>
+    /// <param name="settings">The settings that supply build pairs and default output names.</param>
+    /// <returns>A task that completes when build file discovery and mapping updates are finished.</returns>
     private async Task SetFilePathsAsync(TailwindSettings settings)
     {
-        _settings = settings;
         _configsToPackageJsons.Clear();
 
         var buildFiles = settings.BuildFiles;
@@ -760,45 +726,45 @@ internal sealed class TailwindBuildProcess : IDisposable
         EndAllProcesses();
     }
 
-    private void OutputDataReceived(object sender, DataReceivedEventArgs e)
+    /// <summary>
+    /// Writes an interop diagnostic message to the build output pane.
+    /// </summary>
+    /// <param name="message">The diagnostic message to display.</param>
+    protected override void OnCliMessage(string message)
     {
-        if (e.Data == null)
-        {
-            return;
-        }
-
-        OutputDataReceived(sender, e.Data);
+        ThreadHelper.JoinableTaskFactory.Run(() => WriteToBuildPaneAsync(message));
     }
 
-    private void OutputDataReceived(object sender, string data)
+    /// <summary>
+    /// Stops a build process and schedules its replacement through the build gate.
+    /// </summary>
+    /// <param name="process">The process to stop before restarting its build.</param>
+    /// <param name="input">The input CSS file path.</param>
+    /// <param name="output">The output CSS file path.</param>
+    /// <param name="minify">Whether the replacement build should minify the generated CSS.</param>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Reliability",
+        "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync",
+        Justification = "FileAndForget ok"
+    )]
+    private void RestartBuildProcess(Process process, string input, string output, bool minify)
+    {
+        EndProcess(process);
+        ThreadHelper
+            .JoinableTaskFactory.RunAsync(() => BuildOneWithGateAsync(input, output, minify))
+            .FileAndForget(nameof(TailwindCSSIntellisense) + "/TailwindBuildProcess/Restart");
+    }
+
+    /// <summary>
+    /// Interprets CLI or npm output, reports build status, and restarts builds after out-of-memory errors.
+    /// </summary>
+    /// <param name="sender">The process that produced the output.</param>
+    /// <param name="data">The output line, without its line terminator.</param>
+    protected override void OutputDataReceived(object sender, string data)
     {
         if (data == null)
         {
             return;
-        }
-
-        if (data.Contains("PSSecurityException") && !_encounteredSecurityError)
-        {
-            _encounteredSecurityError = true;
-            ThreadHelper.JoinableTaskFactory.Run(async () =>
-            {
-                await WriteToBuildPaneAsync(
-                    "Tailwind CSS: Encountered a PSSecurityException, trying again with -ExecutionPolicy Unrestricted: see https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/issues/120"
-                );
-            });
-
-            foreach (var process in _outputFileToProcesses.Values)
-            {
-                var output = _outputFileToProcesses.First(p => p.Value == process).Key;
-                var pair = _inputFileToBuildInfo.First(p => p.Value.Output == output);
-                var minify = _processToIsMinify.TryGetValue(process, out var isMinify) && isMinify;
-
-                EndProcess(process);
-                ThreadHelper.JoinableTaskFactory.Run(async () =>
-                {
-                    await BuildOneWithGateAsync(pair.Key, pair.Value.Output, minify);
-                });
-            }
         }
 
         if (_settings.OverrideBuild || sender == _secondaryProcess)
@@ -855,11 +821,7 @@ internal sealed class TailwindBuildProcess : IDisposable
                     var minify =
                         _processToIsMinify.TryGetValue(process, out var isMinify) && isMinify;
 
-                    EndProcess(process);
-                    ThreadHelper.JoinableTaskFactory.Run(async () =>
-                    {
-                        await BuildOneWithGateAsync(pair.Key, pair.Value.Output, minify);
-                    });
+                    RestartBuildProcess(process, pair.Key, pair.Value.Output, minify);
                 }
             }
             else if (data.Contains("Error"))
@@ -892,6 +854,11 @@ internal sealed class TailwindBuildProcess : IDisposable
         }
     }
 
+    /// <summary>
+    /// Displays a build failure notice in the status bar and writes the error to the build output pane.
+    /// </summary>
+    /// <param name="error">The error message to write.</param>
+    /// <returns>A task that completes when the failure notice and error have been displayed.</returns>
     private async Task LogErrorAsync(string error)
     {
         await VS.StatusBar.ShowMessageAsync(
@@ -900,6 +867,11 @@ internal sealed class TailwindBuildProcess : IDisposable
         await WriteToBuildPaneAsync(error);
     }
 
+    /// <summary>
+    /// Reports a successful build with its elapsed duration and the current time.
+    /// </summary>
+    /// <param name="seconds">The elapsed duration reported by the CLI, possibly containing ANSI color codes.</param>
+    /// <returns>A task that completes when the success message has been displayed in the status bar and build output pane.</returns>
     private async Task LogSuccessAsync(string seconds)
     {
         // Remove ANSI color codes
@@ -914,6 +886,11 @@ internal sealed class TailwindBuildProcess : IDisposable
         );
     }
 
+    /// <summary>
+    /// Writes a message to the build output pane, creating a fallback pane when necessary.
+    /// </summary>
+    /// <param name="message">The message to write.</param>
+    /// <returns>A task that completes when the message has been written.</returns>
     private async Task WriteToBuildPaneAsync(string message)
     {
         var windowPane = await VS.Windows.GetOutputWindowPaneAsync(
@@ -940,6 +917,11 @@ internal sealed class TailwindBuildProcess : IDisposable
         await windowPane.WriteLineAsync(message);
     }
 
+    /// <summary>
+    /// Checks whether a CSS file contains a Tailwind directive or import.
+    /// </summary>
+    /// <param name="filePath">The CSS file path to read.</param>
+    /// <returns>A task whose result is <see langword="true"/> if the file references Tailwind; otherwise, <see langword="false"/>.</returns>
     private async Task<bool> IsFileTailwindCssAsync(string filePath)
     {
         using (var fs = File.OpenRead(filePath))
@@ -960,26 +942,13 @@ internal sealed class TailwindBuildProcess : IDisposable
         return false;
     }
 
-    private static ProcessStartInfo GetProcessStartInfo(string dir, bool powershell = false)
-    {
-        return new ProcessStartInfo()
-        {
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardInput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true,
-            FileName = powershell ? "powershell" : "cmd",
-            WorkingDirectory = dir,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
-        };
-    }
-
+    /// <summary>
+    /// Starts and tracks the secondary npm script process, with output reporting and cleanup on exit.
+    /// </summary>
+    /// <param name="startInfo">The npm script shell launch settings.</param>
     private void CreateAndSetAndStartSecondaryProcess(ProcessStartInfo startInfo)
     {
-        _secondaryProcess = Process.Start(startInfo);
-        _secondaryProcess.EnableRaisingEvents = true;
+        _secondaryProcess = StartProcess(startInfo);
 
         _secondaryProcess.Exited += (s, e) =>
         {
@@ -991,10 +960,14 @@ internal sealed class TailwindBuildProcess : IDisposable
         };
     }
 
+    /// <summary>
+    /// Starts a Tailwind build process and registers tracking cleanup and status reporting on exit.
+    /// </summary>
+    /// <param name="startInfo">The Tailwind CLI shell launch settings.</param>
+    /// <returns>The started process, which must be added to build tracking and configured for output reading.</returns>
     private Process CreateAndStartProcess(ProcessStartInfo startInfo)
     {
-        var process = Process.Start(startInfo);
-        process.EnableRaisingEvents = true;
+        var process = StartProcess(startInfo);
 
         process.Exited += (s, e) =>
         {
@@ -1028,14 +1001,6 @@ internal sealed class TailwindBuildProcess : IDisposable
         };
 
         return process;
-    }
-
-    private void PostSetupProcess(Process process)
-    {
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
-        process.OutputDataReceived += OutputDataReceived;
-        process.ErrorDataReceived += OutputDataReceived;
     }
 
     private class BuildSettings
