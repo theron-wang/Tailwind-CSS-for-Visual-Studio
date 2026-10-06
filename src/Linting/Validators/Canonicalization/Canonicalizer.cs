@@ -78,9 +78,6 @@ internal class Canonicalizer : TailwindCliInterop
         var result = new List<Canonicalization>();
         IEnumerable<Canonicalization>? processCanonicalizations = null;
 
-        // MUST REMOVE
-        cache.Clear();
-
         while (worklist.Count > 0)
         {
             var className = worklist[0];

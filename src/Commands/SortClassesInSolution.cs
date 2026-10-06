@@ -27,10 +27,13 @@ internal sealed class SortClassesInSolution : BaseCommand<SortClassesInSolution>
     )]
     protected override void BeforeQueryStatus(EventArgs e)
     {
-        var settings = ThreadHelper.JoinableTaskFactory.Run(General.GetLiveInstanceAsync);
+        var settings = ThreadHelper.JoinableTaskFactory.Run(SettingsProvider.GetSettingsAsync);
 
         Command.Visible =
-            settings.UseTailwindCss && settings.ClassSortType != SortClassesOptions.None;
+            settings.EnableTailwindCss
+            && settings.SortClassesType != SortClassesOptions.None
+            && settings.BuildFiles is not null
+            && settings.BuildFiles.Count > 0;
         Command.Enabled = !ClassSorter.Sorting;
     }
 
