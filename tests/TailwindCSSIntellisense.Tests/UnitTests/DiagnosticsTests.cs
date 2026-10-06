@@ -177,7 +177,7 @@ public class DiagnosticsTests : IDisposable
         ProjectCompletionValues values
     )
     {
-        var span = new SnapshotSpan(new StringTextSnapshot(text), 0, text.Length);
+        var span = new SnapshotSpan(new FakeTextBuffer(text).CurrentSnapshot, 0, text.Length);
         Inject(checker, "_linterUtilities", new LinterUtilities());
 
         if (checker is InvalidConfigPathDiagnostics)
@@ -210,7 +210,7 @@ public class DiagnosticsTests : IDisposable
             Inject(checker, "_linterUtilities", new LinterUtilities());
         }
         var aggregator = new DiagnosticsAggregator([cssOnly, delayed, blocked]);
-        var snapshot = new StringTextSnapshot("<div class=\"foo\"></div>");
+        var snapshot = new FakeTextBuffer("<div class=\"foo\"></div>").CurrentSnapshot;
         var values = new ProjectCompletionValues
         {
             Version = TailwindVersion.V3,

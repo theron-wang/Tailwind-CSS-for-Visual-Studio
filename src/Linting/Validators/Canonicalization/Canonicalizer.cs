@@ -72,8 +72,8 @@ internal class Canonicalizer : TailwindCliInterop
         // since it won't mess up the canonicalizer.
         var classNamesSet = classNames.Where(c => !c.Contains(' ')).ToFrozenSet();
 
-        // Alias to make it more clear
-        var worklist = classNames;
+        // Process each class once without modifying the caller's list.
+        var worklist = classNames.Distinct().ToList();
 
         var result = new List<Canonicalization>();
         IEnumerable<Canonicalization>? processCanonicalizations = null;
@@ -204,7 +204,7 @@ internal class Canonicalizer : TailwindCliInterop
     /// <param name="classNames">The candidate class names, without embedded line breaks.</param>
     /// <param name="filePath">The file whose project configuration should be used.</param>
     /// <returns>The canonicalized class names for this request.</returns>
-    private async Task<string[]> CanonicalizeViaCliAsync(
+    protected virtual async Task<string[]> CanonicalizeViaCliAsync(
         IEnumerable<string> classNames,
         string filePath
     )
@@ -214,6 +214,14 @@ internal class Canonicalizer : TailwindCliInterop
         );
 
         var input = string.Join(" ", classNames);
+
+        if (input.Contains('\r') || input.Contains('\n'))
+        {
+            throw new ArgumentException(
+                "Canonicalization candidates cannot contain line breaks.",
+                nameof(classNames)
+            );
+        }
 
         // Serialize process lookup as well as I/O so concurrent requests cannot create
         // duplicate processes or consume each other's responses.

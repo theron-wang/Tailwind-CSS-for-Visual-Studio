@@ -111,7 +111,6 @@ namespace Microsoft.VisualStudio.Text
         ITextBuffer TextBuffer { get; }
         char this[int index] { get; }
         string GetText(int startIndex, int length);
-        string GetFileNameSafe();
     }
 
     public sealed class StringTextSnapshot(string text, ITextBuffer textBuffer) : ITextSnapshot
@@ -137,11 +136,13 @@ namespace Microsoft.VisualStudio.Text
 
     public sealed class FakeTextBuffer : ITextBuffer
     {
-        public FakeTextBuffer(string text)
+        public FakeTextBuffer(string text, string filePath = "")
         {
             CurrentSnapshot = new StringTextSnapshot(text, this);
+            FilePath = filePath;
         }
 
+        public string FilePath { get; }
         public ITextSnapshot CurrentSnapshot { get; init; }
         public PropertyCollection Properties { get; } = new();
     }
@@ -210,10 +211,12 @@ namespace Microsoft.VisualStudio.Text
         }
     }
 
-    public sealed class FakeTrackingSpan(int start, int length) : ITrackingSpan
+    public sealed class FakeTrackingSpan(int start, int length, SpanTrackingMode mode)
+        : ITrackingSpan
     {
         public int Start { get; } = start;
         public int Length { get; } = length;
+        public SpanTrackingMode Mode { get; } = mode;
     }
 
     public readonly struct SnapshotSpan
@@ -266,10 +269,18 @@ namespace Microsoft.VisualStudio.Text
         {
             return HashCode.Combine(Snapshot, Span.Start, Span.Length);
         }
+
+        public static bool operator ==(SnapshotSpan left, SnapshotSpan right) => left.Equals(right);
+
+        public static bool operator !=(SnapshotSpan left, SnapshotSpan right) =>
+            !left.Equals(right);
     }
 
     public static class TextSnapshotExtensions
     {
+        public static string GetFileNameSafe(this ITextBuffer buffer) =>
+            buffer is FakeTextBuffer fake ? fake.FilePath : "";
+
         public static ITrackingSpan CreateTrackingSpan(
             this ITextSnapshot snapshot,
             int start,
@@ -277,7 +288,7 @@ namespace Microsoft.VisualStudio.Text
             SpanTrackingMode mode
         )
         {
-            return new FakeTrackingSpan(start, length);
+            return new FakeTrackingSpan(start, length, mode);
         }
 
         public static ITrackingSpan CreateTrackingSpan(
@@ -286,7 +297,7 @@ namespace Microsoft.VisualStudio.Text
             SpanTrackingMode mode
         )
         {
-            return new FakeTrackingSpan((int)span.Start, span.Length);
+            return new FakeTrackingSpan((int)span.Start, span.Length, mode);
         }
     }
 }
@@ -389,7 +400,7 @@ namespace TailwindCSSIntellisense.Linting
         public static Func<
             IEnumerable<string>,
             ProjectCompletionValues,
-            IAsyncEnumerable<(
+            IEnumerable<(
                 string className,
                 string errorMessage,
                 IEnumerable<string> conflictingClasses
@@ -398,7 +409,7 @@ namespace TailwindCSSIntellisense.Linting
 
         public ErrorSeverity GetErrorSeverity(ErrorType type) => GetErrorSeverityHandler(type);
 
-        public IAsyncEnumerable<(
+        public async IAsyncEnumerable<(
             string className,
             string errorMessage,
             IEnumerable<string> conflictingClasses
@@ -407,7 +418,12 @@ namespace TailwindCSSIntellisense.Linting
             ProjectCompletionValues projectCompletionValues
         )
         {
-            return CheckForClassDuplicatesHandler(classes, projectCompletionValues);
+            foreach (
+                var conflict in CheckForClassDuplicatesHandler(classes, projectCompletionValues)
+            )
+            {
+                yield return conflict;
+            }
         }
     }
 }

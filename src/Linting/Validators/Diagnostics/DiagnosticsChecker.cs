@@ -73,7 +73,7 @@ internal abstract class DiagnosticsChecker(bool isCssOnly, ErrorType errorType)
         foreach (var match in findClasses(text))
         {
             var group = ClassRegexHelper.GetClassTextGroup(match);
-            return (span.Start, match.Value, group.Value);
+            return (span.Start + match.Index, match.Value, group.Value);
         }
 
         var start = Math.Max(0, (int)span.Start - 2000);

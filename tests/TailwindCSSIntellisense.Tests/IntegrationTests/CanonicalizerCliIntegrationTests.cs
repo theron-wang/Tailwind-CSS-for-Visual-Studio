@@ -64,14 +64,17 @@ public class CanonicalizerCliIntegrationTests
         Assert.Equal(2, File.ReadAllLines(fixture.StartsLog).Length);
     }
 
-    [Fact]
-    public async Task Request_RejectsEmbeddedNewlinesBeforeStartingProcess()
+    [Theory]
+    [InlineData("first\nsecond")]
+    [InlineData("first\rsecond")]
+    [InlineData("first\r\nsecond")]
+    public async Task Request_RejectsEmbeddedNewlinesBeforeStartingProcess(string className)
     {
         using var fixture = new CliFixture();
         using var canonicalizer = fixture.CreateCanonicalizer();
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            fixture.RequestAsync(canonicalizer, "first\nsecond")
+            fixture.RequestAsync(canonicalizer, className)
         );
 
         Assert.False(File.Exists(fixture.StartsLog));
