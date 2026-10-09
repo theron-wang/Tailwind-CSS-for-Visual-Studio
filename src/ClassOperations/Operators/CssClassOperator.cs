@@ -1,18 +1,24 @@
 ﻿using System.Collections.Generic;
-using System.ComponentModel.Composition;
 
-namespace TailwindCSSIntellisense.ClassSort.Sorters;
+namespace TailwindCSSIntellisense.ClassOperations.Operators;
 
-[Export(typeof(Sorter))]
-internal class CssSorter : Sorter
+/// <summary>
+/// Class operator for CSS files. This class is responsible for handling the @apply directive in CSS and Tailwind CSS files.
+/// It identifies segments of the file that contain @apply directives and processes them accordingly. The class is generic and
+/// can be used with any type that implements the IClassOperation interface.
+/// </summary>
+/// <typeparam name="TOperation">An <see cref="IClassOperation"/> implementation that defines the operation for this class.</typeparam>
+internal abstract class CssClassOperator<TOperation> : ClassOperator<TOperation>
+    where TOperation : IClassOperation, new()
 {
     public override string[] Handled { get; } = [".css", ".tcss"];
 
-    protected override async IAsyncEnumerable<string> GetSegmentsAsync(
+    protected override async IAsyncEnumerable<ClassOpToken> GetSegmentsAsync(
         string filePath,
         string content
     )
     {
+        // Finish refactor
         int indexOfApply = content.IndexOf("@apply");
 
         int lastIndex = 0;
@@ -44,9 +50,8 @@ internal class CssSorter : Sorter
 
             // return @apply
             yield return "@apply ";
-            yield return await SortSegmentAsync(
-                content.Substring(indexOfApply + 6, lastIndex - (indexOfApply + 6)),
-                filePath
+            yield return ClassOpToken.QuickCreateFromWhiteSpaceSeparatedClases(
+                content.Substring(indexOfApply + 6, lastIndex - (indexOfApply + 6))
             );
             indexOfApply = content.IndexOf("@apply", indexOfApply + 1);
         }

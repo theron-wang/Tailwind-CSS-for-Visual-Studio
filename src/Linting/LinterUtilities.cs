@@ -11,7 +11,7 @@ using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Adornments;
 using Microsoft.VisualStudio.Text.Tagging;
-using TailwindCSSIntellisense.ClassSort;
+using TailwindCSSIntellisense.ClassOperations;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Options;

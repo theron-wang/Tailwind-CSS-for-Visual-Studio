@@ -7,7 +7,7 @@ using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Threading;
 using TailwindCSSIntellisense.Build;
-using TailwindCSSIntellisense.ClassSort;
+using TailwindCSSIntellisense.ClassOperations;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Options;

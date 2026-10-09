@@ -1,14 +1,17 @@
 ﻿using System.Collections.Generic;
-using System.ComponentModel.Composition;
 
-namespace TailwindCSSIntellisense.ClassSort.Sorters;
+namespace TailwindCSSIntellisense.ClassOperations.Operators;
 
-[Export(typeof(Sorter))]
-internal class HtmlSorter : Sorter
+/// <summary>
+/// An abstract class that provides functionality for handling class operations in HTML files.
+/// </summary>
+/// <typeparam name="TOperation">The type of the class operation to be performed.</typeparam>
+internal abstract class HtmlClassOperator<TOperation> : ClassOperator<TOperation>
+    where TOperation : IClassOperation, new()
 {
     public override string[] Handled { get; } = [".html", ".aspx", ".ascx"];
 
-    protected override async IAsyncEnumerable<string> GetSegmentsAsync(
+    protected override async IAsyncEnumerable<ClassOpToken> GetSegmentsAsync(
         string filePath,
         string content
     )
@@ -50,7 +53,7 @@ internal class HtmlSorter : Sorter
             var classContent = ClassRegexHelper.GetClassTextGroup(match).Value;
             yield return total.Substring(0, total.IndexOf(classContent));
 
-            yield return await SortSegmentAsync(classContent, filePath);
+            yield return ClassOpToken.QuickCreateFromWhiteSpaceSeparatedClases(classContent);
             yield return total.Substring(total.IndexOf(classContent) + classContent.Length);
         }
 

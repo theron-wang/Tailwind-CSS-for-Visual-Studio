@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Community.VisualStudio.Toolkit;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text;
-using TailwindCSSIntellisense.ClassSort;
+using TailwindCSSIntellisense.ClassOperations;
 using TailwindCSSIntellisense.Options;
 using TailwindCSSIntellisense.Settings;
 

@@ -3,119 +3,42 @@ using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Globalization;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Shell;
+using TailwindCSSIntellisense.ClassOperations.Operators;
 using TailwindCSSIntellisense.Completions;
 
-namespace TailwindCSSIntellisense.ClassSort.Sorters;
+namespace TailwindCSSIntellisense.ClassOperations.Sorters;
 
-internal abstract class Sorter
+/// <summary>
+/// Sorts a list of Tailwind CSS classes based on their order in the Tailwind CSS framework, taking into account variants, prefixes, and custom configurations.
+/// </summary>
+internal sealed class Sorter : IClassOperation
 {
     [Import]
-    public ProjectConfigurationManager ProjectConfigurationManager { get; set; } = null!;
+    private ClassSortUtilities _classSortUtilities = null!;
 
     [Import]
-    public ClassSortUtilities ClassSortUtilities { get; set; } = null!;
+    private ProjectConfigurationManager _projectConfigurationManager = null!;
 
-    public abstract string[] Handled { get; }
-
-    public async Task<string> SortAsync(string filePath, string input)
-    {
-        var output = new StringBuilder();
-
-        await foreach (var segment in GetSegmentsAsync(filePath, input))
-        {
-            output.Append(segment);
-        }
-
-        return output.ToString();
-    }
-
-    protected abstract IAsyncEnumerable<string> GetSegmentsAsync(string filePath, string input);
-
-    protected async Task<string> SortSegmentAsync(string classText, string filePath)
-    {
-        var classes = classText.Split(Array.Empty<char>(), StringSplitOptions.RemoveEmptyEntries);
-
-        var sorted = await SortAsync(classes, filePath);
-
-        var newlines = classText
-            .Select((c, i) => (c, i))
-            .Where(p => p.c == '\n')
-            .Select(p => p.i)
-            .ToList();
-
-        var indents = newlines
-            .Select(i =>
-            {
-                var result = "";
-
-                for (++i; i < classText.Length; i++)
-                {
-                    if (!char.IsWhiteSpace(classText[i]))
-                    {
-                        break;
-                    }
-                    result += classText[i];
-                }
-                return result;
-            })
-            .ToList();
-
-        var sortedSegment = new StringBuilder();
-
-        int index = 0;
-        int nextNewLineIndex = 0;
-
-        var shouldMoveImportant = false;
-        foreach (var sortedClass in sorted)
-        {
-            if (this is CssSorter && sortedClass == "!important")
-            {
-                shouldMoveImportant = true;
-                continue;
-            }
-
-            if (
-                nextNewLineIndex < newlines.Count
-                && index <= newlines[nextNewLineIndex]
-                && newlines[nextNewLineIndex] <= index + sortedClass.Length
-            )
-            {
-                sortedSegment.AppendLine().Append(indents[nextNewLineIndex]).Append(sortedClass);
-                index += indents[nextNewLineIndex].Length;
-
-                nextNewLineIndex++;
-            }
-            else
-            {
-                sortedSegment.Append(' ').Append(sortedClass);
-            }
-
-            index += sortedClass.Length + 1;
-        }
-
-        if (shouldMoveImportant)
-        {
-            sortedSegment.Append(" !important");
-        }
-
-        return sortedSegment.ToString().Trim();
-    }
-
-    protected async Task<IOrderedEnumerable<string>> SortAsync(
+    /// <summary>
+    /// Sorts the provided list of Tailwind CSS classes based on their order in the Tailwind CSS framework, considering variants, prefixes, and custom configurations.
+    /// </summary>
+    /// <param name="classes">The collection of classes to sort</param>
+    /// <param name="filePath">The file path that the classes were from</param>
+    /// <returns>The collection of classes, sorted according to the Tailwind CSS framework</returns>
+    public async Task<IEnumerable<string>> OperateAsync(
         IEnumerable<string> classes,
         string filePath
     )
     {
         var projectCompletionValues =
-            await ProjectConfigurationManager.GetCompletionConfigurationByFilePathAsync(filePath);
+            await _projectConfigurationManager.GetCompletionConfigurationByFilePathAsync(filePath);
 
-        var classOrder = await ClassSortUtilities.GetClassOrderAsync(
+        var classOrder = await _classSortUtilities.GetClassOrderAsync(
             projectCompletionValues.Version
         );
-        var variantOrder = await ClassSortUtilities.GetVariantOrderAsync(
+        var variantOrder = await _classSortUtilities.GetVariantOrderAsync(
             projectCompletionValues.Version
         );
 
@@ -504,44 +427,5 @@ internal abstract class Sorter
             });
 
         return result;
-    }
-
-    protected (int index, char terminator) GetNextIndexOfClass(
-        string file,
-        int startIndex,
-        string searchFor = "class="
-    )
-    {
-        var single = file.IndexOf(
-            $"{searchFor}'",
-            startIndex,
-            StringComparison.InvariantCultureIgnoreCase
-        );
-        var doubleQuote = file.IndexOf(
-            $"{searchFor}\"",
-            startIndex,
-            StringComparison.InvariantCultureIgnoreCase
-        );
-
-        if (single == -1 && doubleQuote == -1)
-        {
-            return (-1, ' ');
-        }
-        else if (single == -1)
-        {
-            return (doubleQuote, '"');
-        }
-        else if (doubleQuote == -1)
-        {
-            return (single, '\'');
-        }
-        else if (single < doubleQuote)
-        {
-            return (single, '\'');
-        }
-        else
-        {
-            return (doubleQuote, '"');
-        }
     }
 }

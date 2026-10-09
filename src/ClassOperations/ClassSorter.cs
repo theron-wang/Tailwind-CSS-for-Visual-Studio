@@ -10,12 +10,12 @@ using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Differencing;
 using Microsoft.VisualStudio.Threading;
-using TailwindCSSIntellisense.ClassSort.Sorters;
+using TailwindCSSIntellisense.ClassOperations.Sorters;
 using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Options;
 using TailwindCSSIntellisense.Settings;
 
-namespace TailwindCSSIntellisense.ClassSort;
+namespace TailwindCSSIntellisense.ClassOperations;
 
 [Export]
 [PartCreationPolicy(CreationPolicy.Shared)]
