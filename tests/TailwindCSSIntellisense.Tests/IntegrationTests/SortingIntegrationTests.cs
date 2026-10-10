@@ -1,5 +1,7 @@
-using TailwindCSSIntellisense.ClassSort;
-using TailwindCSSIntellisense.ClassSort.Sorters;
+using System.Reflection;
+using TailwindCSSIntellisense.ClassOperations;
+using TailwindCSSIntellisense.ClassOperations.Operators;
+using TailwindCSSIntellisense.ClassOperations.Sorters;
 using TailwindCSSIntellisense.Completions;
 
 namespace TailwindCSSIntellisense.Tests.IntegrationTests;
@@ -7,11 +9,12 @@ namespace TailwindCSSIntellisense.Tests.IntegrationTests;
 public class SortingIntegrationTests
 {
     [Fact]
-    public async Task SortSegment_OrdersClassesByVariantAndClassOrder()
+    public async Task OperateAsync_OrdersClassesByVariantAndClassOrder()
     {
-        var sorter = CreateTestSorter();
+        var sorter = CreateSorter();
 
-        var sorted = await sorter.SortSegmentPublic(
+        var sorted = await SortClassesAsync(
+            sorter,
             "hover:font-bold text-red-500 p-4",
             "index.html"
         );
@@ -22,26 +25,29 @@ public class SortingIntegrationTests
     [Fact]
     public async Task Sort_UpdatesOnlyClassSegmentAndPreservesMarkup()
     {
-        var sorter = CreateTestSorter();
+        var sorter = CreateSorter();
         const string input = "<div class=\"text-red-500 p-4\">hello</div>";
 
-        var sorted = await sorter.SortContent("index.html", input);
+        var htmlSorter = CreateOperator<HtmlSorter>(sorter);
+
+        var sorted = await htmlSorter.RunOperationAsync("index.html", input);
 
         Assert.Equal("<div class=\"p-4 text-red-500\">hello</div>", sorted);
     }
 
     [Fact]
-    public async Task GetNextIndexOfClass_PicksNearestQuoteVariant()
+    public async Task HtmlSorter_SortsBothQuoteStylesAndPreservesOtherAttributes()
     {
-        var sorter = CreateTestSorter();
-        const string content = "<div class='a b' data-x=\"y\" class=\"c d\"></div>";
+        var sorter = CreateOperator<HtmlSorter>(CreateSorter());
+        const string content =
+            "<div class='text-red-500 p-4' data-x=\"y\" class=\"hover:font-bold p-4\"></div>";
 
-        var (index, terminator) = sorter.GetNextIndex(content, 0);
-        var (secondIndex, secondTerminator) = sorter.GetNextIndex(content, index + 1);
+        var sorted = await sorter.RunOperationAsync("index.html", content);
 
-        Assert.Equal('\'', terminator);
-        Assert.Equal('"', secondTerminator);
-        Assert.True(secondIndex > index);
+        Assert.Equal(
+            "<div class='p-4 text-red-500' data-x=\"y\" class=\"p-4 hover:font-bold\"></div>",
+            sorted
+        );
     }
 
     [Fact]
@@ -51,7 +57,7 @@ public class SortingIntegrationTests
         const string input =
             "<div class=\"text-red-500 @(isActive ? 'font-bold' : 'font-light') p-4\"></div>";
 
-        var sorted = await razorSorter.SortAsync("page.razor", input);
+        var sorted = await razorSorter.RunOperationAsync("page.razor", input);
 
         Assert.Contains("@(isActive ? 'font-bold' : 'font-light')", sorted);
         Assert.Contains("class=\"p-4 ", sorted);
@@ -64,7 +70,7 @@ public class SortingIntegrationTests
         var razorSorter = CreateRazorSorter();
         const string input = "<div class=\"text-red-500 @@container\n    p-4\"></div>";
 
-        var sorted = await razorSorter.SortAsync("page.razor", input);
+        var sorted = await razorSorter.RunOperationAsync("page.razor", input);
 
         Assert.Contains("@@container", sorted);
         Assert.Contains("\n    @@container", sorted);
@@ -105,42 +111,65 @@ public class SortingIntegrationTests
             }
         );
 
-        var sorter = new TestSorter
-        {
-            ProjectConfigurationManager = projectManager,
-            ClassSortUtilities = classSortUtilities,
-        };
+        var sorter = CreateSorter(projectManager, classSortUtilities);
 
         Assert.Equal(
             "p-4 text-red-500",
-            await sorter.SortSegmentPublic("text-red-500 p-4", "v3.html")
+            await SortClassesAsync(sorter, "text-red-500 p-4", "v3.html")
         );
         Assert.Equal(
             "text-red-500 p-4",
-            await sorter.SortSegmentPublic("text-red-500 p-4", "v4.html")
+            await SortClassesAsync(sorter, "text-red-500 p-4", "v4.html")
         );
     }
 
-    private static TestSorter CreateTestSorter()
+    private static Sorter CreateSorter()
     {
         var (projectManager, classSortUtilities) = CreateSharedDependencies();
+        return CreateSorter(projectManager, classSortUtilities);
+    }
 
-        return new TestSorter
-        {
-            ProjectConfigurationManager = projectManager,
-            ClassSortUtilities = classSortUtilities,
-        };
+    private static Sorter CreateSorter(
+        ProjectConfigurationManager projectManager,
+        ClassSortUtilities classSortUtilities
+    )
+    {
+        var sorter = new Sorter();
+        typeof(Sorter)
+            .GetField(
+                "_projectConfigurationManager",
+                BindingFlags.Instance | BindingFlags.NonPublic
+            )!
+            .SetValue(sorter, projectManager);
+        typeof(Sorter)
+            .GetField("_classSortUtilities", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(sorter, classSortUtilities);
+        return sorter;
+    }
+
+    private static TOperator CreateOperator<TOperator>(Sorter sorter)
+        where TOperator : ClassOperator<Sorter>, new()
+    {
+        var classOperator = new TOperator();
+        typeof(ClassOperator<Sorter>)
+            .GetField("_operation", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(classOperator, sorter);
+        return classOperator;
     }
 
     private static RazorSorter CreateRazorSorter()
     {
-        var (projectManager, classSortUtilities) = CreateSharedDependencies();
+        return CreateOperator<RazorSorter>(CreateSorter());
+    }
 
-        return new RazorSorter
-        {
-            ProjectConfigurationManager = projectManager,
-            ClassSortUtilities = classSortUtilities,
-        };
+    private static async Task<string> SortClassesAsync(
+        Sorter sorter,
+        string classText,
+        string filePath
+    )
+    {
+        var classes = classText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        return string.Join(" ", await sorter.OperateAsync(classes, filePath));
     }
 
     private static (
@@ -180,51 +209,5 @@ public class SortingIntegrationTests
         );
 
         return (projectManager, classSortUtilities);
-    }
-
-    private sealed class TestSorter : Sorter
-    {
-        public override string[] Handled => [".html"];
-
-        public Task<string> SortSegmentPublic(string classText, string filePath)
-        {
-            return SortSegmentAsync(classText, filePath);
-        }
-
-        public Task<string> SortContent(string filePath, string input)
-        {
-            return SortAsync(filePath, input);
-        }
-
-        public (int index, char terminator) GetNextIndex(string input, int startIndex)
-        {
-            return GetNextIndexOfClass(input, startIndex);
-        }
-
-        protected override async IAsyncEnumerable<string> GetSegmentsAsync(
-            string filePath,
-            string input
-        )
-        {
-            const string marker = "class=\"";
-            var classStart = input.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
-            if (classStart < 0)
-            {
-                yield return input;
-                yield break;
-            }
-
-            var classValueStart = classStart + marker.Length;
-            var classValueEnd = input.IndexOf('"', classValueStart);
-            if (classValueEnd < 0)
-            {
-                yield return input;
-                yield break;
-            }
-
-            yield return input[..classValueStart];
-            yield return await SortSegmentAsync(input[classValueStart..classValueEnd], filePath);
-            yield return input[classValueEnd..];
-        }
     }
 }

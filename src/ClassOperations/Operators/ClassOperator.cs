@@ -38,12 +38,14 @@ internal abstract class ClassOperator<TOperation>
         {
             if (segment.Type == ClassOpTokenType.Class)
             {
-                var operatedClasses = await OperateOnClassesAsync(segment.Value, filePath);
-                output.Append(FormatClasses(operatedClasses, segment.Value, input));
+                var origClasses = segment.GetClasses();
+
+                var operatedClasses = await OperateOnClassesAsync(origClasses, filePath);
+                output.Append(FormatClasses(operatedClasses, origClasses, segment.Raw));
             }
             else
             {
-                output.Append(segment.Value.First());
+                output.Append(segment.Raw);
             }
         }
 

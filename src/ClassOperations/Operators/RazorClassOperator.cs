@@ -55,17 +55,10 @@ internal abstract class RazorClassOperator<TOperation> : ClassOperator<TOperatio
             var classContent = ClassRegexHelper.GetClassTextGroup(match).Value;
             yield return total.Substring(0, total.IndexOf(classContent));
 
-            List<string> classes =
-            [
-                .. ClassRegexHelper.SplitRazorClasses(classContent).Select(m => m.Value),
-            ];
-
-            yield return new ClassOpToken()
-            {
-                Value = await OperateOnClassesAsync(classes, filePath),
-                Type = ClassOpTokenType.Class,
-            };
-
+            yield return new CustomSplitClassOpToken(
+                ClassRegexHelper.SplitRazorClasses(classContent).Select(m => m.Value),
+                classContent
+            );
             yield return total.Substring(total.IndexOf(classContent) + classContent.Length);
         }
 
@@ -93,7 +86,7 @@ internal abstract class RazorClassOperator<TOperation> : ClassOperator<TOperatio
         }
 
         var postOp = (
-            await OperateOnClassesAsync(
+            await base.OperateOnClassesAsync(
                 classes
                     .Select((v, i) => (v: v.Replace("@@", "@").Replace("@(\"@\")", "@"), i))
                     .Where(v => !razorIndices.Contains(v.i))

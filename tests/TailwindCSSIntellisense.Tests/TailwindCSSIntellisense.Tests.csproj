@@ -81,10 +81,13 @@
       Include="../../src/Configuration/TailwindConfiguration.cs"
       Link="Source/Configuration/TailwindConfiguration.cs"
     />
-    <Compile Include="../../src/ClassSort/Sorters/Sorter.cs" Link="Source/ClassSort/Sorter.cs" />
     <Compile
-      Include="../../src/ClassSort/Sorters/RazorSorter.cs"
-      Link="Source/ClassSort/RazorSorter.cs"
+      Include="../../src/ClassOperations/Sorters/*.cs"
+      Link="Source/ClassOperations/Sorters/%(Filename)%(Extension)"
+    />
+    <Compile
+      Include="../../src/ClassOperations/Operators/*.cs"
+      Link="Source/ClassOperations/Operators/%(Filename)%(Extension)"
     />
     <Compile
       Include="../../src/Completions/ProjectCompletionValues.cs"

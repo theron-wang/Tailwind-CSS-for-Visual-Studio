@@ -50,9 +50,11 @@ internal abstract class CssClassOperator<TOperation> : ClassOperator<TOperation>
 
             // return @apply
             yield return "@apply ";
-            yield return ClassOpToken.QuickCreateFromWhiteSpaceSeparatedClases(
-                content.Substring(indexOfApply + 6, lastIndex - (indexOfApply + 6))
-            );
+            yield return new ClassOpToken()
+            {
+                Raw = content.Substring(indexOfApply + 6, lastIndex - (indexOfApply + 6)),
+                Type = ClassOpTokenType.Class,
+            };
             indexOfApply = content.IndexOf("@apply", indexOfApply + 1);
         }
 

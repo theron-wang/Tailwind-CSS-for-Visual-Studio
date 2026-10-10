@@ -352,7 +352,7 @@ namespace TailwindCSSIntellisense.Completions
     }
 }
 
-namespace TailwindCSSIntellisense.ClassSort
+namespace TailwindCSSIntellisense.ClassOperations
 {
     public sealed class ClassSortUtilities
     {
@@ -481,7 +481,7 @@ namespace TailwindCSSIntellisense.Linting.Validators
     }
 }
 
-namespace TailwindCSSIntellisense.ClassSort.Sorters
+namespace TailwindCSSIntellisense.ClassOperations.Sorters
 {
     internal static class SorterStringExtensions
     {
@@ -492,19 +492,6 @@ namespace TailwindCSSIntellisense.ClassSort.Sorters
         )
         {
             return value.StartsWith(prefix, comparison) ? value[prefix.Length..] : value;
-        }
-    }
-
-    internal sealed class CssSorter : Sorter
-    {
-        public override string[] Handled { get; } = [".css"];
-
-        protected override async IAsyncEnumerable<string> GetSegmentsAsync(
-            string filePath,
-            string input
-        )
-        {
-            yield return input;
         }
     }
 }

@@ -53,7 +53,7 @@ internal abstract class HtmlClassOperator<TOperation> : ClassOperator<TOperation
             var classContent = ClassRegexHelper.GetClassTextGroup(match).Value;
             yield return total.Substring(0, total.IndexOf(classContent));
 
-            yield return ClassOpToken.QuickCreateFromWhiteSpaceSeparatedClases(classContent);
+            yield return new ClassOpToken() { Raw = classContent, Type = ClassOpTokenType.Class };
             yield return total.Substring(total.IndexOf(classContent) + classContent.Length);
         }
 
