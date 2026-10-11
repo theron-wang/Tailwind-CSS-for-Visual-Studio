@@ -10,6 +10,23 @@ namespace TailwindCSSIntellisense.Tests.IntegrationTests;
 public class CanonicalizerCliIntegrationTests
 {
     [Fact]
+    public async Task SettingsChange_InvalidatesCacheAndRestartsProcess()
+    {
+        using var fixture = new CliFixture();
+        using var canonicalizer = fixture.CreateCanonicalizer();
+        await canonicalizer.CanonicalizeAsync(["first"], fixture.CssPath);
+        await canonicalizer.CanonicalizeAsync(["first"], fixture.CssPath);
+        Assert.Single(File.ReadAllLines(fixture.StartsLog));
+
+        await canonicalizer.SettingsProvider.OnSettingsChanged!(
+            canonicalizer.SettingsProvider.Settings
+        );
+        Assert.Single(await canonicalizer.CanonicalizeAsync(["first"], fixture.CssPath));
+
+        Assert.Equal(2, File.ReadAllLines(fixture.StartsLog).Length);
+    }
+
+    [Fact]
     public async Task Request_IgnoresStartupNoiseAndMatchesItsInput()
     {
         using var fixture = new CliFixture();

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.Composition;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -20,7 +21,8 @@ namespace TailwindCSSIntellisense.ClassOperations.Operators;
 internal abstract class ClassOperator<TOperation>
     where TOperation : IClassOperation, new()
 {
-    private readonly TOperation _operation = new();
+    [Import]
+    private TOperation _operation = default!;
 
     public abstract string[] Handled { get; }
 

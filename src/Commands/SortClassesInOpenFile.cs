@@ -1,24 +1,24 @@
-﻿using System;
+using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Community.VisualStudio.Toolkit;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text;
 using TailwindCSSIntellisense.ClassOperations;
-using TailwindCSSIntellisense.Options;
 using TailwindCSSIntellisense.Settings;
 
 namespace TailwindCSSIntellisense;
 
-[Command(PackageGuids.guidVSPackageCmdSetString, PackageIds.SortInOpenFileCmdId)]
+[Command(PackageGuids.guidVSPackageCmdSetString, PackageIds.SortClassesInOpenFileCmdId)]
 internal sealed class SortClassesInOpenFile : BaseCommand<SortClassesInOpenFile>
 {
     protected override async Task InitializeCompletedAsync()
     {
-        ClassSorter = await VS.GetMefServiceAsync<ClassSorter>();
+        ClassOperationService = await VS.GetMefServiceAsync<ClassOperationService>();
         SettingsProvider = await VS.GetMefServiceAsync<SettingsProvider>();
     }
 
-    internal ClassSorter ClassSorter { get; set; } = null!;
+    internal ClassOperationService ClassOperationService { get; set; } = null!;
     internal SettingsProvider SettingsProvider { get; set; } = null!;
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage(
@@ -32,22 +32,24 @@ internal sealed class SortClassesInOpenFile : BaseCommand<SortClassesInOpenFile>
 
         Command.Visible =
             settings.EnableTailwindCss
-            && settings.SortClassesType != SortClassesOptions.None
+            && ClassOperationService
+                .Operations.GetEnabledOperations(settings, operationType: typeof(ClassSorter))
+                .Any()
             && settings.BuildFiles is not null
             && settings.BuildFiles.Count > 0;
-        Command.Enabled = !ClassSorter.Sorting;
+        Command.Enabled = !ClassOperationService.Processing;
     }
 
     protected override async Task ExecuteAsync(OleMenuCmdEventArgs e)
     {
-        if (!ClassSorter.Sorting)
+        if (!ClassOperationService.Processing)
         {
             var file = await VS.Documents.GetActiveDocumentViewAsync();
             var path = file?.TextBuffer?.GetFileName();
 
             if (!string.IsNullOrWhiteSpace(path))
             {
-                await ClassSorter.SortAsync(path!, true);
+                await ClassOperationService.ProcessAsync(path!, operationType: typeof(ClassSorter));
             }
         }
     }

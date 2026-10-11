@@ -76,7 +76,7 @@ public sealed class TailwindCSSIntellisensePackage : AsyncPackage, IDisposable
 
     private TailwindBuildProcess _buildProcess = null!;
     private ProjectConfigurationInitializer _projectConfigurationInitializer = null!;
-    private ClassSorter _classSorter = null!;
+    private ClassOperationService _classOperationService = null!;
     private ConfigurationFileReloader _configurationFileReloader = null!;
 
     private readonly SemaphoreSlim _initializeLock = new(1, 1);
@@ -102,7 +102,7 @@ public sealed class TailwindCSSIntellisensePackage : AsyncPackage, IDisposable
         _buildProcess = await VS.GetMefServiceAsync<TailwindBuildProcess>();
         _projectConfigurationInitializer =
             await VS.GetMefServiceAsync<ProjectConfigurationInitializer>();
-        _classSorter = await VS.GetMefServiceAsync<ClassSorter>();
+        _classOperationService = await VS.GetMefServiceAsync<ClassOperationService>();
         _configurationFileReloader = await VS.GetMefServiceAsync<ConfigurationFileReloader>();
 
         // Reload Intellisense and build so everything starts clean in the new project/folder
@@ -159,7 +159,7 @@ public sealed class TailwindCSSIntellisensePackage : AsyncPackage, IDisposable
             await _buildProcess.InitializeAsync(true);
             await _projectConfigurationInitializer.InitializeAsync();
             await _configurationFileReloader.InitializeAsync();
-            await _classSorter.InitializeAsync();
+            await _classOperationService.InitializeAsync();
         }
         catch (Exception ex)
         {
@@ -177,7 +177,7 @@ public sealed class TailwindCSSIntellisensePackage : AsyncPackage, IDisposable
 
     public void Dispose()
     {
-        if (_classSorter != null)
+        if (_classOperationService != null)
         {
             VS.Events.SolutionEvents.OnAfterOpenSolution -= SolutionOpened;
             VS.Events.SolutionEvents.OnAfterOpenProject -= ProjectLoaded;

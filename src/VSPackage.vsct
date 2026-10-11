@@ -188,22 +188,45 @@
 				</Strings>
 			</Button>
 			
-			<Button guid="guidVSPackageCmdSet" id="SortInOpenFileCmdId" priority="0x0100" type="Button">
+			<Button guid="guidVSPackageCmdSet" id="SortClassesInOpenFileCmdId" priority="0x0100" type="Button">
 				<Parent guid="guidVSPackageCmdSet" id="ToolsMenuGroup"/>
 				<Icon guid="guidImages" id="tailwindLogo" />
 				<CommandFlag>DynamicVisibility</CommandFlag>
 				<CommandFlag>DefaultInvisible</CommandFlag>
 				<Strings>
 					<ButtonText>Sort Tailwind classes in current file</ButtonText>
+					<ToolTipText>Sorts Tailwind classes in the current file.</ToolTipText>
 				</Strings>
 			</Button>
 			
-			<Button guid="guidVSPackageCmdSet" id="SortEntireSolutionCmdId" priority="0x0101" type="Button">
+			<Button guid="guidVSPackageCmdSet" id="CanonicalizeClassesInOpenFileCmdId" priority="0x0102" type="Button">
+				<Parent guid="guidVSPackageCmdSet" id="ToolsMenuGroup"/>
+				<Icon guid="guidImages" id="tailwindLogo" />
+				<CommandFlag>DynamicVisibility</CommandFlag>
+				<CommandFlag>DefaultInvisible</CommandFlag>
+				<Strings>
+					<ButtonText>Canonicalize Tailwind classes in current file</ButtonText>
+					<ToolTipText>Replaces Tailwind classes with their recommended equivalents in the current file. Requires Tailwind CSS v4.2 or later.</ToolTipText>
+				</Strings>
+			</Button>
+
+			<Button guid="guidVSPackageCmdSet" id="SortClassesInSolutionCmdId" priority="0x0101" type="Button">
 				<Parent guid="guidVSPackageCmdSet" id="ToolsMenuGroup"/>
 				<CommandFlag>DynamicVisibility</CommandFlag>
 				<CommandFlag>DefaultInvisible</CommandFlag>
 				<Strings>
 					<ButtonText>Sort Tailwind classes in solution</ButtonText>
+					<ToolTipText>Sorts Tailwind classes in the solution.</ToolTipText>
+				</Strings>
+			</Button>
+
+			<Button guid="guidVSPackageCmdSet" id="CanonicalizeClassesInSolutionCmdId" priority="0x0103" type="Button">
+				<Parent guid="guidVSPackageCmdSet" id="ToolsMenuGroup"/>
+				<CommandFlag>DynamicVisibility</CommandFlag>
+				<CommandFlag>DefaultInvisible</CommandFlag>
+				<Strings>
+					<ButtonText>Canonicalize Tailwind classes in solution</ButtonText>
+					<ToolTipText>Replaces Tailwind classes with their recommended equivalents in the solution. Requires Tailwind CSS v4.2 or later.</ToolTipText>
 				</Strings>
 			</Button>
 			
@@ -307,11 +330,13 @@
 			<IDSymbol name="SetUpTailwindWsCmdId" value="0x0113" />
 			<IDSymbol name="SetUpTailwindGlobalCmdId" value="0x0114" />
 			
-			<IDSymbol name="SortInOpenFileCmdId" value="0x0115" />
-			<IDSymbol name="SortEntireSolutionCmdId" value="0x0116" />
+			<IDSymbol name="SortClassesInOpenFileCmdId" value="0x0115" />
+			<IDSymbol name="SortClassesInSolutionCmdId" value="0x0116" />
 			<IDSymbol name="SetAsPackageConfigFileCmdId" value="0x0117" />
 			<IDSymbol name="RemoveAsPackageConfigFileCmdId" value="0x0118" />
 			<IDSymbol name="SetAsOutputCssFileMenu" value="0x0119" />
+			<IDSymbol name="CanonicalizeClassesInOpenFileCmdId" value="0x011A" />
+			<IDSymbol name="CanonicalizeClassesInSolutionCmdId" value="0x011B" />
 			<IDSymbol name="SetAsOutputCssFileCmdId" value="0x0200" />
 		</GuidSymbol>
 

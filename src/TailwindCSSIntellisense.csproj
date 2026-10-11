@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <MinimumVisualStudioVersion>17.0</MinimumVisualStudioVersion>
@@ -76,7 +76,13 @@
     <Compile Include="ClassOperations\ClassSorter.cs" />
     <Compile Include="ClassOperations\ClassSortUtilities.cs" />
     <Compile Include="ClassOperations\Sorters\Sorter.cs" />
-    <Compile Include="ClassOperations\Sorters\SorterAggregator.cs" />
+    <Compile Include="ClassOperations\Sorters\AllSorters.cs" />
+    <Compile Include="ClassOperations\ClassOperation.cs" />
+    <Compile Include="ClassOperations\ClassCanonicalizer.cs" />
+    <Compile Include="ClassOperations\ClassOperationAggregator.cs" />
+    <Compile Include="ClassOperations\ClassOperationService.cs" />
+    <Compile Include="ClassOperations\Canonicalizers\Canonicalizer.cs" />
+    <Compile Include="ClassOperations\Canonicalizers\AllCanonicalizers.cs" />
     <Compile Include="Commands\RemoveAsPackageConfigFile.cs" />
     <Compile Include="Commands\RemoveAsOutputFile.cs" />
     <Compile Include="Commands\RemoveAsInputFile.cs" />
@@ -86,7 +92,9 @@
     <Compile Include="Commands\SetAsPackageConfigFile.cs" />
     <Compile Include="Commands\SetUpAndUseTailwindGlobal.cs" />
     <Compile Include="Commands\SortClassesInSolution.cs" />
+    <Compile Include="Commands\CanonicalizeClassesInSolution.cs" />
     <Compile Include="Commands\SortClassesInOpenFile.cs" />
+    <Compile Include="Commands\CanonicalizeClassesInOpenFile.cs" />
     <Compile Include="Commands\SetUpAndUseTailwindCli.cs" />
     <Compile Include="Commands\SetUpTailwindWs.cs" />
     <Compile Include="Commands\SetUpAndInstallTailwind.cs" />
@@ -241,6 +249,7 @@
     <Compile Include="Completions\TailwindClass.cs" />
     <Compile Include="Configuration\ConfigurationFileReloader.cs" />
     <Compile Include="Options\General.cs" />
+    <Compile Include="Options\SortClassesOptions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Configuration\ConfigFileScanner.cs" />
     <Compile Include="Configuration\FileFinder.cs" />

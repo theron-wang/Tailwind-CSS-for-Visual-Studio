@@ -93,6 +93,15 @@ public class General : BaseOptionModel<General>
     [DefaultValue(SortClassesOptions.OnSave)]
     public SortClassesOptions ClassSortType { get; set; } = SortClassesOptions.OnSave;
 
+    [Category("Class Canonicalization")]
+    [DisplayName("Class canonicalization type")]
+    [Description(
+        "Classes can be canonicalized manually (with 'Tools' options), on file save, on build, or never. Requires Tailwind CSS v4.2 or later. Canonicalization runs before sorting."
+    )]
+    [TypeConverter(typeof(EnumConverter))]
+    [DefaultValue(SortClassesOptions.Manual)]
+    public SortClassesOptions ClassCanonicalizationType { get; set; } = SortClassesOptions.Manual;
+
     [Category("Custom Build")]
     [DisplayName("Build script")]
     [Description(
@@ -117,12 +126,4 @@ public enum BuildProcessOptions
     OnSave,
     ManualJIT = 500,
     None = 1000,
-}
-
-public enum SortClassesOptions
-{
-    OnSave,
-    OnBuild,
-    Manual,
-    None,
 }

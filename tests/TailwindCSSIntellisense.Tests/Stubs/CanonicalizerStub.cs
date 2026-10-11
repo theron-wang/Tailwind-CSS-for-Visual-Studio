@@ -8,6 +8,7 @@ internal sealed class CanonicalizerStub : Canonicalizer
 {
     public CanonicalizerStub(TailwindVersion version = TailwindVersion.V4_2)
     {
+        SettingsProvider = new();
         var manager = new ProjectConfigurationManager();
         manager.SeedDefault(new ProjectCompletionValues { Version = version });
         typeof(Canonicalizer)
@@ -19,6 +20,8 @@ internal sealed class CanonicalizerStub : Canonicalizer
     }
 
     public List<(string[] ClassNames, string FilePath)> Requests { get; } = [];
+
+    public Task InitializeAsync() => InitializeSettingsAsync();
 
     public Func<string[], Task<string[]>> Handler { get; set; } =
         classes =>
@@ -39,7 +42,10 @@ internal sealed class CanonicalizerStub : Canonicalizer
     )
     {
         var candidates = classNames.ToArray();
-        Requests.Add((candidates, filePath));
+        lock (Requests)
+        {
+            Requests.Add((candidates, filePath));
+        }
         return Handler(candidates);
     }
 }

@@ -1,6 +1,7 @@
 using System.Collections;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Configuration;
+using TailwindCSSIntellisense.Options;
 
 namespace Community.VisualStudio.Toolkit
 {
@@ -500,6 +501,10 @@ namespace TailwindCSSIntellisense.Settings
 {
     public sealed class TailwindSettings
     {
+        public bool EnableTailwindCss { get; set; }
+        public List<string> ConfigurationFiles { get; set; } = [];
+        public SortClassesOptions SortClassesType { get; set; }
+        public SortClassesOptions CanonicalizeClassesType { get; set; } = SortClassesOptions.None;
         public bool UseCli { get; set; }
         public string? TailwindCliPath { get; set; }
         public CustomRegexes CustomRegexes { get; set; } = new();

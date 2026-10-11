@@ -176,6 +176,12 @@ internal class DirectoryVersionFinder : IDisposable
         TailwindSettings settings
     )
     {
+        // There's a weird bug (cause unknown) where we end up adding null directories to the cache, and we don't want that
+        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
+        {
+            return TailwindVersion.LATEST;
+        }
+
         var isCli = settings.UseCli && !string.IsNullOrWhiteSpace(settings.TailwindCliPath);
 
         var processInfo = new ProcessStartInfo()

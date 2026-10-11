@@ -13,6 +13,7 @@ namespace TailwindCSSIntellisense.ClassOperations.Sorters;
 /// <summary>
 /// Sorts a list of Tailwind CSS classes based on their order in the Tailwind CSS framework, taking into account variants, prefixes, and custom configurations.
 /// </summary>
+[Export(typeof(Sorter))]
 internal sealed class Sorter : IClassOperation
 {
     [Import]

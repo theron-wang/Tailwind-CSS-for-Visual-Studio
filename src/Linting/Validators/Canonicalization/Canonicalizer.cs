@@ -1,6 +1,5 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
-using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Diagnostics;
@@ -10,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using TailwindCSSIntellisense.Build;
 using TailwindCSSIntellisense.Completions;
+using TailwindCSSIntellisense.Settings;
 
 namespace TailwindCSSIntellisense.Linting.Validators.Canonicalization;
 
@@ -23,17 +23,15 @@ internal class Canonicalizer : TailwindCliInterop
     [Import]
     private ProjectConfigurationManager _projectConfigurationManager = null!;
 
-    /// <summary>
-    /// A cache for storing previously canonicalized class names.
-    /// </summary>
-    /// <remarks>
-    /// The inner dictionary maps a class name to potential canonicalizations.
-    /// </remarks>
-    private readonly ConcurrentDictionary<
+    // Canonicalization depends on the entire candidate group, not an individual class.
+    // Tasks share concurrent requests; completed entries are never mutated.
+    private ConcurrentDictionary<
         ProjectCompletionValues,
-        ConcurrentDictionary<string, List<Canonicalization>>
+        ConcurrentDictionary<string, Task<Canonicalization[]>>
     > _canonicalizationCache = [];
 
+    private readonly Dictionary<ProjectCompletionValues, int> _processVersions = [];
+    private int _settingsVersion;
     private ConcurrentDictionary<ProjectCompletionValues, Process> _processes = [];
     private readonly ConcurrentDictionary<ProjectCompletionValues, SemaphoreSlim> _processGates =
     [];
@@ -42,13 +40,14 @@ internal class Canonicalizer : TailwindCliInterop
     private bool _disposed;
 
     /// <summary>
-    /// Given a list of class names, this method returns their canonicalized versions.
+    /// Given a list of class names, this method returns their canonicalized versions. Classes that are not Tailwind classes or
+    /// are already canonicalized are not included in the output list.
     /// </summary>
     /// <param name="classNames">The list of class names to canonicalize.</param>
     /// <param name="filePath">The path to the file containing the class names.</param>
     /// <returns>A list of canonicalized class names.</returns>
     public async Task<List<Canonicalization>> CanonicalizeAsync(
-        List<string> classNames,
+        IEnumerable<string> classNames,
         string filePath
     )
     {
@@ -62,84 +61,65 @@ internal class Canonicalizer : TailwindCliInterop
             return [];
         }
 
-        var cache = _canonicalizationCache.GetOrAdd(
-            project,
-            _ => new ConcurrentDictionary<string, List<Canonicalization>>()
+        // Materialize once, exclude Razor expressions, and use a stable, unambiguous
+        // key so the same group in another order shares the request.
+        var candidates = classNames
+            .Where(c => !c.Contains(' '))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(c => c, StringComparer.Ordinal)
+            .ToArray();
+        if (candidates.Length == 0)
+        {
+            return [];
+        }
+
+        var cache = Volatile
+            .Read(ref _canonicalizationCache)
+            .GetOrAdd(project, _ => new ConcurrentDictionary<string, Task<Canonicalization[]>>());
+        var key = JsonSerializer.Serialize(candidates);
+        var completion = new TaskCompletionSource<Canonicalization[]>(
+            TaskCreationOptions.RunContinuationsAsynchronously
         );
-
-        // Any class with a space is a razor class, and we get rid of it so we don't mess up the canonicalizer.
-        // This is a heuristic; there are razor classes without spaces, but those can just be canonicalized normally,
-        // since it won't mess up the canonicalizer.
-        var classNamesSet = classNames.Where(c => !c.Contains(' ')).ToFrozenSet();
-
-        // Process each class once without modifying the caller's list.
-        var worklist = classNames.Distinct().ToList();
-
-        var result = new List<Canonicalization>();
-        IEnumerable<Canonicalization>? processCanonicalizations = null;
-
-        while (worklist.Count > 0)
+        var request = cache.GetOrAdd(key, completion.Task);
+        if (ReferenceEquals(request, completion.Task))
         {
-            var className = worklist[0];
-            worklist.RemoveAt(0);
-
-            // A razor class cannot be canonicalized.
-            if (className.Contains(' '))
+            try
             {
-                continue;
-            }
-
-            if (!cache.TryGetValue(className, out var cacheEntry))
-            {
-                processCanonicalizations ??= await FetchCanonicalizationsFromProcessAsync(
-                    classNamesSet,
-                    filePath
-                );
-
-                cacheEntry = [.. processCanonicalizations.Where(c => c.ClassNames[0] == className)];
-            }
-
-            // Find the best match; i.e., the canonicalization with the biggest number of class names but which is also a subset.
-            // But also, do not include canonicalizations that are just the class name itself, because that would be a no-op.
-            var bestMatch = cacheEntry
-                .Where(c =>
-                    classNamesSet.IsSupersetOf(c.ClassNames) && c.ClassNames.Length > 1
-                    || c.CanonicalizedClassName != c.ClassNames[0]
-                )
-                .OrderByDescending(c => c.ClassNames.Length)
-                .FirstOrDefault();
-
-            // If null, then that means we don't have a canonicalization for this class name, so we just return the class name itself.
-            // For example, if the class name is "px-2" and we have a canonicalization for "px-2 py-2" but not for "px-2" itself, then we just return "px-2".
-            if (bestMatch != null)
-            {
-                result.Add(bestMatch);
-
-                // Skip 1 because the first one is always the current className, which we already removed from the worklist.
-                foreach (var classNameToAdd in bestMatch.ClassNames.Skip(1))
-                {
-                    worklist.Remove(classNameToAdd);
-                }
-            }
-        }
-
-        if (processCanonicalizations is not null)
-        {
-            foreach (var canonicalization in processCanonicalizations)
-            {
-                cache.AddOrUpdate(
-                    canonicalization.ClassNames[0],
-                    _ => [canonicalization],
-                    (_, existing) =>
-                    {
-                        existing.Add(canonicalization);
-                        return existing;
-                    }
+                completion.SetResult(
+                    await FetchCanonicalizationsFromProcessAsync(candidates, filePath)
                 );
             }
+            catch (Exception ex)
+            {
+                completion.SetException(ex);
+            }
         }
+        try
+        {
+            return [.. await request];
+        }
+        catch
+        {
+            // Failed exchanges must be retried. Remove only this request, so a
+            // concurrent retry cannot be evicted by another failing waiter.
+            ((ICollection<KeyValuePair<string, Task<Canonicalization[]>>>)cache).Remove(
+                new(key, request)
+            );
+            throw;
+        }
+    }
 
-        return result;
+    protected override Task SettingsChangedAsync(TailwindSettings settings)
+    {
+        lock (_processLifecycleLock)
+        {
+            var updated = base.SettingsChangedAsync(settings);
+            _settingsVersion++;
+            // In-flight requests retain their old dictionary and cannot repopulate
+            // the cache used by requests made after this settings change.
+            Interlocked.Exchange(ref _canonicalizationCache, new());
+            return updated;
+        }
     }
 
     /// <summary>
@@ -148,7 +128,7 @@ internal class Canonicalizer : TailwindCliInterop
     /// <param name="classNames">The set of class names to fetch canonicalizations for.</param>
     /// <param name="filePath">The path to the file containing the class names.</param>
     /// <returns>A list of canonicalizations.</returns>
-    private async Task<IEnumerable<Canonicalization>> FetchCanonicalizationsFromProcessAsync(
+    private async Task<Canonicalization[]> FetchCanonicalizationsFromProcessAsync(
         IEnumerable<string> classNames,
         string filePath
     )
@@ -192,7 +172,29 @@ internal class Canonicalizer : TailwindCliInterop
             group.Add(deduped[i]);
         }
 
-        return disappearedMap.Select(kvp => new Canonicalization(kvp.Value, kvp.Key));
+        // Only return complete, non-overlapping replacements. Selecting against the
+        // remaining classes prevents one suggestion from consuming another's input.
+        var available = new HashSet<string>(deduped, StringComparer.Ordinal);
+        var result = new List<Canonicalization>();
+        foreach (
+            var canonicalization in disappearedMap
+                .Select(kvp => new Canonicalization(kvp.Value, kvp.Key))
+                .OrderByDescending(c => c.ClassNames.Length)
+        )
+        {
+            if (
+                canonicalization.ClassNames.All(available.Contains)
+                && (
+                    canonicalization.ClassNames.Length > 1
+                    || canonicalization.CanonicalizedClassName != canonicalization.ClassNames[0]
+                )
+            )
+            {
+                result.Add(canonicalization);
+                available.ExceptWith(canonicalization.ClassNames);
+            }
+        }
+        return [.. result];
     }
 
     /// <summary>
@@ -209,6 +211,12 @@ internal class Canonicalizer : TailwindCliInterop
         var project = await _projectConfigurationManager.GetCompletionConfigurationByFilePathAsync(
             filePath
         );
+
+        // An empty project.FilePath will cause the CLI to close
+        if (string.IsNullOrWhiteSpace(project.FilePath))
+        {
+            return [.. classNames];
+        }
 
         var input = string.Join(" ", classNames);
 
@@ -338,12 +346,17 @@ internal class Canonicalizer : TailwindCliInterop
 
             if (_processes.TryGetValue(project, out var process))
             {
-                if (IsProcessActive(process))
+                if (
+                    IsProcessActive(process)
+                    && _processVersions.TryGetValue(project, out var version)
+                    && version == _settingsVersion
+                )
                 {
                     return process;
                 }
 
                 _processes.TryRemove(project, out _);
+                StopProcess(process);
                 process.Dispose();
             }
 
@@ -367,6 +380,7 @@ internal class Canonicalizer : TailwindCliInterop
             };
             newProcess.BeginErrorReadLine();
             _processes[project] = newProcess;
+            _processVersions[project] = _settingsVersion;
             return newProcess;
         }
     }
@@ -386,17 +400,14 @@ internal class Canonicalizer : TailwindCliInterop
                 process.Dispose();
             }
             _processes.Clear();
+            _processVersions.Clear();
+            _canonicalizationCache.Clear();
         }
     }
 
     /// <summary>
     /// Represents a cache entry.
     /// </summary>
-    /// <remarks>
-    /// Let's imagine we have a set of classes: {"px-2", "text-[#fff]", "py-2"}. The outer cache should contain a key "px-2" with
-    /// <see cref="Canonicalization"/> value containing ClassNames = ["px-2", "py-2"] and CanonicalizedClassName = "p-2". It should
-    /// also contain a key "text-[#fff]" with ClassNames = ["text-[#fff]"] and CanonicalizedClassNames = "text-white".
-    /// </remarks>
     /// <remarks>
     /// Initializes a new instance of the <see cref="Canonicalization"/> class with a set of class names and their canonicalized versions.
     /// </remarks>

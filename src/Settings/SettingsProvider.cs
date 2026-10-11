@@ -98,6 +98,7 @@ public sealed class SettingsProvider : IDisposable
                     AutomaticallyMinify = general.AutomaticallyMinify,
                     TailwindCliPath = general.TailwindCliPath,
                     SortClassesType = general.ClassSortType,
+                    CanonicalizeClassesType = general.ClassCanonicalizationType,
                 };
             }
 
@@ -285,6 +286,7 @@ public sealed class SettingsProvider : IDisposable
                 TailwindCliPath = general.TailwindCliPath,
                 UseCli = projectSettings!.UseCli,
                 SortClassesType = general.ClassSortType,
+                CanonicalizeClassesType = general.ClassCanonicalizationType,
                 CustomRegexes = projectSettings.CustomRegexes,
             };
 
@@ -660,6 +662,7 @@ public sealed class SettingsProvider : IDisposable
             || settings.AutomaticallyMinify != origSettings.AutomaticallyMinify
             || settings.TailwindCliPath != origSettings.TailwindCliPath
             || settings.ClassSortType != origSettings.SortClassesType
+            || settings.ClassCanonicalizationType != origSettings.CanonicalizeClassesType
         )
         {
             origSettings.EnableTailwindCss = settings.UseTailwindCss;
@@ -672,6 +675,7 @@ public sealed class SettingsProvider : IDisposable
             origSettings.AutomaticallyMinify = settings.AutomaticallyMinify;
             origSettings.TailwindCliPath = settings.TailwindCliPath;
             origSettings.SortClassesType = settings.ClassSortType;
+            origSettings.CanonicalizeClassesType = settings.ClassCanonicalizationType;
 
             if (OnSettingsChanged is not null)
             {

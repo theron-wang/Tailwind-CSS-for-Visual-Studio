@@ -25,6 +25,30 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile
+      Include="../../src/ClassOperations/ClassOperation.cs"
+      Link="Source/ClassOperations/ClassOperation.cs"
+    />
+    <Compile
+      Include="../../src/ClassOperations/ClassOperationAggregator.cs"
+      Link="Source/ClassOperations/ClassOperationAggregator.cs"
+    />
+    <Compile
+      Include="../../src/ClassOperations/ClassSorter.cs"
+      Link="Source/ClassOperations/ClassSorter.cs"
+    />
+    <Compile
+      Include="../../src/ClassOperations/ClassCanonicalizer.cs"
+      Link="Source/ClassOperations/ClassCanonicalizer.cs"
+    />
+    <Compile
+      Include="../../src/ClassOperations/Canonicalizers/*.cs"
+      Link="Source/ClassOperations/Canonicalizers/%(Filename)%(Extension)"
+    />
+    <Compile
+      Include="../../src/Options/SortClassesOptions.cs"
+      Link="Source/Options/SortClassesOptions.cs"
+    />
     <Compile Include="../../src/Usings.cs" Link="Source/Usings.cs" />
     <Compile
       Include="../../src/Build/TailwindCliInterop.cs"

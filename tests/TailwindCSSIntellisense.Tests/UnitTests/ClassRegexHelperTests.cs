@@ -250,4 +250,44 @@ public class ClassRegexHelperTests : IDisposable
             ClassRegexHelper.GetClassesNormal(html).ToList(); // Trigger reset of custom regex
         }
     }
+
+    [Fact]
+    public async Task CustomRegex_ParallelReadersRetainCompleteSnapshots()
+    {
+        var settings = new TailwindSettings
+        {
+            CustomRegexes = new CustomRegexes
+            {
+                HTML = new CustomRegexes.CustomRegex
+                {
+                    Override = true,
+                    Values = ["tw=\"(?<content>[^\"]+)\"", "other=\"(?<content>[^\"]+)\""],
+                },
+            },
+        };
+        ClassRegexHelper.GetTailwindSettings = () => Task.FromResult(settings);
+        const string html = "<div tw=\"p-4\" other=\"text-sm\" class=\"ignored\"></div>";
+
+        // This enumerable captures the custom configuration before settings change.
+        var previous = ClassRegexHelper.GetClassesNormal(html);
+        settings = new TailwindSettings();
+        var results = await Task.WhenAll(
+            Enumerable
+                .Range(0, 16)
+                .Select(_ => Task.Run(() => ClassRegexHelper.GetClassesNormal(html).ToArray()))
+        );
+
+        Assert.All(
+            results,
+            matches =>
+                Assert.Equal(
+                    "ignored",
+                    ClassRegexHelper.GetClassTextGroup(Assert.Single(matches)).Value
+                )
+        );
+        Assert.Equal(
+            ["p-4", "text-sm"],
+            previous.Select(m => ClassRegexHelper.GetClassTextGroup(m).Value)
+        );
+    }
 }
