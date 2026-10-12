@@ -43,6 +43,8 @@ internal sealed class SetUpFileMenu : BaseCommand<SetUpFileMenu>
             return;
         }
 
+        Command.Enabled = true;
+
         Command.Visible =
             settings.ConfigurationFiles.Count == 0
             || settings.ConfigurationFiles.All(c =>
@@ -74,6 +76,6 @@ internal sealed class SetUpFileMenu : BaseCommand<SetUpFileMenu>
         Command.Visible = !CliUsageValidator.IsCliUsedCorrectly(settings);
 
         // If it's not available yet, then we don't know if it's installed or not; we'll disable it for now.
-        Command.Enabled = false;
+        Command.Enabled = isInstalled is not null;
     }
 }

@@ -15,16 +15,6 @@ namespace Community.VisualStudio.Toolkit
         }
     }
 
-    public static class ExceptionLoggingExtensions
-    {
-        public static void Log(this Exception ex, string message) { }
-
-        public static Task LogAsync(this Exception ex)
-        {
-            return Task.CompletedTask;
-        }
-    }
-
     public static class StringExtensions
     {
         public static string TrimPrefix(
@@ -299,6 +289,19 @@ namespace Microsoft.VisualStudio.Text
         )
         {
             return new FakeTrackingSpan((int)span.Start, span.Length, mode);
+        }
+    }
+}
+
+namespace System
+{
+    public static class ExceptionLoggingExtensions
+    {
+        public static void Log(this Exception ex, string message) { }
+
+        public static Task LogAsync(this Exception ex)
+        {
+            return Task.CompletedTask;
         }
     }
 }

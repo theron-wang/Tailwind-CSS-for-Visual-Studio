@@ -253,9 +253,21 @@ internal class Canonicalizer : TailwindCliInterop
                 await process.StandardInput.WriteLineAsync(input);
                 await process.StandardInput.FlushAsync();
 
-                string? line;
-                while ((line = await process.StandardOutput.ReadLineAsync()) is not null)
+                var deadline = Task.Delay(TimeSpan.FromSeconds(10));
+                while (true)
                 {
+                    var read = process.StandardOutput.ReadLineAsync();
+                    if (await Task.WhenAny(read, deadline) != read)
+                    {
+                        throw new TimeoutException(
+                            "Tailwind CLI did not return a canonicalization response in time."
+                        );
+                    }
+                    var line = await read;
+                    if (line is null)
+                    {
+                        break;
+                    }
                     if (TryReadResponse(line, input, out var output))
                     {
                         return output.Split(

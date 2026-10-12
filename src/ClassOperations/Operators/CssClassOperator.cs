@@ -18,7 +18,6 @@ internal abstract class CssClassOperator<TOperation> : ClassOperator<TOperation>
         string content
     )
     {
-        // Finish refactor
         int indexOfApply = content.IndexOf("@apply");
 
         int lastIndex = 0;

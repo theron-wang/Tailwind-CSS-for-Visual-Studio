@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.ComponentModel.Composition;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Community.VisualStudio.Toolkit;
@@ -159,7 +160,13 @@ internal sealed class ClassOperationService : IDisposable
         string content;
         System.Text.Encoding encoding;
         using (var file = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-        using (var reader = new StreamReader(file))
+        using (
+            var reader = new StreamReader(
+                file,
+                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
+                detectEncodingFromByteOrderMarks: true
+            )
+        )
         {
             content = await reader.ReadToEndAsync();
             // Read first so BOM detection has completed.

@@ -30,6 +30,7 @@ internal class DirectoryVersionFinder : IDisposable
 
     private readonly Dictionary<string, TailwindVersion> _cache = [];
     private readonly Dictionary<string, bool> _installedCache = [];
+    private readonly HashSet<string> _pendingInstallChecks = [];
 
     /// <summary>
     /// Gets whether Tailwind is installed in the given directory, if available. If not available, returns null and populates the cache in the background.
@@ -64,10 +65,23 @@ internal class DirectoryVersionFinder : IDisposable
             return value;
         }
 
+        if (!_pendingInstallChecks.Add(directory))
+        {
+            return null;
+        }
+
         ThreadHelper
-            .JoinableTaskFactory.RunAsync(() =>
-                PopulateIsTailwindInstalledAsync(directory!, settings)
-            )
+            .JoinableTaskFactory.RunAsync(async () =>
+            {
+                try
+                {
+                    await PopulateIsTailwindInstalledAsync(directory!, settings);
+                }
+                finally
+                {
+                    _pendingInstallChecks.Remove(directory!);
+                }
+            })
             .FileAndForget(nameof(TailwindCSSIntellisense) + "/PopulateVersionCache");
 
         return null;

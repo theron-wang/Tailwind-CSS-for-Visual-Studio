@@ -399,3 +399,6 @@ FodyWeavers.xsd
 
 # Copied Microsoft.Bcl.AsyncInterfaces.dll
 *.dll
+
+.idea/
+.repograph/
