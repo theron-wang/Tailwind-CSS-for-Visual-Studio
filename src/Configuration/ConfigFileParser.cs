@@ -41,20 +41,15 @@ internal static class ConfigFileParser
             "parser.js"
         );
 
-        var processInfo = new ProcessStartInfo()
+        var arguments = new List<string> { scriptLocation, Path.GetFileName(path) };
+        if (isAPlugin)
         {
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardInput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true,
-            FileName = "node",
-            Arguments =
-                $"{ProcessArgumentHelpers.QuoteWindowsArgument(scriptLocation)} {ProcessArgumentHelpers.QuoteWindowsArgument(Path.GetFileName(path))} {(isAPlugin ? "--plugin" : "")}",
-            WorkingDirectory = PathHelpers.GetContainingDirectory(path),
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
-        };
+            arguments.Add("--plugin");
+        }
+        var processInfo = ProcessArgumentHelpers.CreateNodeProcessStartInfo(
+            PathHelpers.GetContainingDirectory(path),
+            arguments.ToArray()
+        );
 
         var localNodePath = await GetNodeModulesFromConfigFilePathAsync(path);
         await SetupNodeProcessAsync(processInfo, localNodePath);
@@ -1072,21 +1067,10 @@ internal static class ConfigFileParser
             }
         }
 
-        var processInfo = new ProcessStartInfo()
-        {
-            UseShellExecute = false,
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            CreateNoWindow = true,
-            FileName = "node",
-            Arguments =
-                "-e "
-                + ProcessArgumentHelpers.QuoteWindowsArgument(
-                    $"console.log(require.resolve({JsonSerializer.Serialize(package)}))"
-                ),
-            WorkingDirectory = PathHelpers.GetContainingDirectory(configFileLocation),
-            StandardOutputEncoding = Encoding.UTF8,
-        };
+        var processInfo = ProcessArgumentHelpers.CreateNodeProcessStartInfo(
+            PathHelpers.GetContainingDirectory(configFileLocation),
+            "-"
+        );
 
         var localNodePath = await GetNodeModulesFromConfigFilePathAsync(configFileLocation);
         await SetupNodeProcessAsync(processInfo, localNodePath);
@@ -1094,8 +1078,19 @@ internal static class ConfigFileParser
         using var process =
             Process.Start(processInfo)
             ?? throw new InvalidOperationException("Unable to start the Node.js package resolver.");
-        var output = await process.StandardOutput.ReadToEndAsync();
+        await process.StandardInput.WriteLineAsync(
+            $"console.log(require.resolve({JsonSerializer.Serialize(package)}))"
+        );
+        process.StandardInput.Close();
+        var outputTask = process.StandardOutput.ReadToEndAsync();
+        var errorTask = process.StandardError.ReadToEndAsync();
+        await Task.WhenAll(outputTask, errorTask);
         await process.WaitForExitAsync();
+        if (process.ExitCode != 0)
+        {
+            return null;
+        }
+        var output = await outputTask;
 
         var path = output.Trim();
 

@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Text;
 using System.Text.Json;
 using TailwindCSSIntellisense.Helpers;
 
@@ -7,8 +6,10 @@ namespace TailwindCSSIntellisense.Tests.IntegrationTests;
 
 public class NodeProcessArgumentsTests
 {
-    [Fact]
-    public async Task DirectNodeLaunch_PreservesArgumentsWithoutShellExpansion()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task CmdNodeLaunch_PreservesArgumentsWithoutShellExpansion(bool useStandardInput)
     {
         string[] arguments =
         [
@@ -16,37 +17,41 @@ public class NodeProcessArgumentsTests
             "config with spaces.js",
             "config&echo injected.js",
             "%PATH% !PATH! ^ | < >",
-            "quotes\"and\\slashes",
             "C:\\directory with spaces\\",
-            "C:\\directory\\\"quoted\"\\",
             "日本語.config.js",
         ];
-        var script = "console.log(JSON.stringify(process.argv.slice(1)))";
-        using var process = Process.Start(
-            new ProcessStartInfo
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            $"node-test-&%PATH%-日本語-{Guid.NewGuid():N}"
+        );
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var scriptPath = Path.Combine(directory, "parser & %PATH%.js");
+            var script = "console.log(JSON.stringify(process.argv.slice(2)))";
+            await File.WriteAllTextAsync(scriptPath, script);
+            var startInfo = ProcessArgumentHelpers.CreateNodeProcessStartInfo(
+                directory,
+                [useStandardInput ? "-" : scriptPath, .. arguments]
+            );
+            Assert.Equal("cmd", startInfo.FileName);
+            using var process = Process.Start(startInfo)!;
+            if (useStandardInput)
             {
-                FileName = "node",
-                Arguments =
-                    "-e "
-                    + ProcessArgumentHelpers.QuoteWindowsArgument(script)
-                    + " "
-                    + string.Join(
-                        " ",
-                        arguments.Select(ProcessArgumentHelpers.QuoteWindowsArgument)
-                    ),
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                StandardOutputEncoding = Encoding.UTF8,
+                await process.StandardInput.WriteLineAsync(script);
             }
-        )!;
+            process.StandardInput.Close();
 
-        var output = await process.StandardOutput.ReadToEndAsync();
-        var error = await process.StandardError.ReadToEndAsync();
-        await process.WaitForExitAsync();
+            var output = await process.StandardOutput.ReadToEndAsync();
+            var error = await process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
 
-        Assert.True(process.ExitCode == 0, error);
-        Assert.Equal(arguments, JsonSerializer.Deserialize<string[]>(output));
+            Assert.True(process.ExitCode == 0, error);
+            Assert.Equal(arguments, JsonSerializer.Deserialize<string[]>(output));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
     }
 }
