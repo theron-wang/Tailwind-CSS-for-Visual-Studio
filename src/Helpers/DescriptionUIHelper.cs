@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Windows;
@@ -31,7 +32,7 @@ internal static class DescriptionUIHelper
     /// <returns></returns>
     internal static ContainerElement GetDescriptionAsUIFormatted(
         string fullClass,
-        string variantTotal,
+        string? variantTotal,
         string[] mediaQueries,
         string desc
     )
@@ -118,11 +119,10 @@ internal static class DescriptionUIHelper
     /// <param name="fullClass">The full class, including all variants</param>
     /// <param name="variantTotal">The full variant adjustment</param>
     /// <param name="desc">The description, already formatted via DescriptionGenerator</param>
-    /// <param name="isImportant">!important or not</param>
     /// <returns></returns>
     internal static ContainerElement GetDescriptionAsUIFormattedV4(
         string fullClass,
-        string variantTotal,
+        string? variantTotal,
         string desc
     )
     {
@@ -326,11 +326,11 @@ internal static class DescriptionUIHelper
 
         if (value.Contains("/*"))
         {
-            var start = value.IndexOf("/*");
+            var start = value.IndexOf("/*", StringComparison.Ordinal);
 
             if (start != -1)
             {
-                var end = value.IndexOf("*/", start);
+                var end = value.IndexOf("*/", start, StringComparison.Ordinal);
 
                 if (end != -1)
                 {
@@ -507,8 +507,8 @@ internal static class DescriptionUIHelper
     /// </summary>
     /// <param name="fullClass">The full class, including all variants</param>
     /// <param name="desc">The description, already formatted via DescriptionGenerator</param>
-    /// <param name="isImportant">!important or not</param>
     /// <returns></returns>
+    /// <param name="isImportant">Whether to include !important in the displayed CSS.</param>
     internal static UIElement GetDescriptionAsWPFFormatted(
         string fullClass,
         string desc,
@@ -570,8 +570,8 @@ internal static class DescriptionUIHelper
 
             if (value.Contains("/*"))
             {
-                var start = value.IndexOf("/*");
-                var end = value.IndexOf("*/", start) + 2;
+                var start = value.IndexOf("/*", StringComparison.Ordinal);
+                var end = value.IndexOf("*/", start, StringComparison.Ordinal) + 2;
 
                 if (end > start)
                 {

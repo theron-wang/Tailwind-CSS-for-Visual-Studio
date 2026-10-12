@@ -26,6 +26,22 @@
 
   <ItemGroup>
     <Compile
+      Include="../../src/Configuration/ConfigFileScanner.cs"
+      Link="Source/Configuration/ConfigFileScanner.cs"
+    />
+    <Compile
+      Include="../../src/Configuration/Descriptions/DescriptionGenerator.cs"
+      Link="Source/Configuration/Descriptions/DescriptionGenerator.cs"
+    />
+    <Compile
+      Include="../../src/Configuration/Descriptions/FontSizeDescriptionGenerator.cs"
+      Link="Source/Configuration/Descriptions/FontSizeDescriptionGenerator.cs"
+    />
+    <Compile
+      Include="../../src/Helpers/DefaultConfigurationFileNames.cs"
+      Link="Source/Helpers/DefaultConfigurationFileNames.cs"
+    />
+    <Compile
       Include="../../src/ClassOperations/ClassOperation.cs"
       Link="Source/ClassOperations/ClassOperation.cs"
     />
@@ -89,6 +105,10 @@
       Link="Source/Helpers/KnownModifiers.cs"
     />
     <Compile Include="../../src/Helpers/PathHelpers.cs" Link="Source/Helpers/PathHelpers.cs" />
+    <Compile
+      Include="../../src/Helpers/ProcessArgumentHelpers.cs"
+      Link="Source/Helpers/ProcessArgumentHelpers.cs"
+    />
     <Compile
       Include="../../src/Configuration/ConfigFileParser.cs"
       Link="Source/Configuration/ConfigFileParser.cs"

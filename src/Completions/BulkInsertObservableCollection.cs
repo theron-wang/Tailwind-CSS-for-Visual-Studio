@@ -30,9 +30,10 @@ internal class BulkInsertObservableCollection<T> : BulkObservableCollection<T>
         "VSTHRD102:Implement internal logic asynchronously",
         Justification = "Not expensive"
     )]
-    public void AddRangeToBeginning(IEnumerable<T> items)
+    public void AddRangeToBeginning(IEnumerable<T>? items)
     {
-        if (items == null || !items.Any())
+        var materializedItems = items?.ToList();
+        if (materializedItems == null || materializedItems.Count == 0)
         {
             return;
         }
@@ -43,7 +44,7 @@ internal class BulkInsertObservableCollection<T> : BulkObservableCollection<T>
             {
                 BeginBulkOperation();
                 SetField(_collectionChangedDuringRangeOperation, true);
-                foreach (T item in items.Reverse())
+                foreach (T item in materializedItems.AsEnumerable().Reverse())
                 {
                     Items.Insert(0, item);
                 }
@@ -61,7 +62,7 @@ internal class BulkInsertObservableCollection<T> : BulkObservableCollection<T>
                 await _dispatcher.BeginInvoke(
                     DispatcherPriority.Send,
                     new AddRangeToBeginningCallback(AddRangeToBeginning),
-                    items
+                    materializedItems
                 );
 #pragma warning restore VSTHRD001 // Avoid legacy thread switching APIs
             });
@@ -71,7 +72,7 @@ internal class BulkInsertObservableCollection<T> : BulkObservableCollection<T>
     // https://stackoverflow.com/questions/6961781/reflecting-a-private-field-from-a-base-class
     private void SetField(string fieldName, object value)
     {
-        Type t = GetType();
+        Type? t = GetType();
         FieldInfo? fi = null;
 
         while (t != null)

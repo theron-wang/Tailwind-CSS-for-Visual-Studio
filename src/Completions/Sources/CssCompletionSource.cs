@@ -70,7 +70,6 @@ internal class CssCompletionSource : ClassCompletionGenerator, ICompletionSource
 
         var completions = new List<Completion>();
 
-        var position = session.TextView.Caret.Position.BufferPosition.Position;
         var snapshot = _textBuffer.CurrentSnapshot;
         var triggerPoint = session.GetTriggerPoint(snapshot);
 
@@ -289,15 +288,13 @@ internal class CssCompletionSource : ClassCompletionGenerator, ICompletionSource
         {
             if (IsUsingApplyDirective(session))
             {
-                var classRaw =
-                    applicableTo
-                        .GetText(snapshot)
-                        .Split(["@apply"], StringSplitOptions.None)
-                        .Last()
-                        .TrimStart()
-                        .Split(' ')
-                        .Last()
-                    ?? "";
+                var classRaw = applicableTo
+                    .GetText(snapshot)
+                    .Split(["@apply"], StringSplitOptions.None)
+                    .Last()
+                    .TrimStart()
+                    .Split(' ')
+                    .Last();
 
                 completions = GetCompletions(classRaw);
             }
@@ -565,8 +562,8 @@ internal class CssCompletionSource : ClassCompletionGenerator, ICompletionSource
         var searchSnapshot = new SnapshotSpan(startPos, caretPos);
         var text = searchSnapshot.GetText();
 
-        var lastIndexOfSemicolon = text.LastIndexOf(";");
-        var lastIndexOfOpeningBrace = text.LastIndexOf("{");
+        var lastIndexOfSemicolon = text.LastIndexOf(";", StringComparison.Ordinal);
+        var lastIndexOfOpeningBrace = text.LastIndexOf("{", StringComparison.Ordinal);
 
         if (lastIndexOfSemicolon == -1 && lastIndexOfOpeningBrace == -1)
         {
@@ -596,14 +593,14 @@ internal class CssCompletionSource : ClassCompletionGenerator, ICompletionSource
         var searchSnapshot = new SnapshotSpan(startPos, caretPos);
         var text = searchSnapshot.GetText();
 
-        var lastIndexOfSemicolon = text.LastIndexOf(";");
+        var lastIndexOfSemicolon = text.LastIndexOf(";", StringComparison.Ordinal);
         var lastIndexOfAt = text.LastIndexOf('@');
 
         if (lastIndexOfAt != -1 && lastIndexOfAt > lastIndexOfSemicolon)
         {
             directive = text.Substring(lastIndexOfAt).Split(' ')[0];
 
-            return text.EndsWith(directive) == false;
+            return !text.EndsWith(directive);
         }
         else
         {

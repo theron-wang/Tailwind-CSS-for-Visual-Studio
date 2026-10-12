@@ -7,7 +7,7 @@ using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Options;
 using TailwindCSSIntellisense.Settings;
 
-namespace TailwindCSSIntellisense;
+namespace TailwindCSSIntellisense.Commands;
 
 [Command(PackageGuids.guidVSPackageCmdSetString, PackageIds.StartMinifyBuildProcessCmdId)]
 internal sealed class StartMinifyBuildProcess : BaseCommand<StartMinifyBuildProcess>
@@ -33,7 +33,7 @@ internal sealed class StartMinifyBuildProcess : BaseCommand<StartMinifyBuildProc
         var settings = ThreadHelper.JoinableTaskFactory.Run(SettingsProvider.GetSettingsAsync);
         Command.Visible =
             settings.EnableTailwindCss
-            && BuildProcess.AreProcessesActive() == false
+            && !BuildProcess.AreProcessesActive()
             && settings.ConfigurationFiles.Count > 0
             && settings.BuildType != BuildProcessOptions.None;
     }

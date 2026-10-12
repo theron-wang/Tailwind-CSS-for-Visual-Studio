@@ -9,7 +9,7 @@ using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Node;
 using TailwindCSSIntellisense.Settings;
 
-namespace TailwindCSSIntellisense;
+namespace TailwindCSSIntellisense.Commands;
 
 [Command(PackageGuids.guidVSPackageCmdSetString, PackageIds.SetUpTailwindWsCmdId)]
 internal sealed class SetUpTailwindWs : BaseCommand<SetUpTailwindWs>
@@ -46,7 +46,7 @@ internal sealed class SetUpTailwindWs : BaseCommand<SetUpTailwindWs>
 
             Command.Visible =
                 settings.EnableTailwindCss
-                && string.IsNullOrEmpty(path) == false
+                && !string.IsNullOrEmpty(path)
                 && path!
                     .TrimEnd(Path.DirectorySeparatorChar)
                     .Equals(
@@ -56,7 +56,7 @@ internal sealed class SetUpTailwindWs : BaseCommand<SetUpTailwindWs>
                 && (
                     settings.ConfigurationFiles.Count == 0
                     || settings.ConfigurationFiles.All(c =>
-                        string.IsNullOrEmpty(c.Path) || File.Exists(c.Path) == false
+                        string.IsNullOrEmpty(c.Path) || !File.Exists(c.Path)
                     )
                 );
         }
@@ -73,6 +73,10 @@ internal sealed class SetUpTailwindWs : BaseCommand<SetUpTailwindWs>
             var directory = Path.GetDirectoryName(
                 SolutionExplorerSelection.CurrentSelectedItemFullPath
             );
+            if (directory is null)
+            {
+                return;
+            }
 
             // Check again to see if there were any changes since the last settings cache
             // User may have manually run the setup command, for example
@@ -95,12 +99,12 @@ internal sealed class SetUpTailwindWs : BaseCommand<SetUpTailwindWs>
             settings.ConfigurationFiles.Add(new() { Path = configFile! });
             await SettingsProvider.OverrideSettingsAsync(settings);
 
-            var fileNames = new string[]
-            {
+            string[] fileNames =
+            [
                 Path.Combine(directory, "package.json"),
                 Path.Combine(directory, "package-lock.json"),
                 configFile!,
-            };
+            ];
 
             try
             {

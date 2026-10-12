@@ -301,10 +301,6 @@ node_modules/
 *.dsw
 *.dsp
 
-# Visual Studio 6 technical files
-*.ncb
-*.aps
-
 # Visual Studio LightSwitch build output
 **/*.HTMLClient/GeneratedArtifacts
 **/*.DesktopClient/GeneratedArtifacts
@@ -402,3 +398,6 @@ FodyWeavers.xsd
 
 .idea/
 .repograph/
+
+# Qodana local reports and caches
+.qodana/

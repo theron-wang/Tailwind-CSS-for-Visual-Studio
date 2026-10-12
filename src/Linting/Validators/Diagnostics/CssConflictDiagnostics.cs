@@ -21,12 +21,17 @@ internal class CssConflictDiagnostics() : DiagnosticsChecker(false, ErrorType.Cs
     {
         (var startOfScope, var scope, var content) = GetFullScope(span, findClasses);
 
-        if (string.IsNullOrEmpty(scope) || string.IsNullOrWhiteSpace(content))
+        if (
+            scope is null
+            || content is null
+            || string.IsNullOrEmpty(scope)
+            || string.IsNullOrWhiteSpace(content)
+        )
         {
             yield break;
         }
 
-        List<string> classes = [.. splitClasses(content!).Select(c => c.Value)];
+        List<string> classes = [.. splitClasses(content).Select(c => c.Value)];
 
         var classesByVariants = classes.GroupBy(c =>
         {
@@ -41,8 +46,8 @@ internal class CssConflictDiagnostics() : DiagnosticsChecker(false, ErrorType.Cs
             return string.Join(":", unescaped.Substring(0, index).Split(':').OrderBy(x => x));
         });
 
-        var offset = scope!.IndexOf(content);
-        var classesToLocations = GetClassPositions(startOfScope + offset, content!, classes);
+        var offset = scope.IndexOf(content, StringComparison.Ordinal);
+        var classesToLocations = GetClassPositions(startOfScope + offset, content, classes);
 
         // Ensure that duplicates do not point to the same location
         var alreadySeen = new HashSet<SnapshotSpan>();
@@ -101,7 +106,7 @@ internal class CssConflictDiagnostics() : DiagnosticsChecker(false, ErrorType.Cs
                                 {
                                     replacementSpan = new SnapshotSpan(s.Start - 1, s.Length + 1);
                                 }
-                                else if ((int)s.End < s.Snapshot.Length && s.Snapshot[s.End] == ' ')
+                                else if (s.End < s.Snapshot.Length && s.Snapshot[s.End] == ' ')
                                 {
                                     replacementSpan = new SnapshotSpan(s.Start, s.Length + 1);
                                 }

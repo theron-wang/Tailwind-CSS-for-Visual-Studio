@@ -1,13 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.ComponentModel.Composition;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Community.VisualStudio.Toolkit;
-using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Threading;
 using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Initialization;
 using TailwindCSSIntellisense.Settings;
@@ -328,7 +325,7 @@ public sealed class ProjectConfigurationInitializer
                 {
                     if (
                         project.Classes.All(c =>
-                            (c.Name == name && c.HasArbitrary == false) || c.Name != name
+                            (c.Name == name && !c.HasArbitrary) || c.Name != name
                         )
                     )
                     {

@@ -7,7 +7,7 @@ using Microsoft.VisualStudio.Text;
 using TailwindCSSIntellisense.ClassOperations;
 using TailwindCSSIntellisense.Settings;
 
-namespace TailwindCSSIntellisense;
+namespace TailwindCSSIntellisense.Commands;
 
 [Command(PackageGuids.guidVSPackageCmdSetString, PackageIds.SortClassesInOpenFileCmdId)]
 internal sealed class SortClassesInOpenFile : BaseCommand<SortClassesInOpenFile>

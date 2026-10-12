@@ -62,7 +62,7 @@ internal class HtmlCompletionSource : ClassCompletionGenerator, ICompletionSourc
         }
 
         if (
-            HtmlParser.IsCursorInClassScope(session.TextView, out var classSpan) == false
+            !HtmlParser.IsCursorInClassScope(session.TextView, out var classSpan)
             || classSpan is null
         )
         {
@@ -75,7 +75,6 @@ internal class HtmlCompletionSource : ClassCompletionGenerator, ICompletionSourc
         );
         string classAttributeValueUpToPosition = truncatedClassSpan.GetText();
 
-        var position = session.TextView.Caret.Position.BufferPosition.Position;
         var snapshot = _textBuffer.CurrentSnapshot;
         var triggerPoint = session.GetTriggerPoint(snapshot);
 

@@ -210,7 +210,7 @@ namespace Microsoft.VisualStudio.Text
         public SpanTrackingMode Mode { get; } = mode;
     }
 
-    public readonly struct SnapshotSpan
+    public readonly struct SnapshotSpan : IEquatable<SnapshotSpan>
     {
         public SnapshotSpan(ITextSnapshot snapshot, int start, int length)
         {
@@ -250,8 +250,12 @@ namespace Microsoft.VisualStudio.Text
 
         public override bool Equals(object? obj)
         {
-            return obj is SnapshotSpan other
-                && ReferenceEquals(Snapshot, other.Snapshot)
+            return obj is SnapshotSpan other && Equals(other);
+        }
+
+        public bool Equals(SnapshotSpan other)
+        {
+            return ReferenceEquals(Snapshot, other.Snapshot)
                 && Span.Start == other.Span.Start
                 && Span.Length == other.Span.Length;
         }
@@ -297,7 +301,7 @@ namespace System
 {
     public static class ExceptionLoggingExtensions
     {
-        public static void Log(this Exception ex, string message) { }
+        public static void Log(this Exception ex, string? message = null) { }
 
         public static Task LogAsync(this Exception ex)
         {

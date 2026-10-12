@@ -72,33 +72,22 @@ internal class RazorCompletionSource : ClassCompletionGenerator, ICompletionSour
         }
 
         if (
-            RazorParser.IsCursorInClassScope(session.TextView, out var classSpan) == false
+            !RazorParser.IsCursorInClassScope(session.TextView, out var classSpan)
             || classSpan is null
         )
         {
             return;
         }
 
-        var truncatedClassSpan = new SnapshotSpan(
-            classSpan.Value.Start,
-            session.TextView.Caret.Position.BufferPosition
-        );
-        string classAttributeValueUpToPosition = truncatedClassSpan.GetText();
-
-        var position = session.TextView.Caret.Position.BufferPosition.Position;
         ITextSnapshot snapshot = _textBuffer.CurrentSnapshot;
-        var triggerPoint = session.GetTriggerPoint(snapshot)!.Value;
+        var triggerPoint = session.GetTriggerPoint(snapshot);
 
         if (triggerPoint == null)
         {
             return;
         }
 
-        var line = triggerPoint.GetContainingLine();
-        SnapshotPoint start = triggerPoint;
-
-        var applicableTo = GetApplicableTo(triggerPoint, snapshot);
-        var currentClassTotal = classAttributeValueUpToPosition.Split(' ').Last();
+        var applicableTo = GetApplicableTo(triggerPoint.Value, snapshot);
 
         var completions = GetCompletions(applicableTo.GetText(snapshot), isRazor: true);
 

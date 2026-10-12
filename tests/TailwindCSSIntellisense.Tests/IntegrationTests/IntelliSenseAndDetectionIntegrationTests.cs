@@ -5,9 +5,7 @@ namespace TailwindCSSIntellisense.Tests.IntegrationTests;
 [Collection("Non-Parallel Tests")]
 public class IntelliSenseAndDetectionIntegrationTests : IDisposable
 {
-    private readonly Func<
-        Task<TailwindCSSIntellisense.Settings.TailwindSettings>
-    >? _originalSettingsDelegate;
+    private readonly Func<Task<Settings.TailwindSettings>>? _originalSettingsDelegate;
 
     public IntelliSenseAndDetectionIntegrationTests()
     {
@@ -18,6 +16,7 @@ public class IntelliSenseAndDetectionIntegrationTests : IDisposable
     public void Dispose()
     {
         ClassRegexHelper.GetTailwindSettings = _originalSettingsDelegate;
+        GC.SuppressFinalize(this);
     }
 
     [Fact]

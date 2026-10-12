@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace TailwindCSSIntellisense.Tests.UnitTests;
 
 public class StringHelpersTests
@@ -189,4 +191,23 @@ public class StringHelpersTests
     }
 
     #endregion
+    [Theory]
+    [InlineData("en-US")]
+    [InlineData("tr-TR")]
+    public void ReplaceLastOccurrence_UsesLiteralOrdinalMatching(string culture)
+    {
+        var original = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
+            Assert.Equal(
+                "changed p\u00AD-2",
+                "p-2 p\u00AD-2".ReplaceLastOccurrence("p-2", "changed")
+            );
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
+    }
 }

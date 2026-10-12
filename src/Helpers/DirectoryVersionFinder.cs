@@ -75,7 +75,7 @@ internal class DirectoryVersionFinder : IDisposable
             {
                 try
                 {
-                    await PopulateIsTailwindInstalledAsync(directory!, settings);
+                    await PopulateIsTailwindInstalledAsync(directory!);
                 }
                 finally
                 {
@@ -90,7 +90,7 @@ internal class DirectoryVersionFinder : IDisposable
     /// <summary>
     /// Populates whether Tailwind is installed in the given directory into the cache.
     /// </summary>
-    private async Task PopulateIsTailwindInstalledAsync(string directory, TailwindSettings settings)
+    private async Task PopulateIsTailwindInstalledAsync(string directory)
     {
         var processInfo = new ProcessStartInfo()
         {
@@ -105,7 +105,14 @@ internal class DirectoryVersionFinder : IDisposable
 
         string output;
 
-        using (var process = Process.Start(processInfo))
+        using (
+            var process = (
+                Process.Start(processInfo)
+                ?? throw new InvalidOperationException(
+                    "Unable to start the Tailwind command process."
+                )
+            )
+        )
         {
             output = await process.StandardOutput.ReadToEndAsync();
 
@@ -126,7 +133,12 @@ internal class DirectoryVersionFinder : IDisposable
                 StandardOutputEncoding = Encoding.UTF8,
             };
 
-            using var process = Process.Start(processInfo);
+            using var process = (
+                Process.Start(processInfo)
+                ?? throw new InvalidOperationException(
+                    "Unable to start the Tailwind command process."
+                )
+            );
 
             output = await process.StandardOutput.ReadToEndAsync();
 
@@ -175,7 +187,7 @@ internal class DirectoryVersionFinder : IDisposable
         TailwindSettings settings
     )
     {
-        var directory = Path.GetDirectoryName(file).ToLower();
+        var directory = PathHelpers.GetContainingDirectory(file).ToLower();
 
         if (_cache.TryGetValue(directory, out var version))
         {
@@ -199,7 +211,7 @@ internal class DirectoryVersionFinder : IDisposable
         TailwindSettings settings
     )
     {
-        var directory = Path.GetDirectoryName(file).ToLower();
+        var directory = PathHelpers.GetContainingDirectory(file).ToLower();
 
         if (_cache.TryGetValue(directory, out var version))
         {
@@ -237,7 +249,14 @@ internal class DirectoryVersionFinder : IDisposable
 
         string output;
 
-        using (var process = Process.Start(processInfo))
+        using (
+            var process = (
+                Process.Start(processInfo)
+                ?? throw new InvalidOperationException(
+                    "Unable to start the Tailwind command process."
+                )
+            )
+        )
         {
             output = await process.StandardOutput.ReadToEndAsync();
 
@@ -258,7 +277,12 @@ internal class DirectoryVersionFinder : IDisposable
                 StandardOutputEncoding = Encoding.UTF8,
             };
 
-            using var process = Process.Start(processInfo);
+            using var process = (
+                Process.Start(processInfo)
+                ?? throw new InvalidOperationException(
+                    "Unable to start the Tailwind command process."
+                )
+            );
 
             output = await process.StandardOutput.ReadToEndAsync();
 
@@ -294,7 +318,7 @@ internal class DirectoryVersionFinder : IDisposable
         return TailwindVersion.LATEST;
     }
 
-    public void ClearCacheForDirectory(string directory, bool recursive = true)
+    public void ClearCacheForDirectory(string? directory, bool recursive = true)
     {
         if (directory is null)
         {

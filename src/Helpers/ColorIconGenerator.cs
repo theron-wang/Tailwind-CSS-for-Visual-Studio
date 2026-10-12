@@ -35,7 +35,7 @@ internal class ColorIconGenerator
         int opacity = 100
     )
     {
-        if (_colorToRgbMapperCaches.TryGetValue(projectCompletionValues, out var cache) == false)
+        if (!_colorToRgbMapperCaches.TryGetValue(projectCompletionValues, out var cache))
         {
             cache = [];
             _colorToRgbMapperCaches[projectCompletionValues] = cache;
@@ -49,7 +49,7 @@ internal class ColorIconGenerator
         )
         {
             if (
-                projectCompletionValues.CustomColorMappers.TryGetValue(stem, out var dict) == false
+                !projectCompletionValues.CustomColorMappers.TryGetValue(stem, out var dict)
                 || (
                     dict.TryGetValue(color, out value)
                     && projectCompletionValues.ColorMapper.TryGetValue(color, out var value2)
@@ -62,7 +62,7 @@ internal class ColorIconGenerator
                     return result;
                 }
 
-                if (projectCompletionValues.ColorMapper.TryGetValue(color, out value) == false)
+                if (!projectCompletionValues.ColorMapper.TryGetValue(color, out value))
                 {
                     return ProjectConfigurationManager.TailwindLogo;
                 }
@@ -80,7 +80,7 @@ internal class ColorIconGenerator
         {
             return result;
         }
-        else if (projectCompletionValues.ColorMapper.TryGetValue(color, out value) == false)
+        else if (!projectCompletionValues.ColorMapper.TryGetValue(color, out value))
         {
             return ProjectConfigurationManager.TailwindLogo;
         }
@@ -98,7 +98,7 @@ internal class ColorIconGenerator
             g,
             b;
 
-        if (ColorHelpers.ForceConvertToRgb(value) is int[] converted && converted.Length == 3)
+        if (ColorHelpers.ForceConvertToRgb(value) is { } converted && converted.Length == 3)
         {
             r = (byte)converted[0];
             g = (byte)converted[1];

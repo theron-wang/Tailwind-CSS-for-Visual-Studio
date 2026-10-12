@@ -163,6 +163,7 @@
     <Compile Include="Helpers\LegacyRazorEditorHelper.cs" />
     <Compile Include="Helpers\MutableKeyValuePair.cs" />
     <Compile Include="Helpers\PathHelpers.cs" />
+    <Compile Include="Helpers\ProcessArgumentHelpers.cs" />
     <Compile Include="Helpers\RazorClassScopeHelper.cs" />
     <Compile Include="Initialization\ClassSubTypeBase.cs" />
     <Compile Include="Initialization\ClassSubTypeV3.cs" />

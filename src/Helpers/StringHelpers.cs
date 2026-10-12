@@ -8,7 +8,7 @@ internal static class StringHelpers
 {
     public static string ReplaceLastOccurrence(this string source, string find, string replace)
     {
-        var place = source.LastIndexOf(find);
+        var place = source.LastIndexOf(find, StringComparison.Ordinal);
 
         if (place == -1)
         {

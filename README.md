@@ -28,6 +28,7 @@ If it's saved you time or made your workflow better, please consider **[sponsori
   - [Extension Options](#extension-options)
 - [Troubleshooting](#troubleshooting)
 - [Support & Feedback](#support--feedback)
+- [Development](DEVELOPERS.md)
 - [Disclaimer](#disclaimer)
 
 ## Prerequisites

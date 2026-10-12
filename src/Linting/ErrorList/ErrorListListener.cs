@@ -36,7 +36,7 @@ internal abstract class ErrorListListener : ITextViewCreationListener, IDisposab
 
     public virtual void TextViewCreated(ITextView view)
     {
-        if (_contexts.ContainsKey(view.TextBuffer) == false)
+        if (!_contexts.ContainsKey(view.TextBuffer))
         {
             view.Closed += ViewClosed;
 

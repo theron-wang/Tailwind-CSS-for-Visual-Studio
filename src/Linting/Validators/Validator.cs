@@ -184,7 +184,6 @@ internal abstract class Validator : IDisposable
             {
                 foreach (var scope in GetScopes(new SnapshotSpan(e.After, change.NewSpan)))
                 {
-                    var text = scope.GetText();
                     // Second-pass invalidation for scopes outside the raw change spans
 
                     // Use OverlapsWith instead of IntersectsWith here because we may accidentally

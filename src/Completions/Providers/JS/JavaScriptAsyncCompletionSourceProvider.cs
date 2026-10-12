@@ -54,7 +54,7 @@ internal class JavaScriptAsyncCompletionSourceProvider : IAsyncCompletionSourceP
             CompletionConfiguration,
             ProjectConfigurationInitializer
         );
-        textView.Closed += (o, e) => _cache.Remove(textView);
+        textView.Closed += (_, _) => _cache.Remove(textView);
         _cache[textView] = source;
         return source;
     }

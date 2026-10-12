@@ -117,10 +117,7 @@ internal sealed class JavaScriptCommandFilter : IOleCommandTarget
         }
 
         // Is the caret in a className="" scope?
-        if (
-            JSParser.IsCursorInClassScope(_textView, out var classSpan) == false
-            || classSpan is null
-        )
+        if (!JSParser.IsCursorInClassScope(_textView, out var classSpan) || classSpan is null)
         {
             return _next.Exec(pguidCmdGroup, nCmdID, nCmdexecopt, pvaIn, pvaOut);
         }
@@ -235,7 +232,7 @@ internal sealed class JavaScriptCommandFilter : IOleCommandTarget
 
     private bool RetriggerIntellisense(string classText)
     {
-        return classText != null && classText.EndsWith(":");
+        return classText.EndsWith(":");
     }
 
     /// <summary>
@@ -340,8 +337,6 @@ internal sealed class JavaScriptCommandFilter : IOleCommandTarget
         {
             return false;
         }
-
-        ITextSnapshot snapshot = caret.Value.Snapshot;
 
         var completionActive = _broker.IsCompletionActive(_textView);
 

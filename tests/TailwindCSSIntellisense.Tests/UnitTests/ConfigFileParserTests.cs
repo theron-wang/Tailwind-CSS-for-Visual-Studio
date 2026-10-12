@@ -5,8 +5,14 @@ namespace TailwindCSSIntellisense.Tests.UnitTests;
 
 public class ConfigFileParserTests
 {
-    [Fact]
-    public async Task GetConfigurationAsync_ParsesCssSourcesPrefixUtilitiesAndVariants()
+    [Theory]
+    [InlineData("tailwindcss", "tw-")]
+    [InlineData("tailwindcss/index", "tw-")]
+    [InlineData("tailwindcss/utilities", null)]
+    public async Task GetConfigurationAsync_ParsesCssSourcesPrefixUtilitiesAndVariants(
+        string tailwindImport,
+        string? expectedPrefix
+    )
     {
         var tempRoot = Path.Combine(
             Path.GetTempPath(),
@@ -19,8 +25,8 @@ public class ConfigFileParserTests
             var cssPath = Path.Combine(tempRoot, "app.css");
             await File.WriteAllTextAsync(
                 cssPath,
-                """
-                @import "tailwindcss" source("./src") prefix(tw-);
+                $$"""
+                @import "{{tailwindImport}}" source("./src") prefix(tw-);
                 @source "./views";
                 @custom-variant pointer-coarse (@media (pointer: coarse));
                 @utility content-auto {
@@ -37,7 +43,7 @@ public class ConfigFileParserTests
                 TailwindVersion.V4_1
             );
 
-            Assert.Equal("tw-", config.Prefix);
+            Assert.Equal(expectedPrefix, config.Prefix);
             Assert.Contains(Path.Combine(tempRoot, "src"), config.ContentPaths);
             Assert.Contains(Path.Combine(tempRoot, "views"), config.ContentPaths);
             Assert.Contains("content-auto", config.PluginClasses);

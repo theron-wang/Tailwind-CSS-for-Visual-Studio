@@ -114,7 +114,7 @@ internal class ClassRegexHelper
                 {
                     var newRegex = new Regex(value, RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
-                    if (newRegex.GetGroupNames().Contains("content") is false)
+                    if (!newRegex.GetGroupNames().Contains("content"))
                     {
                         VS.MessageBox.ShowError(
                             $"Invalid custom regex: {value}. The regex must contain a capture group named 'content'."
@@ -135,7 +135,7 @@ internal class ClassRegexHelper
                 {
                     var newRegex = new Regex(value, RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
-                    if (newRegex.GetGroupNames().Contains("content") is false)
+                    if (!newRegex.GetGroupNames().Contains("content"))
                     {
                         VS.MessageBox.ShowError(
                             $"Invalid custom regex: {value}. The regex must contain a capture group named 'content'."
@@ -156,7 +156,7 @@ internal class ClassRegexHelper
                 {
                     var newRegex = new Regex(value, RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
-                    if (newRegex.GetGroupNames().Contains("content") is false)
+                    if (!newRegex.GetGroupNames().Contains("content"))
                     {
                         VS.MessageBox.ShowError(
                             $"Invalid custom regex: {value}. The regex must contain a capture group named 'content'."
@@ -229,14 +229,14 @@ internal class ClassRegexHelper
 
                         while (
                             _normalQuotePairRegex.Match(
-                                (string)text,
+                                text,
                                 lastQuoteMatchIndex,
                                 Math.Max(
                                     0,
                                     classContent.Index + classContent.Length - lastQuoteMatchIndex
                                 )
                             )
-                                is Match quoteMatch
+                                is { } quoteMatch
                             && quoteMatch.Success
                         )
                         {
@@ -286,7 +286,10 @@ internal class ClassRegexHelper
                     var razorSyntaxLocations = _razorSplitClassRegex
                         .Matches(classContent.Value)
                         .Cast<Match>()
-                        .Where(match => match.Value.Length > 0 && match.Value[0] == '@');
+                        .Where(razorMatch =>
+                            razorMatch.Value.Length > 0 && razorMatch.Value[0] == '@'
+                        )
+                        .ToArray();
 
                     if (_razorQuotePairRegex.IsMatch(classContent.Value))
                     {
@@ -296,14 +299,14 @@ internal class ClassRegexHelper
 
                         while (
                             _razorQuotePairRegex.Match(
-                                (string)text,
+                                text,
                                 lastQuoteMatchIndex,
                                 Math.Max(
                                     0,
                                     classContent.Index + classContent.Length - lastQuoteMatchIndex
                                 )
                             )
-                                is Match quoteMatch
+                                is { } quoteMatch
                             && quoteMatch.Success
                         )
                         {
@@ -372,14 +375,14 @@ internal class ClassRegexHelper
 
                         while (
                             _normalQuotePairRegex.Match(
-                                (string)text,
+                                text,
                                 lastQuoteMatchIndex,
                                 Math.Max(
                                     0,
                                     classContent.Index + classContent.Length - lastQuoteMatchIndex
                                 )
                             )
-                                is Match quoteMatch
+                                is { } quoteMatch
                             && quoteMatch.Success
                         )
                         {
@@ -411,8 +414,7 @@ internal class ClassRegexHelper
         {
             var lastMatchIndex = 0;
             while (
-                GetCustomRegexMatch(customRegex, text, lastMatchIndex) is Match match
-                && match.Success
+                GetCustomRegexMatch(customRegex, text, lastMatchIndex) is { } match && match.Success
             )
             {
                 lastMatchIndex = match.Index + match.Length;
@@ -426,7 +428,7 @@ internal class ClassRegexHelper
                             lastQuoteMatchIndex,
                             Math.Min(text.Length - lastQuoteMatchIndex, match.Length)
                         )
-                            is Match quoteMatch
+                            is { } quoteMatch
                         && quoteMatch.Success
                     )
                     {
@@ -447,7 +449,7 @@ internal class ClassRegexHelper
         {
             var lastMatchIndex = 0;
 
-            while (_razorClassRegex.Match(text, lastMatchIndex) is Match match && match.Success)
+            while (_razorClassRegex.Match(text, lastMatchIndex) is { } match && match.Success)
             {
                 lastMatchIndex = match.Index + match.Length;
 
@@ -456,7 +458,8 @@ internal class ClassRegexHelper
                 var razorSyntaxLocations = _razorSplitClassRegex
                     .Matches(classText)
                     .Cast<Match>()
-                    .Where(match => match.Value.Length > 0 && match.Value[0] == '@');
+                    .Where(razorMatch => razorMatch.Value.Length > 0 && razorMatch.Value[0] == '@')
+                    .ToArray();
 
                 if (_razorQuotePairRegex.IsMatch(classText))
                 {
@@ -468,7 +471,7 @@ internal class ClassRegexHelper
                             lastQuoteMatchIndex,
                             Math.Min(text.Length - lastQuoteMatchIndex, match.Length)
                         )
-                            is Match quoteMatch
+                            is { } quoteMatch
                         && quoteMatch.Success
                     )
                     {
@@ -492,8 +495,6 @@ internal class ClassRegexHelper
                 yield return match;
             }
         }
-
-        yield break;
     }
 
     /// <summary>
@@ -515,7 +516,7 @@ internal class ClassRegexHelper
         {
             var lastMatchIndex = 0;
 
-            while (_classRegex.Match(text, lastMatchIndex) is Match match && match.Success)
+            while (_classRegex.Match(text, lastMatchIndex) is { } match && match.Success)
             {
                 lastMatchIndex = match.Index + match.Length;
 
@@ -531,7 +532,7 @@ internal class ClassRegexHelper
                             lastQuoteMatchIndex,
                             Math.Min(text.Length - lastQuoteMatchIndex, match.Length)
                         )
-                            is Match quoteMatch
+                            is { } quoteMatch
                         && quoteMatch.Success
                     )
                     {
@@ -549,8 +550,7 @@ internal class ClassRegexHelper
         {
             var lastMatchIndex = 0;
             while (
-                GetCustomRegexMatch(customRegex, text, lastMatchIndex) is Match match
-                && match.Success
+                GetCustomRegexMatch(customRegex, text, lastMatchIndex) is { } match && match.Success
             )
             {
                 lastMatchIndex = match.Index + match.Length;
@@ -564,7 +564,7 @@ internal class ClassRegexHelper
                             lastQuoteMatchIndex,
                             Math.Min(text.Length - lastQuoteMatchIndex, match.Length)
                         )
-                            is Match quoteMatch
+                            is { } quoteMatch
                         && quoteMatch.Success
                     )
                     {
@@ -576,8 +576,6 @@ internal class ClassRegexHelper
                 yield return match;
             }
         }
-
-        yield break;
     }
 
     /// <summary>
@@ -599,9 +597,7 @@ internal class ClassRegexHelper
         {
             var lastMatchIndex = 0;
 
-            while (
-                _javaScriptClassRegex.Match(text, lastMatchIndex) is Match match && match.Success
-            )
+            while (_javaScriptClassRegex.Match(text, lastMatchIndex) is { } match && match.Success)
             {
                 lastMatchIndex = match.Index + match.Length;
 
@@ -617,7 +613,7 @@ internal class ClassRegexHelper
                             lastQuoteMatchIndex,
                             Math.Min(text.Length - lastQuoteMatchIndex, match.Length)
                         )
-                            is Match quoteMatch
+                            is { } quoteMatch
                         && quoteMatch.Success
                     )
                     {
@@ -635,8 +631,7 @@ internal class ClassRegexHelper
         {
             var lastMatchIndex = 0;
             while (
-                GetCustomRegexMatch(customRegex, text, lastMatchIndex) is Match match
-                && match.Success
+                GetCustomRegexMatch(customRegex, text, lastMatchIndex) is { } match && match.Success
             )
             {
                 lastMatchIndex = match.Index + match.Length;
@@ -650,7 +645,7 @@ internal class ClassRegexHelper
                             lastQuoteMatchIndex,
                             Math.Min(text.Length - lastQuoteMatchIndex, match.Length)
                         )
-                            is Match quoteMatch
+                            is { } quoteMatch
                         && quoteMatch.Success
                     )
                     {
@@ -662,8 +657,6 @@ internal class ClassRegexHelper
                 yield return match;
             }
         }
-
-        yield break;
     }
 
     /// <summary>

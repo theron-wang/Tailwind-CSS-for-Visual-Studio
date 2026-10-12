@@ -6,6 +6,20 @@ namespace TailwindCSSIntellisense.Helpers;
 
 public static class PathHelpers
 {
+    /// <summary>
+    /// Gets the absolute containing directory of a file path, including relative file paths.
+    /// </summary>
+    /// <param name="filePath">The file path.</param>
+    /// <exception cref="ArgumentException">The path has no containing directory.</exception>
+    public static string GetContainingDirectory(string filePath)
+    {
+        return Path.GetDirectoryName(Path.GetFullPath(filePath))
+            ?? throw new ArgumentException(
+                "The path must have a containing directory.",
+                nameof(filePath)
+            );
+    }
+
     // https://stackoverflow.com/questions/703281/getting-path-relative-to-the-current-working-directory
     /// <summary>
     /// Gets the relative path of a file with respect to a specified folder.

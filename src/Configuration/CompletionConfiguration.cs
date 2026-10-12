@@ -4,7 +4,6 @@ using System.ComponentModel.Composition;
 using System.Linq;
 using System.Threading.Tasks;
 using Community.VisualStudio.Toolkit;
-using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Threading;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Configuration.Descriptions;
@@ -42,7 +41,7 @@ public sealed partial class CompletionConfiguration
     internal TailwindConfiguration? LastConfig { get; private set; }
 
     /// <summary>
-    /// Shorthand for calling <see cref="ReloadCustomAttributesAsync(ConfigurationFile)"/> on all projects
+    /// Shorthand for calling <see cref="ReloadCustomAttributesAsync(ConfigurationFile, TailwindSettings)"/> on all projects
     /// </summary>
     public async Task ReloadCustomAttributesAsync(TailwindSettings settings)
     {
@@ -105,7 +104,7 @@ public sealed partial class CompletionConfiguration
     }
 
     /// <summary>
-    /// Implementation for <see cref="ReloadCustomAttributesAsync(ConfigurationFile)"/>. Runs on a background thread, as this
+    /// Implementation for <see cref="ReloadCustomAttributesAsync(ConfigurationFile, TailwindSettings)"/>. Runs on a background thread, as this
     /// can be expensive.
     /// </summary>
     /// <returns>

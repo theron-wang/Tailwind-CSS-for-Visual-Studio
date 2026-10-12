@@ -5,11 +5,10 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Community.VisualStudio.Toolkit;
-using EnvDTE;
 using Microsoft.VisualStudio.Shell;
 using TailwindCSSIntellisense.Settings;
 
-namespace TailwindCSSIntellisense;
+namespace TailwindCSSIntellisense.Commands;
 
 [Command(PackageGuids.guidVSPackageCmdSetString, PackageIds.SetAsOutputCssFileCmdId)]
 internal sealed class SetAsOutputFile : BaseCommand<SetAsOutputFile>
@@ -88,8 +87,13 @@ internal sealed class SetAsOutputFile : BaseCommand<SetAsOutputFile>
         }
     }
 
-    private void SetupCommand(OleMenuCommand command, string path, string currentFolder)
+    private void SetupCommand(OleMenuCommand command, string path, string? currentFolder)
     {
+        if (currentFolder is null)
+        {
+            command.Visible = false;
+            return;
+        }
         command.Visible = true;
         command.Text = $"Set as output file for {PathHelpers.GetRelativePath(path, currentFolder)}";
         command.Properties["path"] = path;

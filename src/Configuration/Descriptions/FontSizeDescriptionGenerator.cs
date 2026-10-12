@@ -19,9 +19,13 @@ internal class FontSizeDescriptionGenerator : DescriptionGenerator
             {
                 return $"font-size: {value};";
             }
-            else if (value is IEnumerable<string> array && array.Count() == 2)
+            else if (value is IEnumerable<string> entries)
             {
-                var list = array.ToList();
+                var list = entries.ToList();
+                if (list.Count != 2)
+                {
+                    return null;
+                }
 
                 if (
                     list[1].Contains("lineHeight")
@@ -33,8 +37,8 @@ internal class FontSizeDescriptionGenerator : DescriptionGenerator
 
                     var fontSize = list[0];
                     var lineHeight = values!["lineHeight"];
-                    var letterSpacing = values!["letterSpacing"];
-                    var fontWeight = values!["fontWeight"];
+                    var letterSpacing = values["letterSpacing"];
+                    var fontWeight = values["fontWeight"];
 
                     return $"font-size: {fontSize};line-height: {lineHeight};letter-spacing: {letterSpacing};font-weight: {fontWeight};";
                 }
@@ -55,17 +59,17 @@ internal class FontSizeDescriptionGenerator : DescriptionGenerator
             {
                 var result = $"font-size: {fontSize};";
 
-                if (dict.ContainsKey("lineHeight"))
+                if (dict.TryGetValue("lineHeight", out var lineHeightValue))
                 {
-                    result += $"line-height: var(--tw-leading, {dict["lineHeight"]});";
+                    result += $"line-height: var(--tw-leading, {lineHeightValue});";
                 }
-                if (dict.ContainsKey("letterSpacing"))
+                if (dict.TryGetValue("letterSpacing", out var letterSpacingValue))
                 {
-                    result += $"letter-spacing: var(--tw-tracking, {dict["letterSpacing"]});";
+                    result += $"letter-spacing: var(--tw-tracking, {letterSpacingValue});";
                 }
-                if (dict.ContainsKey("fontWeight"))
+                if (dict.TryGetValue("fontWeight", out var fontWeightValue))
                 {
-                    result += $"font-weight: var(--tw-font-weight, {dict["fontWeight"]});";
+                    result += $"font-weight: var(--tw-font-weight, {fontWeightValue});";
                 }
 
                 return result;

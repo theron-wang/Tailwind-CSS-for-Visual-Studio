@@ -22,7 +22,7 @@ internal static class CheckForUpdates
     /// <summary>
     /// Updates the Tailwind CSS module in a configuration file's folder, if needed
     /// </summary>
-    /// <param name="folder">The file to update</param>
+    /// <param name="config">The file to update</param>
     public static async Task UpdateConfigFileFolderAsync(string config)
     {
         if (string.IsNullOrWhiteSpace(config))
@@ -44,7 +44,7 @@ internal static class CheckForUpdates
             return;
         }
 
-        if (folder!.EndsWith(Path.DirectorySeparatorChar.ToString()) == false)
+        if (!folder!.EndsWith(Path.DirectorySeparatorChar.ToString()))
         {
             folder += Path.DirectorySeparatorChar;
         }
@@ -74,7 +74,7 @@ internal static class CheckForUpdates
 
     private static async Task UpdateModuleAsync(string folder, string module)
     {
-        var workingDir = Path.GetDirectoryName(folder);
+        var workingDir = PathHelpers.GetContainingDirectory(folder);
 
         if (string.IsNullOrEmpty(workingDir))
         {
@@ -94,7 +94,14 @@ internal static class CheckForUpdates
 
         string output;
 
-        using (var process = Process.Start(processInfo))
+        using (
+            var process = (
+                Process.Start(processInfo)
+                ?? throw new InvalidOperationException(
+                    "Unable to start the Tailwind command process."
+                )
+            )
+        )
         {
             /*
              * Sample output:
@@ -123,7 +130,7 @@ internal static class CheckForUpdates
 
         var result = JsonSerializer.Deserialize<JsonObject>(output);
 
-        if (result is null || result.ContainsKey(module) == false)
+        if (result is null || !result.ContainsKey(module))
         {
             await VS.StatusBar.ShowMessageAsync($"Tailwind CSS: {module} is up to date");
             return;
@@ -167,6 +174,11 @@ internal static class CheckForUpdates
             return;
         }
 
+        if (!ProcessArgumentHelpers.IsNpmPackageVersion(relevantPackage.Wanted))
+        {
+            throw new InvalidOperationException("npm returned an invalid package version.");
+        }
+
         await VS.StatusBar.ShowMessageAsync(
             $"Updating {module} ({relevantPackage.Current} -> {relevantPackage.Wanted})"
         );
@@ -178,14 +190,21 @@ internal static class CheckForUpdates
             CreateNoWindow = true,
             FileName = "cmd",
             Arguments = $"/C npm install {module}@{relevantPackage.Wanted}",
-            WorkingDirectory = Path.GetDirectoryName(folder),
+            WorkingDirectory = PathHelpers.GetContainingDirectory(folder),
             StandardErrorEncoding = Encoding.UTF8,
         };
 
         string error;
-        var failed = false;
+        bool failed;
 
-        using (var process = Process.Start(processInfo))
+        using (
+            var process = (
+                Process.Start(processInfo)
+                ?? throw new InvalidOperationException(
+                    "Unable to start the Tailwind command process."
+                )
+            )
+        )
         {
             error = await process.StandardError.ReadToEndAsync();
 

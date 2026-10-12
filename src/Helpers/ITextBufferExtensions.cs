@@ -6,7 +6,8 @@ namespace TailwindCSSIntellisense.Helpers;
 internal static class ITextBufferExtensions
 {
     /// <summary>
-    /// Equivalent to <see cref="ITextBuffer.GetFileName"/> but ensures it is called on the UI thread, as required by Visual Studio APIs. Should be used in any context where the file name of a text buffer is needed, as calling <see cref="ITextBuffer.GetFileName"/> from a non-UI thread can lead to exceptions or undefined behavior.
+    /// Calls <c>buffer.GetFileName()</c> on the UI thread, as required by Visual Studio APIs.
+    /// Use this wrapper when retrieving a text buffer's file name from a background thread.
     /// </summary>
     /// <param name="buffer">The buffer</param>
     /// <returns>The file name</returns>

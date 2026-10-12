@@ -76,6 +76,7 @@ internal sealed class LinterUtilities : IDisposable
     /// Generates errors for a list of classes.
     /// </summary>
     /// <param name="classes">The list of classes to check</param>
+    /// <param name="projectCompletionValues">The project completion configuration.</param>
     /// <returns>A list of Tuples containing the class name, error message, and conflicting classes</returns>
     public async IAsyncEnumerable<(
         string className,
@@ -86,6 +87,7 @@ internal sealed class LinterUtilities : IDisposable
         ProjectCompletionValues projectCompletionValues
     )
     {
+        var classList = classes.ToList();
         Dictionary<string, int> classOrder;
 
         await _cacheSemaphore.WaitAsync();
@@ -103,7 +105,7 @@ internal sealed class LinterUtilities : IDisposable
         }
 
         var cssAttributes = new Dictionary<string, string>();
-        foreach (var c in classes)
+        foreach (var c in classList)
         {
             var classTrimmed = c.Split(':')
                 .Last()
@@ -122,7 +124,7 @@ internal sealed class LinterUtilities : IDisposable
             try
             {
                 if (
-                    _cacheCssAttributes.TryGetValue(projectCompletionValues, out var dict) == false
+                    !_cacheCssAttributes.TryGetValue(projectCompletionValues, out var dict)
                     || !dict.ContainsKey(classTrimmed)
                 )
                 {
@@ -161,19 +163,20 @@ internal sealed class LinterUtilities : IDisposable
 
         foreach (var group in cssAttributes.GroupBy(x => x.Value, x => x.Key))
         {
-            var erroneous = classes.Where(group.Contains);
-            var count = erroneous.Count();
+            var erroneous = classList.Where(group.Contains).ToList();
+            var count = erroneous.Count;
             if (count > 1)
             {
                 var mostPrecedencePairs = classOrder
                     .Where(c => erroneous.Any(e => e.Split(':').Last().Trim() == c.Key))
-                    .OrderBy(c => c.Value);
+                    .OrderBy(c => c.Value)
+                    .ToList();
 
                 // The sort order is the same as the order in which Tailwind generates classes
                 string? classWithMostPrecedence = null;
-                if (mostPrecedencePairs.Any())
+                if (mostPrecedencePairs.Count > 0)
                 {
-                    classWithMostPrecedence = classes.First(e =>
+                    classWithMostPrecedence = classList.First(e =>
                         e.Split(':').Last().Trim() == mostPrecedencePairs.First().Key
                     );
                 }
@@ -183,7 +186,8 @@ internal sealed class LinterUtilities : IDisposable
                 {
                     var others = erroneous
                         .Take(i)
-                        .Concat(erroneous.Skip(i + 1).Take(count - i - 1));
+                        .Concat(erroneous.Skip(i + 1).Take(count - i - 1))
+                        .ToArray();
 
                     var errorMessage =
                         $"'{className}' applies the same CSS properties as "

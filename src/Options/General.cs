@@ -4,7 +4,7 @@ using Community.VisualStudio.Toolkit;
 
 namespace TailwindCSSIntellisense.Options;
 
-internal partial class OptionsProvider
+internal class OptionsProvider
 {
     [ComVisible(true)]
     public class GeneralOptions : BaseOptionPage<General> { }
