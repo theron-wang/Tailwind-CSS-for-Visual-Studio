@@ -323,9 +323,7 @@ internal class TailwindBuildProcess : TailwindCliInterop
         }
 
         bool hasScript;
-        string? packageJsonPath;
-
-        if (!_configsToPackageJsons.ContainsKey(config.FilePath))
+        if (!_configsToPackageJsons.TryGetValue(config.FilePath, out var packageJsonPath))
         {
             (hasScript, packageJsonPath) = await PackageJsonReader.ScriptExistsAsync(
                 config.FilePath,
@@ -335,7 +333,6 @@ internal class TailwindBuildProcess : TailwindCliInterop
         }
         else
         {
-            packageJsonPath = _configsToPackageJsons[config.FilePath];
             hasScript = packageJsonPath is not null;
         }
 

@@ -16,6 +16,7 @@ public class IntelliSenseAndDetectionIntegrationTests : IDisposable
     public void Dispose()
     {
         ClassRegexHelper.GetTailwindSettings = _originalSettingsDelegate;
+        GC.SuppressFinalize(this);
     }
 
     [Fact]

@@ -825,14 +825,14 @@ internal sealed class DescriptionGenerator : IDisposable
         bool shouldFormat = true
     )
     {
-        string? description = null;
-        if (projectCompletionValues.CustomDescriptionMapper.ContainsKey(tailwindClass))
+        if (
+            !projectCompletionValues.CustomDescriptionMapper.TryGetValue(
+                tailwindClass,
+                out var description
+            )
+        )
         {
-            description = projectCompletionValues.CustomDescriptionMapper[tailwindClass];
-        }
-        else if (projectCompletionValues.DescriptionMapper.ContainsKey(tailwindClass))
-        {
-            description = projectCompletionValues.DescriptionMapper[tailwindClass];
+            projectCompletionValues.DescriptionMapper.TryGetValue(tailwindClass, out description);
         }
 
         if (description == null)

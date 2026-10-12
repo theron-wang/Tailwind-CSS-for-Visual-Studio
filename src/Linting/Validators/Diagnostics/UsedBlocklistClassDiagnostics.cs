@@ -32,7 +32,7 @@ internal class UsedBlocklistClassDiagnostics()
             yield break;
         }
 
-        var offset = scope.IndexOf(content);
+        var offset = scope.IndexOf(content, StringComparison.Ordinal);
         var classesToLocations = GetClassPositions(
             startOfScope + offset,
             content,

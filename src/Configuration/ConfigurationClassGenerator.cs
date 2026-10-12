@@ -153,10 +153,8 @@ public sealed partial class CompletionConfiguration
         {
             foreach (var plugin in config.EnabledCorePlugins)
             {
-                if (project.ConfigurationValueToClassStems.ContainsKey(plugin))
+                if (project.ConfigurationValueToClassStems.TryGetValue(plugin, out var stems))
                 {
-                    var stems = project.ConfigurationValueToClassStems[plugin];
-
                     foreach (var stem in stems)
                     {
                         if (stem.Contains("{*}"))
@@ -246,10 +244,8 @@ public sealed partial class CompletionConfiguration
             {
                 foreach (var plugin in config.DisabledCorePlugins)
                 {
-                    if (project.ConfigurationValueToClassStems.ContainsKey(plugin))
+                    if (project.ConfigurationValueToClassStems.TryGetValue(plugin, out var stems))
                     {
-                        var stems = project.ConfigurationValueToClassStems[plugin];
-
                         foreach (var stem in stems)
                         {
                             if (stem.Contains("{*}"))

@@ -436,7 +436,7 @@ public sealed class SettingsProvider : IDisposable
                     }
                     catch (Exception ex)
                     {
-                        ex.Log();
+                        await ex.LogAsync();
                     }
                 }
             }
@@ -723,13 +723,13 @@ public sealed class SettingsProvider : IDisposable
         try
         {
             await Task.Delay(_invalidationInterval, token);
+            await _invocationLock.WaitAsync(token);
         }
         catch (OperationCanceledException)
         {
             return;
         }
 
-        await _invocationLock.WaitAsync();
         try
         {
             _cachedSettings = null;

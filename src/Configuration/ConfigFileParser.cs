@@ -48,9 +48,9 @@ internal static class ConfigFileParser
             RedirectStandardInput = true,
             RedirectStandardError = true,
             CreateNoWindow = true,
-            FileName = "cmd",
+            FileName = "node",
             Arguments =
-                $"/c node \"{scriptLocation}\" \"{Path.GetFileName(path)}\" {(isAPlugin ? "--plugin" : "")}",
+                $"{ProcessArgumentHelpers.QuoteWindowsArgument(scriptLocation)} {ProcessArgumentHelpers.QuoteWindowsArgument(Path.GetFileName(path))} {(isAPlugin ? "--plugin" : "")}",
             WorkingDirectory = PathHelpers.GetContainingDirectory(path),
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
@@ -705,17 +705,18 @@ internal static class ConfigFileParser
 
             Dictionary<string, object> dict;
 
-            if (config.OverridenValues.ContainsKey(stem))
+            if (config.OverridenValues.TryGetValue(stem, out var overridden))
             {
-                dict = (Dictionary<string, object>)config.OverridenValues[stem];
+                dict = (Dictionary<string, object>)overridden;
             }
             else
             {
-                if (!config.ExtendedValues.ContainsKey(stem))
+                if (!config.ExtendedValues.TryGetValue(stem, out var extended))
                 {
-                    config.ExtendedValues[stem] = new Dictionary<string, object>();
+                    extended = new Dictionary<string, object>();
+                    config.ExtendedValues[stem] = extended;
                 }
-                dict = (Dictionary<string, object>)config.ExtendedValues[stem];
+                dict = (Dictionary<string, object>)extended;
             }
 
             // Special case
@@ -878,14 +879,14 @@ internal static class ConfigFileParser
 
         try
         {
-            config.PluginVariants = plugins.ContainsKey("variants")
-                ? (List<string>)plugins["variants"]
+            config.PluginVariants = plugins.TryGetValue("variants", out var pluginVariants)
+                ? (List<string>)pluginVariants
                 : [];
 
             config.PluginClasses = [];
-            if (plugins.ContainsKey("classes"))
+            if (plugins.TryGetValue("classes", out var pluginClasses))
             {
-                var classes = (List<string>)plugins["classes"];
+                var classes = (List<string>)pluginClasses;
 
                 foreach (var item in classes)
                 {
@@ -1077,19 +1078,26 @@ internal static class ConfigFileParser
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             CreateNoWindow = true,
-            FileName = "cmd",
-            Arguments = $"/c node -e \"console.log(require.resolve('{package}'))\"",
-            WorkingDirectory = Path.GetDirectoryName(configFileLocation)!,
+            FileName = "node",
+            Arguments =
+                "-e "
+                + ProcessArgumentHelpers.QuoteWindowsArgument(
+                    $"console.log(require.resolve({JsonSerializer.Serialize(package)}))"
+                ),
+            WorkingDirectory = PathHelpers.GetContainingDirectory(configFileLocation),
             StandardOutputEncoding = Encoding.UTF8,
         };
 
         var localNodePath = await GetNodeModulesFromConfigFilePathAsync(configFileLocation);
         await SetupNodeProcessAsync(processInfo, localNodePath);
 
-        using var process = Process.Start(processInfo)!;
+        using var process =
+            Process.Start(processInfo)
+            ?? throw new InvalidOperationException("Unable to start the Node.js package resolver.");
+        var output = await process.StandardOutput.ReadToEndAsync();
         await process.WaitForExitAsync();
 
-        var path = (await process.StandardOutput.ReadToEndAsync()).Trim();
+        var path = output.Trim();
 
         // Check to see if the resolution worked; if not, then this will return false since
         // the output is not a path

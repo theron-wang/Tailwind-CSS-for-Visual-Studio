@@ -184,10 +184,13 @@ internal abstract class ClassCompletionGenerator : IDisposable
 
                 if (
                     _projectCompletionValues.CustomColorMappers != null
-                    && _projectCompletionValues.CustomColorMappers.ContainsKey(twClass.Name)
+                    && _projectCompletionValues.CustomColorMappers.TryGetValue(
+                        twClass.Name,
+                        out var customColors
+                    )
                 )
                 {
-                    colors = _projectCompletionValues.CustomColorMappers[twClass.Name].Keys;
+                    colors = customColors.Keys;
                 }
                 else
                 {

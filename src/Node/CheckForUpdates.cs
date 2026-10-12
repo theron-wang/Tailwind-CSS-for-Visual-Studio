@@ -174,6 +174,11 @@ internal static class CheckForUpdates
             return;
         }
 
+        if (!ProcessArgumentHelpers.IsNpmPackageVersion(relevantPackage.Wanted))
+        {
+            throw new InvalidOperationException("npm returned an invalid package version.");
+        }
+
         await VS.StatusBar.ShowMessageAsync(
             $"Updating {module} ({relevantPackage.Current} -> {relevantPackage.Wanted})"
         );

@@ -174,7 +174,9 @@ internal abstract class TailwindCliInterop : IDisposable
     /// <returns>The started process, which the caller is responsible for disposing.</returns>
     protected static Process StartProcess(ProcessStartInfo startInfo)
     {
-        var process = Process.Start(startInfo)!;
+        var process =
+            Process.Start(startInfo)
+            ?? throw new InvalidOperationException("Unable to start the Tailwind command process.");
         process.EnableRaisingEvents = true;
         return process;
     }

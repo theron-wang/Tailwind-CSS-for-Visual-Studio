@@ -59,17 +59,17 @@ internal class FontSizeDescriptionGenerator : DescriptionGenerator
             {
                 var result = $"font-size: {fontSize};";
 
-                if (dict.ContainsKey("lineHeight"))
+                if (dict.TryGetValue("lineHeight", out var lineHeightValue))
                 {
-                    result += $"line-height: var(--tw-leading, {dict["lineHeight"]});";
+                    result += $"line-height: var(--tw-leading, {lineHeightValue});";
                 }
-                if (dict.ContainsKey("letterSpacing"))
+                if (dict.TryGetValue("letterSpacing", out var letterSpacingValue))
                 {
-                    result += $"letter-spacing: var(--tw-tracking, {dict["letterSpacing"]});";
+                    result += $"letter-spacing: var(--tw-tracking, {letterSpacingValue});";
                 }
-                if (dict.ContainsKey("fontWeight"))
+                if (dict.TryGetValue("fontWeight", out var fontWeightValue))
                 {
-                    result += $"font-weight: var(--tw-font-weight, {dict["fontWeight"]});";
+                    result += $"font-weight: var(--tw-font-weight, {fontWeightValue});";
                 }
 
                 return result;

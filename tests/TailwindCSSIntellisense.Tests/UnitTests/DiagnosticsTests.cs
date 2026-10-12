@@ -22,6 +22,7 @@ public class DiagnosticsTests : IDisposable
     {
         LinterUtilities.CheckForClassDuplicatesHandler = _originalConflictHandler;
         LinterUtilities.GetErrorSeverityHandler = _originalSeverityHandler;
+        GC.SuppressFinalize(this);
     }
 
     [Fact]

@@ -64,10 +64,6 @@ internal sealed class SetUpAndUseTailwindGlobal : BaseCommand<SetUpAndUseTailwin
             var file = await PhysicalFile.FromFileAsync(
                 SolutionExplorerSelection.CurrentSelectedItemFullPath
             );
-            if (directory is null)
-            {
-                return;
-            }
 
             if (file is not null && file.ContainingProject is not null)
             {
