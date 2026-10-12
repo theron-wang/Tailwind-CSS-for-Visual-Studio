@@ -10,9 +10,23 @@ namespace TailwindCSSIntellisense.Tests.IntegrationTests;
 public class CanonicalizerCliIntegrationTests
 {
     [Fact]
+    public async Task FixtureCleanup_WaitsForTemporaryFileHandlesToClose()
+    {
+        await using var fixture = new CliFixture();
+        using var file = File.Open(fixture.CssPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var cleanup = fixture.DisposeAsync().AsTask();
+
+        Assert.False(cleanup.IsCompleted);
+        file.Dispose();
+        await cleanup.WaitAsync(TimeSpan.FromSeconds(10));
+
+        Assert.False(Directory.Exists(Path.GetDirectoryName(fixture.CssPath)));
+    }
+
+    [Fact]
     public async Task SettingsChange_InvalidatesCacheAndRestartsProcess()
     {
-        using var fixture = new CliFixture();
+        await using var fixture = new CliFixture();
         using var canonicalizer = fixture.CreateCanonicalizer();
         await canonicalizer.CanonicalizeAsync(["first"], fixture.CssPath);
         await canonicalizer.CanonicalizeAsync(["first"], fixture.CssPath);
@@ -29,7 +43,7 @@ public class CanonicalizerCliIntegrationTests
     [Fact]
     public async Task Request_IgnoresStartupNoiseAndMatchesItsInput()
     {
-        using var fixture = new CliFixture();
+        await using var fixture = new CliFixture();
         using var canonicalizer = fixture.CreateCanonicalizer();
 
         var output = await fixture.RequestAsync(canonicalizer, "px-2", "py-2");
@@ -43,7 +57,7 @@ public class CanonicalizerCliIntegrationTests
     [Fact]
     public async Task ConcurrentRequests_ReuseOneProcessWithoutMixingResponses()
     {
-        using var fixture = new CliFixture();
+        await using var fixture = new CliFixture();
         using var canonicalizer = fixture.CreateCanonicalizer();
         var inputs = Enumerable.Range(0, 16).Select(i => $"request-{i}").ToArray();
 
@@ -61,7 +75,7 @@ public class CanonicalizerCliIntegrationTests
     [Fact]
     public async Task Request_DrainsStandardErrorAndPreservesEmptyResponses()
     {
-        using var fixture = new CliFixture();
+        await using var fixture = new CliFixture();
         using var canonicalizer = fixture.CreateCanonicalizer();
 
         Assert.Equal(["STDERR"], await fixture.RequestAsync(canonicalizer, "stderr"));
@@ -71,7 +85,7 @@ public class CanonicalizerCliIntegrationTests
     [Fact]
     public async Task FailedRequest_RestartsProcessBeforeNextRequest()
     {
-        using var fixture = new CliFixture();
+        await using var fixture = new CliFixture();
         using var canonicalizer = fixture.CreateCanonicalizer();
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -87,7 +101,7 @@ public class CanonicalizerCliIntegrationTests
     [InlineData("first\r\nsecond")]
     public async Task Request_RejectsEmbeddedNewlinesBeforeStartingProcess(string className)
     {
-        using var fixture = new CliFixture();
+        await using var fixture = new CliFixture();
         using var canonicalizer = fixture.CreateCanonicalizer();
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
@@ -100,7 +114,7 @@ public class CanonicalizerCliIntegrationTests
     [Fact]
     public async Task Dispose_PreventsStartingAnotherProcess()
     {
-        using var fixture = new CliFixture();
+        await using var fixture = new CliFixture();
         using var canonicalizer = fixture.CreateCanonicalizer();
         await fixture.RequestAsync(canonicalizer, "first");
 
@@ -122,7 +136,7 @@ public class CanonicalizerCliIntegrationTests
                 .GetValue(canonicalizer)!;
     }
 
-    private sealed class CliFixture : IDisposable
+    private sealed class CliFixture : IAsyncDisposable
     {
         private readonly string _directory = Path.Combine(
             Path.GetTempPath(),
@@ -212,8 +226,12 @@ public class CanonicalizerCliIntegrationTests
             return request(classNames, CssPath).WaitAsync(TimeSpan.FromSeconds(15));
         }
 
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
+            if (!Directory.Exists(_directory))
+            {
+                return;
+            }
             // Closing the shell's input lets the fake CLI exit, but child processes
             // can retain their working directory briefly after the shell is stopped.
             if (File.Exists(StartsLog))
@@ -223,12 +241,7 @@ public class CanonicalizerCliIntegrationTests
                     try
                     {
                         using var child = Process.GetProcessById(int.Parse(pid));
-                        if (!child.WaitForExit(5000))
-                        {
-                            throw new TimeoutException(
-                                "The fake CLI did not exit after its input was closed."
-                            );
-                        }
+                        await child.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
                     }
                     catch (ArgumentException)
                     {
@@ -236,7 +249,24 @@ public class CanonicalizerCliIntegrationTests
                     }
                 }
             }
-            Directory.Delete(_directory, recursive: true);
+            // The launcher can still hold the working directory after its child exits.
+            // Retry only sharing violations, and preserve the error if it persists.
+            var elapsed = Stopwatch.StartNew();
+            while (true)
+            {
+                try
+                {
+                    Directory.Delete(_directory, recursive: true);
+                    return;
+                }
+                catch (IOException ex)
+                    when (elapsed.Elapsed < TimeSpan.FromSeconds(5)
+                        && (ex.HResult & 0xFFFF) is 32 or 33
+                    )
+                {
+                    await Task.Delay(50);
+                }
+            }
         }
     }
 }
