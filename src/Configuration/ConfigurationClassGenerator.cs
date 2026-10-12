@@ -716,13 +716,10 @@ public sealed partial class CompletionConfiguration
                 }
                 else
                 {
-                    var s = stem;
                     var classStem = stem.Replace("-{*}", "");
                     List<TailwindClass> descClasses;
                     if (stem.Contains("{*}"))
                     {
-                        s = stem.Replace("-{*}", "");
-
                         descClasses = project
                             .Classes.Where(c =>
                                 c.Name.StartsWith(classStem)
@@ -734,13 +731,12 @@ public sealed partial class CompletionConfiguration
                     }
                     else if (stem.Contains('{'))
                     {
-                        s = stem.Replace($"-{stem.Split('-').Last()}", "");
-                        classStem = s;
+                        classStem = stem.Replace($"-{stem.Split('-').Last()}", "");
                         var values = stem.Split('-')
                             .Last()
                             .Trim('{', '}')
                             .Split('|')
-                            .Select(v => $"{s}-{v}");
+                            .Select(v => $"{classStem}-{v}");
 
                         descClasses = project
                             .Classes.Where(c =>
@@ -764,11 +760,11 @@ public sealed partial class CompletionConfiguration
                             .ToList();
                     }
 
-                    var insertStem = s;
+                    var insertStem = classStem;
                     // row-span and col-span are actually row and col internally
-                    if (s.EndsWith("-span"))
+                    if (classStem.EndsWith("-span"))
                     {
-                        insertStem = s.Replace("-span", "");
+                        insertStem = classStem.Replace("-span", "");
                     }
 
                     if (GetDictionary(config.ExtendedValues[key], out var dict))

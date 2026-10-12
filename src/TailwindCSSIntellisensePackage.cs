@@ -75,7 +75,8 @@ public sealed class TailwindCSSIntellisensePackage : AsyncPackage, IDisposable
 
     private TailwindBuildProcess _buildProcess = null!;
     private ProjectConfigurationInitializer _projectConfigurationInitializer = null!;
-    private ClassOperationService? _classOperationService;
+    private ClassOperationService _classOperationService = null!;
+    private bool _solutionEventsSubscribed;
     private ConfigurationFileReloader _configurationFileReloader = null!;
 
     private readonly SemaphoreSlim _initializeLock = new(1, 1);
@@ -108,6 +109,7 @@ public sealed class TailwindCSSIntellisensePackage : AsyncPackage, IDisposable
         VS.Events.SolutionEvents.OnAfterOpenSolution += SolutionOpened;
         VS.Events.SolutionEvents.OnAfterOpenProject += ProjectLoaded;
         VS.Events.SolutionEvents.OnAfterOpenFolder += FolderOpened;
+        _solutionEventsSubscribed = true;
 
         // Just in case this extension loads after projects are loaded, initialize:
 
@@ -158,7 +160,7 @@ public sealed class TailwindCSSIntellisensePackage : AsyncPackage, IDisposable
             await _buildProcess.InitializeAsync(true);
             await _projectConfigurationInitializer.InitializeAsync();
             await _configurationFileReloader.InitializeAsync();
-            await _classOperationService!.InitializeAsync();
+            await _classOperationService.InitializeAsync();
         }
         catch (Exception ex)
         {
@@ -176,11 +178,12 @@ public sealed class TailwindCSSIntellisensePackage : AsyncPackage, IDisposable
 
     public void Dispose()
     {
-        if (_classOperationService != null)
+        if (_solutionEventsSubscribed)
         {
             VS.Events.SolutionEvents.OnAfterOpenSolution -= SolutionOpened;
             VS.Events.SolutionEvents.OnAfterOpenProject -= ProjectLoaded;
             VS.Events.SolutionEvents.OnAfterOpenFolder -= FolderOpened;
+            _solutionEventsSubscribed = false;
         }
     }
 

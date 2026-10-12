@@ -28,7 +28,7 @@ If it's saved you time or made your workflow better, please consider **[sponsori
   - [Extension Options](#extension-options)
 - [Troubleshooting](#troubleshooting)
 - [Support & Feedback](#support--feedback)
-- [Code Analysis](#code-analysis)
+- [Development](DEVELOPERS.md)
 - [Disclaimer](#disclaimer)
 
 ## Prerequisites
@@ -153,10 +153,6 @@ If the extension crashes or behaves unexpectedly, check the **Extensions** outpu
 Found a bug or have a feature request? [Open an issue on GitHub](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/issues/new).
 
 Enjoying the extension? A rating on the [Marketplace listing](https://marketplace.visualstudio.com/items?itemName=TheronWang.TailwindCSSIntellisense) or a **[donation](https://github.com/sponsors/theron-wang)** goes a long way toward keeping it maintained. 🙏
-
-## Code Analysis
-
-See [Qodana setup](docs/qodana.md) for local scans and GitHub Actions configuration.
 
 ## Disclaimer
 

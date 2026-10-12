@@ -19,9 +19,9 @@ internal class FontSizeDescriptionGenerator : DescriptionGenerator
             {
                 return $"font-size: {value};";
             }
-            else if (value is IEnumerable<string> array)
+            else if (value is IEnumerable<string> entries)
             {
-                var list = array.ToList();
+                var list = entries.ToList();
                 if (list.Count != 2)
                 {
                     return null;

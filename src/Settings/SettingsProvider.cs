@@ -389,7 +389,6 @@ public sealed class SettingsProvider : IDisposable
         }
 
         // Build list of config files not used as build inputs, with paths made relative to project root.
-        var configurationRoot = projectRoot;
         List<ConfigurationFile> configurationFiles =
         [
             .. settings
@@ -402,7 +401,7 @@ public sealed class SettingsProvider : IDisposable
                 {
                     return new ConfigurationFile()
                     {
-                        Path = PathHelpers.GetRelativePath(cf.Path.Trim(), configurationRoot)!,
+                        Path = PathHelpers.GetRelativePath(cf.Path.Trim(), projectRoot)!,
                     };
                 }),
         ];
