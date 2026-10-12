@@ -402,3 +402,6 @@ FodyWeavers.xsd
 
 .idea/
 .repograph/
+
+# Qodana local reports and caches
+.qodana/
