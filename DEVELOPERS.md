@@ -39,8 +39,8 @@ and pushes to `main`.
 
 Qodana uses the root `qodana.yaml` to inspect the extension and tests natively on
 Windows. The `Qodana` workflow builds the solution before scanning and uploads
-the `qodana-report` artifact. It runs on pushes to `main`, same-repository pull
-requests, and manual dispatches; fork and Dependabot pull requests are skipped.
+the `qodana-report` artifact. Run it manually from the **Actions > Qodana > Run
+workflow** menu and select the branch to analyze.
 Configure the repository's `QODANA_TOKEN` Actions secret with a Qodana Cloud
 project token and compatible license. No issue-count quality gate is configured.
 
