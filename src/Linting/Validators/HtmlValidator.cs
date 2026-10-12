@@ -29,21 +29,26 @@ internal class HtmlValidator : Validator
         return HtmlParser.GetScopes(span);
     }
 
-    protected override IEnumerable<Error> ComputeErrors(SnapshotSpan span)
+    protected override async IAsyncEnumerable<Error> ComputeErrorsAsync(SnapshotSpan span)
     {
         if (_projectCompletionValues is null)
         {
-            return [];
+            yield break;
         }
 
-        return _diagnosticsAggregator.GetErrors(
-            span,
-            false,
-            _projectCompletionValues,
-            ClassRegexHelper.GetClassesNormal,
-            ClassRegexHelper.SplitNonRazorClasses,
-            IsAlreadyChecked
-        );
+        await foreach (
+            var error in _diagnosticsAggregator.GetErrorsAsync(
+                span,
+                false,
+                _projectCompletionValues,
+                ClassRegexHelper.GetClassesNormal,
+                ClassRegexHelper.SplitNonRazorClasses,
+                IsAlreadyChecked
+            )
+        )
+        {
+            yield return error;
+        }
     }
 
     public static Validator Create(

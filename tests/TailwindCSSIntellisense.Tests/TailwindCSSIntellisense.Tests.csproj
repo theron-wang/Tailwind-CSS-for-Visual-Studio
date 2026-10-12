@@ -25,7 +25,35 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile
+      Include="../../src/ClassOperations/ClassOperation.cs"
+      Link="Source/ClassOperations/ClassOperation.cs"
+    />
+    <Compile
+      Include="../../src/ClassOperations/ClassOperationAggregator.cs"
+      Link="Source/ClassOperations/ClassOperationAggregator.cs"
+    />
+    <Compile
+      Include="../../src/ClassOperations/ClassSorter.cs"
+      Link="Source/ClassOperations/ClassSorter.cs"
+    />
+    <Compile
+      Include="../../src/ClassOperations/ClassCanonicalizer.cs"
+      Link="Source/ClassOperations/ClassCanonicalizer.cs"
+    />
+    <Compile
+      Include="../../src/ClassOperations/Canonicalizers/*.cs"
+      Link="Source/ClassOperations/Canonicalizers/%(Filename)%(Extension)"
+    />
+    <Compile
+      Include="../../src/Options/SortClassesOptions.cs"
+      Link="Source/Options/SortClassesOptions.cs"
+    />
     <Compile Include="../../src/Usings.cs" Link="Source/Usings.cs" />
+    <Compile
+      Include="../../src/Build/TailwindCliInterop.cs"
+      Link="Source/Build/TailwindCliInterop.cs"
+    />
     <Compile Include="../../src/Helpers/BraceExpander.cs" Link="Source/Helpers/BraceExpander.cs" />
     <Compile
       Include="../../src/Helpers/ClassRegexHelper.cs"
@@ -77,10 +105,13 @@
       Include="../../src/Configuration/TailwindConfiguration.cs"
       Link="Source/Configuration/TailwindConfiguration.cs"
     />
-    <Compile Include="../../src/ClassSort/Sorters/Sorter.cs" Link="Source/ClassSort/Sorter.cs" />
     <Compile
-      Include="../../src/ClassSort/Sorters/RazorSorter.cs"
-      Link="Source/ClassSort/RazorSorter.cs"
+      Include="../../src/ClassOperations/Sorters/*.cs"
+      Link="Source/ClassOperations/Sorters/%(Filename)%(Extension)"
+    />
+    <Compile
+      Include="../../src/ClassOperations/Operators/*.cs"
+      Link="Source/ClassOperations/Operators/%(Filename)%(Extension)"
     />
     <Compile
       Include="../../src/Completions/ProjectCompletionValues.cs"
@@ -106,6 +137,10 @@
     <Compile
       Include="../../src/Linting/Validators/CssValidator.cs"
       Link="Source/Linting/CssValidator.cs"
+    />
+    <Compile
+      Include="../../src/Linting/Validators/Canonicalization/Canonicalizer.cs"
+      Link="Source/Linting/Canonicalizer.cs"
     />
     <Compile Include="../../src/Node/NpmHelpers.cs" Link="Source/Node/NpmHelpers.cs" />
   </ItemGroup>

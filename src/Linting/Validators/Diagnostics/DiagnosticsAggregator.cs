@@ -14,7 +14,7 @@ internal class DiagnosticsAggregator([ImportMany] IEnumerable<DiagnosticsChecker
 {
     private readonly IEnumerable<DiagnosticsChecker> _generators = generators;
 
-    public IEnumerable<Error> GetErrors(
+    public async IAsyncEnumerable<Error> GetErrorsAsync(
         SnapshotSpan span,
         bool isCss,
         ProjectCompletionValues projectCompletionValues,
@@ -24,14 +24,54 @@ internal class DiagnosticsAggregator([ImportMany] IEnumerable<DiagnosticsChecker
     )
     {
         var applicableGenerators = isCss ? _generators : _generators.Where(g => !g.IsCssOnly);
-        return applicableGenerators.SelectMany(g =>
-            g.GetErrors(
-                span,
-                projectCompletionValues,
-                findClasses,
-                splitClasses,
-                shouldNotAddErrors
-            )
-        );
+
+        foreach (var generator in applicableGenerators)
+        {
+            IAsyncEnumerator<Error>? enumerator = null;
+            try
+            {
+                enumerator = generator
+                    .GetErrorsAsync(
+                        span,
+                        projectCompletionValues,
+                        findClasses,
+                        splitClasses,
+                        shouldNotAddErrors
+                    )
+                    .GetAsyncEnumerator();
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                await ex.LogAsync();
+                continue;
+            }
+
+            try
+            {
+                while (true)
+                {
+                    Error current;
+                    try
+                    {
+                        if (!await enumerator.MoveNextAsync())
+                        {
+                            break;
+                        }
+                        current = enumerator.Current;
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        await ex.LogAsync();
+                        break;
+                    }
+
+                    yield return current;
+                }
+            }
+            finally
+            {
+                await enumerator.DisposeAsync();
+            }
+        }
     }
 }

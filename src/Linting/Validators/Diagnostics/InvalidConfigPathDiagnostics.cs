@@ -24,7 +24,7 @@ internal class InvalidConfigPathDiagnostics() : CssDiagnosticsChecker(ErrorType.
         TimeSpan.FromSeconds(1)
     );
 
-    protected override IEnumerable<Error> GetErrorsImpl(
+    protected override async IAsyncEnumerable<Error> GetErrorsImplAsync(
         SnapshotSpan span,
         ProjectCompletionValues projectCompletionValues,
         Func<string, IEnumerable<Match>> findClasses,
@@ -92,7 +92,7 @@ internal class InvalidConfigPathDiagnostics() : CssDiagnosticsChecker(ErrorType.
         }
     }
 
-    private (bool isValid, string? reason, string? closest) ValidateV4ThemePath(
+    private static (bool isValid, string? reason, string? closest) ValidateV4ThemePath(
         string path,
         ProjectCompletionValues projectCompletionValues
     )

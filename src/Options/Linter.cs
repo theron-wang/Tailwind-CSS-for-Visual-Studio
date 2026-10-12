@@ -64,4 +64,11 @@ public class Linter : BaseOptionModel<Linter>
     [TypeConverter(typeof(EnumConverter))]
     [DefaultValue(ErrorSeverity.Error)]
     public ErrorSeverity InvalidSource { get; set; } = ErrorSeverity.Error;
+
+    [Category("Validation")]
+    [DisplayName("Suggest canonical classes")]
+    [Description("Detect usage of class names that are not in the most optimal form.")]
+    [TypeConverter(typeof(EnumConverter))]
+    [DefaultValue(ErrorSeverity.Warning)]
+    public ErrorSeverity SuggestCanonicalClasses { get; set; } = ErrorSeverity.Warning;
 }

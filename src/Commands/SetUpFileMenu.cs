@@ -43,6 +43,8 @@ internal sealed class SetUpFileMenu : BaseCommand<SetUpFileMenu>
             return;
         }
 
+        Command.Enabled = true;
+
         Command.Visible =
             settings.ConfigurationFiles.Count == 0
             || settings.ConfigurationFiles.All(c =>
@@ -58,11 +60,13 @@ internal sealed class SetUpFileMenu : BaseCommand<SetUpFileMenu>
             SolutionExplorerSelection.CurrentSelectedItemFullPath
         );
 
-        var isInstalled = ThreadHelper.JoinableTaskFactory.Run(() =>
-            DirectoryVersionFinder.IsTailwindInstalledAsync(directory!, settings)
-        );
+        var isInstalled =
+            DirectoryVersionFinder.GetCachedTailwindInstallationStatusOrPopulateInBackground(
+                directory!,
+                settings
+            );
 
-        if (isInstalled)
+        if (isInstalled == true)
         {
             return;
         }
@@ -70,5 +74,8 @@ internal sealed class SetUpFileMenu : BaseCommand<SetUpFileMenu>
         // If not installed (either globally or locally), then check if CLI is set up and used
         // If not, then show the command because we need to install stuff
         Command.Visible = !CliUsageValidator.IsCliUsedCorrectly(settings);
+
+        // If it's not available yet, then we don't know if it's installed or not; we'll disable it for now.
+        Command.Enabled = isInstalled is not null;
     }
 }

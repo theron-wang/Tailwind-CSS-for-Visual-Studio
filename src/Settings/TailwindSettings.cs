@@ -23,6 +23,7 @@ public class TailwindSettings
     public bool EnableTailwindCss { get; set; }
     public BuildProcessOptions BuildType { get; set; }
     public SortClassesOptions SortClassesType { get; set; }
+    public SortClassesOptions CanonicalizeClassesType { get; set; } = SortClassesOptions.None;
     public string? BuildScript { get; set; }
     public bool OverrideBuild { get; set; }
     public bool AutomaticallyMinify { get; set; }

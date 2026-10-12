@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Core.Imaging;
 using Microsoft.VisualStudio.Imaging;
@@ -10,7 +11,7 @@ using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Adornments;
 using Microsoft.VisualStudio.Text.Tagging;
-using TailwindCSSIntellisense.ClassSort;
+using TailwindCSSIntellisense.ClassOperations;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Options;
@@ -22,7 +23,7 @@ namespace TailwindCSSIntellisense.Linting;
 [PartCreationPolicy(CreationPolicy.Shared)]
 internal sealed class LinterUtilities : IDisposable
 {
-    private readonly object _cacheLock = new();
+    private readonly SemaphoreSlim _cacheSemaphore = new(1, 1);
     private readonly ProjectConfigurationManager _projectConfigurationManager;
     private readonly DescriptionGenerator _descriptionGenerator;
     private readonly ClassSortUtilities _classSortUtilities;
@@ -76,29 +77,29 @@ internal sealed class LinterUtilities : IDisposable
     /// </summary>
     /// <param name="classes">The list of classes to check</param>
     /// <returns>A list of Tuples containing the class name, error message, and conflicting classes</returns>
-    public IEnumerable<(
+    public async IAsyncEnumerable<(
         string className,
         string errorMessage,
         IEnumerable<string> conflictingClasses
-    )> CheckForClassDuplicates(
+    )> CheckForClassDuplicatesAsync(
         IEnumerable<string> classes,
         ProjectCompletionValues projectCompletionValues
     )
     {
         Dictionary<string, int> classOrder;
-        lock (_cacheLock)
+
+        await _cacheSemaphore.WaitAsync();
+        try
         {
             if (!_classOrderCache.TryGetValue(projectCompletionValues.Version, out classOrder))
             {
-#pragma warning disable VSTHRD102 // Implement internal logic asynchronously
-                // For most cases, this will be fine since it'll likely be populated in advance by the ConfigurationUpdatedAsync method.
-                // In the case it isn't, it's better to block and get the correct result than to return an incorrect result by continuing without it.
                 _classOrderCache[projectCompletionValues.Version] = classOrder =
-                    ThreadHelper.JoinableTaskFactory.Run(() =>
-                        _classSortUtilities.GetClassOrderAsync(projectCompletionValues.Version)
-                    );
-#pragma warning restore VSTHRD102 // Implement internal logic asynchronously
+                    await _classSortUtilities.GetClassOrderAsync(projectCompletionValues.Version);
             }
+        }
+        finally
+        {
+            _cacheSemaphore.Release();
         }
 
         var cssAttributes = new Dictionary<string, string>();
@@ -117,7 +118,8 @@ internal sealed class LinterUtilities : IDisposable
 
             // Do not handle prefix here; DescriptionGenerator.GetDescription already does
 
-            lock (_cacheLock)
+            await _cacheSemaphore.WaitAsync();
+            try
             {
                 if (
                     _cacheCssAttributes.TryGetValue(projectCompletionValues, out var dict) == false
@@ -150,6 +152,10 @@ internal sealed class LinterUtilities : IDisposable
                 }
 
                 cssAttributes[c] = _cacheCssAttributes[projectCompletionValues][classTrimmed];
+            }
+            finally
+            {
+                _cacheSemaphore.Release();
             }
         }
 
@@ -242,7 +248,8 @@ internal sealed class LinterUtilities : IDisposable
 
         HashSet<TailwindVersion> versionsToFind;
 
-        lock (_cacheLock)
+        await _cacheSemaphore.WaitAsync();
+        try
         {
             versionsToFind =
             [
@@ -251,6 +258,10 @@ internal sealed class LinterUtilities : IDisposable
                     .Where(v => !_classOrderCache.ContainsKey(v)),
             ];
         }
+        finally
+        {
+            _cacheSemaphore.Release();
+        }
 
         var toAdd = new Dictionary<TailwindVersion, Dictionary<string, int>>();
         foreach (var version in versionsToFind)
@@ -258,13 +269,18 @@ internal sealed class LinterUtilities : IDisposable
             toAdd[version] = await _classSortUtilities.GetClassOrderAsync(version);
         }
 
-        lock (_cacheLock)
+        await _cacheSemaphore.WaitAsync();
+        try
         {
             foreach (var kv in toAdd)
             {
                 _classOrderCache[kv.Key] = kv.Value;
             }
             _cacheCssAttributes.Clear();
+        }
+        finally
+        {
+            _cacheSemaphore.Release();
         }
     }
 
@@ -286,6 +302,7 @@ internal sealed class LinterUtilities : IDisposable
             ErrorType.DeprecatedAtRule => _linterOptions.DeprecatedAtRule,
             ErrorType.UsedBlocklistClass => _linterOptions.UsedBlocklistClass,
             ErrorType.InvalidSource => _linterOptions.InvalidSource,
+            ErrorType.SuggestCanonicalClasses => _linterOptions.SuggestCanonicalClasses,
             _ => ErrorSeverity.Warning,
         };
     }

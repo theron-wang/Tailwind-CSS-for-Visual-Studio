@@ -24,21 +24,26 @@ internal class RazorValidator : Validator
             diagnosticsAggregator
         ) { }
 
-    protected override IEnumerable<Error> ComputeErrors(SnapshotSpan span)
+    protected override async IAsyncEnumerable<Error> ComputeErrorsAsync(SnapshotSpan span)
     {
         if (_projectCompletionValues is null)
         {
-            return [];
+            yield break;
         }
 
-        return _diagnosticsAggregator.GetErrors(
-            span,
-            false,
-            _projectCompletionValues,
-            ClassRegexHelper.GetClassesRazor,
-            ClassRegexHelper.SplitRazorClasses,
-            IsAlreadyChecked
-        );
+        await foreach (
+            var error in _diagnosticsAggregator.GetErrorsAsync(
+                span,
+                false,
+                _projectCompletionValues,
+                ClassRegexHelper.GetClassesRazor,
+                ClassRegexHelper.SplitRazorClasses,
+                IsAlreadyChecked
+            )
+        )
+        {
+            yield return error;
+        }
     }
 
     protected override IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span)

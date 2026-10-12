@@ -1,8 +1,7 @@
 using System.Collections;
-using System.Text.RegularExpressions;
-using Microsoft.VisualStudio.Text;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Configuration;
+using TailwindCSSIntellisense.Options;
 
 namespace Community.VisualStudio.Toolkit
 {
@@ -13,16 +12,6 @@ namespace Community.VisualStudio.Toolkit
         public sealed class MessageBoxProxy
         {
             public void ShowError(string message) { }
-        }
-    }
-
-    public static class ExceptionLoggingExtensions
-    {
-        public static void Log(this Exception ex, string message) { }
-
-        public static Task LogAsync(this Exception ex)
-        {
-            return Task.CompletedTask;
         }
     }
 
@@ -110,14 +99,18 @@ namespace Microsoft.VisualStudio.Text
     public interface ITextSnapshot
     {
         int Length { get; }
+        ITextBuffer TextBuffer { get; }
         char this[int index] { get; }
         string GetText(int startIndex, int length);
     }
 
-    public sealed class StringTextSnapshot(string text) : ITextSnapshot
+    public sealed class StringTextSnapshot(string text, ITextBuffer textBuffer) : ITextSnapshot
     {
         private readonly string _text = text;
         public int Length => _text.Length;
+
+        public ITextBuffer TextBuffer => textBuffer;
+
         public char this[int index] => _text[index];
 
         public string GetText(int startIndex, int length)
@@ -132,9 +125,16 @@ namespace Microsoft.VisualStudio.Text
         PropertyCollection Properties { get; }
     }
 
-    public sealed class FakeTextBuffer(string text) : ITextBuffer
+    public sealed class FakeTextBuffer : ITextBuffer
     {
-        public ITextSnapshot CurrentSnapshot { get; } = new StringTextSnapshot(text);
+        public FakeTextBuffer(string text, string filePath = "")
+        {
+            CurrentSnapshot = new StringTextSnapshot(text, this);
+            FilePath = filePath;
+        }
+
+        public string FilePath { get; }
+        public ITextSnapshot CurrentSnapshot { get; init; }
         public PropertyCollection Properties { get; } = new();
     }
 
@@ -202,10 +202,12 @@ namespace Microsoft.VisualStudio.Text
         }
     }
 
-    public sealed class FakeTrackingSpan(int start, int length) : ITrackingSpan
+    public sealed class FakeTrackingSpan(int start, int length, SpanTrackingMode mode)
+        : ITrackingSpan
     {
         public int Start { get; } = start;
         public int Length { get; } = length;
+        public SpanTrackingMode Mode { get; } = mode;
     }
 
     public readonly struct SnapshotSpan
@@ -258,10 +260,18 @@ namespace Microsoft.VisualStudio.Text
         {
             return HashCode.Combine(Snapshot, Span.Start, Span.Length);
         }
+
+        public static bool operator ==(SnapshotSpan left, SnapshotSpan right) => left.Equals(right);
+
+        public static bool operator !=(SnapshotSpan left, SnapshotSpan right) =>
+            !left.Equals(right);
     }
 
     public static class TextSnapshotExtensions
     {
+        public static string GetFileNameSafe(this ITextBuffer buffer) =>
+            buffer is FakeTextBuffer fake ? fake.FilePath : "";
+
         public static ITrackingSpan CreateTrackingSpan(
             this ITextSnapshot snapshot,
             int start,
@@ -269,7 +279,7 @@ namespace Microsoft.VisualStudio.Text
             SpanTrackingMode mode
         )
         {
-            return new FakeTrackingSpan(start, length);
+            return new FakeTrackingSpan(start, length, mode);
         }
 
         public static ITrackingSpan CreateTrackingSpan(
@@ -278,7 +288,20 @@ namespace Microsoft.VisualStudio.Text
             SpanTrackingMode mode
         )
         {
-            return new FakeTrackingSpan((int)span.Start, span.Length);
+            return new FakeTrackingSpan((int)span.Start, span.Length, mode);
+        }
+    }
+}
+
+namespace System
+{
+    public static class ExceptionLoggingExtensions
+    {
+        public static void Log(this Exception ex, string message) { }
+
+        public static Task LogAsync(this Exception ex)
+        {
+            return Task.CompletedTask;
         }
     }
 }
@@ -333,7 +356,7 @@ namespace TailwindCSSIntellisense.Completions
     }
 }
 
-namespace TailwindCSSIntellisense.ClassSort
+namespace TailwindCSSIntellisense.ClassOperations
 {
     public sealed class ClassSortUtilities
     {
@@ -390,16 +413,21 @@ namespace TailwindCSSIntellisense.Linting
 
         public ErrorSeverity GetErrorSeverity(ErrorType type) => GetErrorSeverityHandler(type);
 
-        public IEnumerable<(
+        public async IAsyncEnumerable<(
             string className,
             string errorMessage,
             IEnumerable<string> conflictingClasses
-        )> CheckForClassDuplicates(
+        )> CheckForClassDuplicatesAsync(
             IEnumerable<string> classes,
             ProjectCompletionValues projectCompletionValues
         )
         {
-            return CheckForClassDuplicatesHandler(classes, projectCompletionValues);
+            foreach (
+                var conflict in CheckForClassDuplicatesHandler(classes, projectCompletionValues)
+            )
+            {
+                yield return conflict;
+            }
         }
     }
 }
@@ -453,11 +481,11 @@ namespace TailwindCSSIntellisense.Linting.Validators
         protected bool IsAlreadyChecked(SnapshotSpan scope) => false;
 
         protected abstract IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span);
-        protected abstract IEnumerable<Error> ComputeErrors(SnapshotSpan span);
+        protected abstract IAsyncEnumerable<Error> ComputeErrorsAsync(SnapshotSpan span);
     }
 }
 
-namespace TailwindCSSIntellisense.ClassSort.Sorters
+namespace TailwindCSSIntellisense.ClassOperations.Sorters
 {
     internal static class SorterStringExtensions
     {
@@ -470,25 +498,16 @@ namespace TailwindCSSIntellisense.ClassSort.Sorters
             return value.StartsWith(prefix, comparison) ? value[prefix.Length..] : value;
         }
     }
-
-    internal sealed class CssSorter : Sorter
-    {
-        public override string[] Handled { get; } = [".css"];
-
-        protected override async IAsyncEnumerable<string> GetSegmentsAsync(
-            string filePath,
-            string input
-        )
-        {
-            yield return input;
-        }
-    }
 }
 
 namespace TailwindCSSIntellisense.Settings
 {
     public sealed class TailwindSettings
     {
+        public bool EnableTailwindCss { get; set; }
+        public List<string> ConfigurationFiles { get; set; } = [];
+        public SortClassesOptions SortClassesType { get; set; }
+        public SortClassesOptions CanonicalizeClassesType { get; set; } = SortClassesOptions.None;
         public bool UseCli { get; set; }
         public string? TailwindCliPath { get; set; }
         public CustomRegexes CustomRegexes { get; set; } = new();

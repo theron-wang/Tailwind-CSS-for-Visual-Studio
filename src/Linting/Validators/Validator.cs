@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text;
@@ -24,7 +25,7 @@ internal abstract class Validator : IDisposable
 
     private ITextSnapshot? _snapshot;
 
-    private readonly object _updateLock = new();
+    private readonly SemaphoreSlim _updateLock = new(1, 1);
 
     private List<Error> _errors = [];
 
@@ -87,16 +88,18 @@ internal abstract class Validator : IDisposable
         return _errors.Where(err => span.IntersectsWith(err.Span.GetSpan(snapshot)));
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Reliability",
+        "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync",
+        Justification = "FileAndForget is ok"
+    )]
     private void OnBufferChange(object sender, TextContentChangedEventArgs e)
     {
         if (_linterUtils.LinterEnabled())
         {
             _snapshot = e.After;
             ThreadHelper
-                .JoinableTaskFactory.StartOnIdle(() =>
-                {
-                    NormalUpdate(e);
-                })
+                .JoinableTaskFactory.RunAsync(() => NormalUpdateAsync(e))
                 .FileAndForget(nameof(TailwindCSSIntellisense) + "/Validator/OnBufferChange");
         }
     }
@@ -106,41 +109,53 @@ internal abstract class Validator : IDisposable
         if (_linterUtils.LinterEnabled())
         {
             ThreadHelper
-                .JoinableTaskFactory.StartOnIdle(ForceUpdate)
+                .JoinableTaskFactory.StartOnIdle(ForceUpdateAsync)
                 .FileAndForget(nameof(TailwindCSSIntellisense) + "/Validator/StartUpdate");
         }
     }
 
-    private void ForceUpdate()
+    private async Task ForceUpdateAsync()
     {
-        _errors.Clear();
-        _checkedSpans.Clear();
-
-        var scopes = GetScopes(
-            new SnapshotSpan(_buffer.CurrentSnapshot, 0, _buffer.CurrentSnapshot.Length)
-        );
-        foreach (var scope in scopes)
+        await _updateLock.WaitAsync();
+        try
         {
-            if (IsAlreadyChecked(scope))
+            _errors.Clear();
+            _checkedSpans.Clear();
+
+            var scopes = GetScopes(
+                new SnapshotSpan(_buffer.CurrentSnapshot, 0, _buffer.CurrentSnapshot.Length)
+            );
+            foreach (var scope in scopes)
             {
-                continue;
+                if (IsAlreadyChecked(scope))
+                {
+                    continue;
+                }
+
+                await foreach (var error in ComputeErrorsAsync(scope))
+                {
+                    _errors.Add(error);
+                }
+
+                InsertCheckedSpan(
+                    scope.Snapshot.CreateTrackingSpan(scope, SpanTrackingMode.EdgeExclusive),
+                    scope.Snapshot
+                );
             }
 
-            _errors.AddRange(ComputeErrors(scope));
-
-            InsertCheckedSpan(
-                scope.Snapshot.CreateTrackingSpan(scope, SpanTrackingMode.EdgeExclusive),
-                scope.Snapshot
-            );
+            Validated?.Invoke(null);
+            BufferValidated?.Invoke(_buffer);
         }
-
-        Validated?.Invoke(null);
-        BufferValidated?.Invoke(_buffer);
+        finally
+        {
+            _updateLock.Release();
+        }
     }
 
-    private void NormalUpdate(TextContentChangedEventArgs e)
+    private async Task NormalUpdateAsync(TextContentChangedEventArgs e)
     {
-        lock (_updateLock)
+        await _updateLock.WaitAsync();
+        try
         {
             var resolvedErrors = _errors.ToDictionary(err => err, err => err.Span.GetSpan(e.After));
             var resolvedChecked = _checkedSpans.ToDictionary(s => s, s => s.GetSpan(e.After));
@@ -190,7 +205,10 @@ internal abstract class Validator : IDisposable
                         continue;
                     }
 
-                    _errors.AddRange(ComputeErrors(scope));
+                    await foreach (var error in ComputeErrorsAsync(scope))
+                    {
+                        _errors.Add(error);
+                    }
 
                     var trackingSpan = scope.Snapshot.CreateTrackingSpan(
                         scope,
@@ -204,6 +222,10 @@ internal abstract class Validator : IDisposable
 
             Validated?.Invoke(update);
             BufferValidated?.Invoke(_buffer);
+        }
+        finally
+        {
+            _updateLock.Release();
         }
     }
 
@@ -274,5 +296,5 @@ internal abstract class Validator : IDisposable
 
     protected abstract IEnumerable<SnapshotSpan> GetScopes(SnapshotSpan span);
 
-    protected abstract IEnumerable<Error> ComputeErrors(SnapshotSpan span);
+    protected abstract IAsyncEnumerable<Error> ComputeErrorsAsync(SnapshotSpan span);
 }

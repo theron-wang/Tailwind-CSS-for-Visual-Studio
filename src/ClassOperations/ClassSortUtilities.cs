@@ -6,7 +6,7 @@ using Microsoft.VisualStudio.Threading;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Initialization;
 
-namespace TailwindCSSIntellisense.ClassSort;
+namespace TailwindCSSIntellisense.ClassOperations;
 
 [Export]
 [PartCreationPolicy(CreationPolicy.Shared)]

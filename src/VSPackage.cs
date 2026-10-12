@@ -53,11 +53,13 @@ namespace TailwindCSSIntellisense
         public const int SetUpTailwindCliCmdId = 0x0112;
         public const int SetUpTailwindWsCmdId = 0x0113;
         public const int SetUpTailwindGlobalCmdId = 0x0114;
-        public const int SortInOpenFileCmdId = 0x0115;
-        public const int SortEntireSolutionCmdId = 0x0116;
+        public const int SortClassesInOpenFileCmdId = 0x0115;
+        public const int SortClassesInSolutionCmdId = 0x0116;
         public const int SetAsPackageConfigFileCmdId = 0x0117;
         public const int RemoveAsPackageConfigFileCmdId = 0x0118;
         public const int SetAsOutputCssFileMenu = 0x0119;
+        public const int CanonicalizeClassesInOpenFileCmdId = 0x011A;
+        public const int CanonicalizeClassesInSolutionCmdId = 0x011B;
         public const int SetAsOutputCssFileCmdId = 0x0200;
         public const int tailwindLogo = 0x0001;
     }

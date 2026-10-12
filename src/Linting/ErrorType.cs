@@ -9,4 +9,5 @@ public enum ErrorType
     DeprecatedAtRule,
     UsedBlocklistClass,
     InvalidSource,
+    SuggestCanonicalClasses,
 }

@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Community.VisualStudio.Toolkit;
 using Microsoft.VisualStudio.Shell;
@@ -56,15 +57,19 @@ internal class ClassRegexHelper
         TimeSpan.FromSeconds(1)
     );
 
-    private static List<Regex>? _customRazorRegexes;
-    private static List<Regex>? _customNormalRegexes;
-    private static List<Regex>? _customJavaScriptRegexes;
+    // Build privately and publish once; readers retain a complete settings snapshot.
+    private sealed class RegexConfiguration(TailwindSettings? settings)
+    {
+        public TailwindSettings? Settings { get; } = settings;
+        public List<Regex>? Razor;
+        public List<Regex>? Normal;
+        public List<Regex>? JavaScript;
+        public bool OverrideRazor;
+        public bool OverrideNormal;
+        public bool OverrideJavaScript;
+    }
 
-    private static bool _overrideRazor;
-    private static bool _overrideNormal;
-    private static bool _overrideJavaScript;
-
-    private static TailwindSettings? _settingsCache;
+    private static RegexConfiguration _regexConfiguration = new(null);
     public static Func<Task<TailwindSettings>>? GetTailwindSettings;
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage(
@@ -72,39 +77,38 @@ internal class ClassRegexHelper
         "VSTHRD102:Implement internal logic asynchronously",
         Justification = "GetTailwindSettings is only non-null when some sort of settings is already cached"
     )]
-    private static void UpdateTailwindSettingsIfNeeded()
+    private static RegexConfiguration GetRegexConfiguration()
     {
-        if (GetTailwindSettings is not null)
+        var getSettings = GetTailwindSettings;
+        var settings = getSettings is null
+            ? null
+            : ThreadHelper.JoinableTaskFactory.Run(getSettings);
+        var current = Volatile.Read(ref _regexConfiguration);
+        if (settings == current.Settings)
         {
-            var settings = ThreadHelper.JoinableTaskFactory.Run(GetTailwindSettings);
-
-            if (settings != _settingsCache)
-            {
-                _settingsCache = settings;
-                SetCustomRegex(settings?.CustomRegexes);
-            }
+            return current;
         }
+
+        var updated = CreateRegexConfiguration(settings);
+        return Interlocked.CompareExchange(ref _regexConfiguration, updated, current) == current
+            ? updated
+            : Volatile.Read(ref _regexConfiguration);
     }
 
-    private static void SetCustomRegex(CustomRegexes? custom)
+    private static RegexConfiguration CreateRegexConfiguration(TailwindSettings? settings)
     {
+        var configuration = new RegexConfiguration(settings);
+        var custom = settings?.CustomRegexes;
         if (custom is null)
         {
-            _customRazorRegexes = null;
-            _customNormalRegexes = null;
-            _customJavaScriptRegexes = null;
-            _overrideRazor = false;
-            _overrideNormal = false;
-            _overrideJavaScript = false;
-            return;
+            return configuration;
         }
-
         try
         {
             if (custom.Razor is not null)
             {
-                _overrideRazor = custom.Razor.Override;
-                _customRazorRegexes = [];
+                configuration.OverrideRazor = custom.Razor.Override;
+                configuration.Razor = [];
 
                 foreach (var value in custom.Razor.Values)
                 {
@@ -115,18 +119,17 @@ internal class ClassRegexHelper
                         VS.MessageBox.ShowError(
                             $"Invalid custom regex: {value}. The regex must contain a capture group named 'content'."
                         );
-                        ResetCustomRegex();
-                        return;
+                        return new(settings);
                     }
 
-                    _customRazorRegexes.Add(newRegex);
+                    configuration.Razor.Add(newRegex);
                 }
             }
 
             if (custom.HTML is not null)
             {
-                _overrideNormal = custom.HTML.Override;
-                _customNormalRegexes = [];
+                configuration.OverrideNormal = custom.HTML.Override;
+                configuration.Normal = [];
 
                 foreach (var value in custom.HTML.Values)
                 {
@@ -137,18 +140,17 @@ internal class ClassRegexHelper
                         VS.MessageBox.ShowError(
                             $"Invalid custom regex: {value}. The regex must contain a capture group named 'content'."
                         );
-                        ResetCustomRegex();
-                        return;
+                        return new(settings);
                     }
 
-                    _customNormalRegexes.Add(newRegex);
+                    configuration.Normal.Add(newRegex);
                 }
             }
 
             if (custom.JavaScript is not null)
             {
-                _overrideJavaScript = custom.JavaScript.Override;
-                _customJavaScriptRegexes = [];
+                configuration.OverrideJavaScript = custom.JavaScript.Override;
+                configuration.JavaScript = [];
 
                 foreach (var value in custom.JavaScript.Values)
                 {
@@ -159,15 +161,14 @@ internal class ClassRegexHelper
                         VS.MessageBox.ShowError(
                             $"Invalid custom regex: {value}. The regex must contain a capture group named 'content'."
                         );
-                        ResetCustomRegex();
-                        return;
+                        return new(settings);
                     }
 
-                    _customJavaScriptRegexes.Add(newRegex);
+                    configuration.JavaScript.Add(newRegex);
                 }
             }
 
-            return;
+            return configuration;
         }
         catch (Exception ex)
         {
@@ -175,18 +176,8 @@ internal class ClassRegexHelper
             VS.MessageBox.ShowError(
                 "Invalid custom regex. Please check the output window for more details."
             );
-            ResetCustomRegex();
+            return new(settings);
         }
-    }
-
-    private static void ResetCustomRegex()
-    {
-        _customRazorRegexes = null;
-        _customNormalRegexes = null;
-        _customJavaScriptRegexes = null;
-        _overrideRazor = false;
-        _overrideNormal = false;
-        _overrideJavaScript = false;
     }
 
     /// <summary>
@@ -205,19 +196,23 @@ internal class ClassRegexHelper
     /// </summary>
     public static IEnumerable<Match> GetClassesNormal(string text)
     {
-        UpdateTailwindSettingsIfNeeded();
+        var configuration = GetRegexConfiguration();
 
         IEnumerable<Match> matches;
-        if (!_overrideNormal || _customNormalRegexes is null || _customNormalRegexes.Count == 0)
+        if (
+            !configuration.OverrideNormal
+            || configuration.Normal is null
+            || configuration.Normal.Count == 0
+        )
         {
             matches = (
-                (_customNormalRegexes?.SelectMany(regex => GetCustomRegexMatches(regex, text)))
+                (configuration.Normal?.SelectMany(regex => GetCustomRegexMatches(regex, text)))
                 ?? []
             ).Concat(_classRegex.Matches(text).Cast<Match>());
         }
         else
         {
-            matches = _customNormalRegexes.SelectMany(regex => GetCustomRegexMatches(regex, text));
+            matches = configuration.Normal.SelectMany(regex => GetCustomRegexMatches(regex, text));
         }
 
         return matches.SelectMany(
@@ -264,18 +259,22 @@ internal class ClassRegexHelper
     /// </summary>
     public static IEnumerable<Match> GetClassesRazor(string text)
     {
-        UpdateTailwindSettingsIfNeeded();
+        var configuration = GetRegexConfiguration();
 
         IEnumerable<Match> matches;
-        if (!_overrideRazor || _customRazorRegexes is null || _customRazorRegexes.Count == 0)
+        if (
+            !configuration.OverrideRazor
+            || configuration.Razor is null
+            || configuration.Razor.Count == 0
+        )
         {
             matches = (
-                (_customRazorRegexes?.SelectMany(regex => GetCustomRegexMatches(regex, text))) ?? []
+                (configuration.Razor?.SelectMany(regex => GetCustomRegexMatches(regex, text))) ?? []
             ).Concat(_razorClassRegex.Matches(text).Cast<Match>());
         }
         else
         {
-            matches = _customRazorRegexes.SelectMany(regex => GetCustomRegexMatches(regex, text));
+            matches = configuration.Razor.SelectMany(regex => GetCustomRegexMatches(regex, text));
         }
 
         return matches.SelectMany(
@@ -338,23 +337,23 @@ internal class ClassRegexHelper
     /// </summary>
     public static IEnumerable<Match> GetClassesJavaScript(string text)
     {
-        UpdateTailwindSettingsIfNeeded();
+        var configuration = GetRegexConfiguration();
 
         IEnumerable<Match> matches;
         if (
-            !_overrideJavaScript
-            || _customJavaScriptRegexes is null
-            || _customJavaScriptRegexes.Count == 0
+            !configuration.OverrideJavaScript
+            || configuration.JavaScript is null
+            || configuration.JavaScript.Count == 0
         )
         {
             matches = (
-                (_customJavaScriptRegexes?.SelectMany(regex => GetCustomRegexMatches(regex, text)))
+                (configuration.JavaScript?.SelectMany(regex => GetCustomRegexMatches(regex, text)))
                 ?? []
             ).Concat(_javaScriptClassRegex.Matches(text).Cast<Match>());
         }
         else
         {
-            matches = _customJavaScriptRegexes.SelectMany(regex =>
+            matches = configuration.JavaScript.SelectMany(regex =>
                 GetCustomRegexMatches(regex, text)
             );
         }
@@ -406,9 +405,9 @@ internal class ClassRegexHelper
     /// </remarks>
     public static IEnumerable<Match> GetClassesRazorEnumerator(string text)
     {
-        UpdateTailwindSettingsIfNeeded();
+        var configuration = GetRegexConfiguration();
 
-        foreach (var customRegex in _customRazorRegexes ?? [])
+        foreach (var customRegex in configuration.Razor ?? [])
         {
             var lastMatchIndex = 0;
             while (
@@ -440,7 +439,11 @@ internal class ClassRegexHelper
             }
         }
 
-        if (!_overrideRazor || _customRazorRegexes is null || _customRazorRegexes.Count == 0)
+        if (
+            !configuration.OverrideRazor
+            || configuration.Razor is null
+            || configuration.Razor.Count == 0
+        )
         {
             var lastMatchIndex = 0;
 
@@ -502,9 +505,13 @@ internal class ClassRegexHelper
     /// </remarks>
     public static IEnumerable<Match> GetClassesNormalEnumerator(string text)
     {
-        UpdateTailwindSettingsIfNeeded();
+        var configuration = GetRegexConfiguration();
 
-        if (!_overrideNormal || _customNormalRegexes is null || _customNormalRegexes.Count == 0)
+        if (
+            !configuration.OverrideNormal
+            || configuration.Normal is null
+            || configuration.Normal.Count == 0
+        )
         {
             var lastMatchIndex = 0;
 
@@ -538,7 +545,7 @@ internal class ClassRegexHelper
             }
         }
 
-        foreach (var customRegex in _customNormalRegexes ?? [])
+        foreach (var customRegex in configuration.Normal ?? [])
         {
             var lastMatchIndex = 0;
             while (
@@ -582,12 +589,12 @@ internal class ClassRegexHelper
     /// </remarks>
     public static IEnumerable<Match> GetClassesJavaScriptEnumerator(string text)
     {
-        UpdateTailwindSettingsIfNeeded();
+        var configuration = GetRegexConfiguration();
 
         if (
-            !_overrideJavaScript
-            || _customJavaScriptRegexes is null
-            || _customJavaScriptRegexes.Count == 0
+            !configuration.OverrideJavaScript
+            || configuration.JavaScript is null
+            || configuration.JavaScript.Count == 0
         )
         {
             var lastMatchIndex = 0;
@@ -624,7 +631,7 @@ internal class ClassRegexHelper
             }
         }
 
-        foreach (var customRegex in _customJavaScriptRegexes ?? [])
+        foreach (var customRegex in configuration.JavaScript ?? [])
         {
             var lastMatchIndex = 0;
             while (
