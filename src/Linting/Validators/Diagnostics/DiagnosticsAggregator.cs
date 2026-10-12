@@ -2,9 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
-using System.Threading;
 using Microsoft.VisualStudio.Text;
 using TailwindCSSIntellisense.Completions;
 
@@ -22,8 +20,7 @@ internal class DiagnosticsAggregator([ImportMany] IEnumerable<DiagnosticsChecker
         ProjectCompletionValues projectCompletionValues,
         Func<string, IEnumerable<Match>> findClasses,
         Func<string, IEnumerable<Match>> splitClasses,
-        Func<SnapshotSpan, bool> shouldNotAddErrors,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default
+        Func<SnapshotSpan, bool> shouldNotAddErrors
     )
     {
         var applicableGenerators = isCss ? _generators : _generators.Where(g => !g.IsCssOnly);
@@ -41,7 +38,7 @@ internal class DiagnosticsAggregator([ImportMany] IEnumerable<DiagnosticsChecker
                         splitClasses,
                         shouldNotAddErrors
                     )
-                    .GetAsyncEnumerator(cancellationToken);
+                    .GetAsyncEnumerator();
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

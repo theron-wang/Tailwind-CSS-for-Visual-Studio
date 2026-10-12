@@ -158,7 +158,7 @@ internal sealed class ClassOperationService : IDisposable
 
         var version = Volatile.Read(ref _configurationVersion);
         string content;
-        System.Text.Encoding encoding;
+        Encoding encoding;
         using (var file = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
         using (
             var reader = new StreamReader(
