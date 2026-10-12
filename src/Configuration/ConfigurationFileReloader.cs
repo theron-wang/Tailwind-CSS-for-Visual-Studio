@@ -36,10 +36,9 @@ public sealed class ConfigurationFileReloader : IDisposable
     /// <summary>
     /// Initializes the class to subscribe to relevant events
     /// </summary>
-    /// <param name="fromNewProject">Should only be called from <see cref="TailwindCSSIntellisensePackage"/> to reset the configuration file path</param>
     public async Task InitializeAsync()
     {
-        if (_subscribed == false)
+        if (!_subscribed)
         {
             VS.Events.DocumentEvents.Saved += OnFileSave;
             SettingsProvider.OnSettingsChanged += OnSettingsChangedAsync;

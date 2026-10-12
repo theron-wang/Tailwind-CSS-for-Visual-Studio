@@ -66,7 +66,7 @@ internal sealed class ColorCssTaggerProvider : IViewTaggerProvider
                 // Find offset (i.e. space to @apply)
                 var text = scope.GetText();
 
-                int apply = text.IndexOf("@apply");
+                int apply = text.IndexOf("@apply", StringComparison.Ordinal);
 
                 // CSS parser does not guarantee it contains @apply
                 if (apply == -1)
@@ -87,7 +87,7 @@ internal sealed class ColorCssTaggerProvider : IViewTaggerProvider
                 foreach (var @class in classes)
                 {
                     // Keep track of index to account for duplicate classes
-                    index = text.IndexOf(@class, index + 1);
+                    index = text.IndexOf(@class, index + 1, StringComparison.Ordinal);
 
                     yield return new SnapshotSpan(
                         scope.Snapshot,

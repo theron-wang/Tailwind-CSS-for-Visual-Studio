@@ -19,7 +19,15 @@ internal abstract class TailwindCliInterop : IDisposable
     [Import]
     internal SettingsProvider SettingsProvider { get; set; } = null!;
 
-    protected TailwindSettings _settings = null!;
+    private TailwindSettings? _currentSettings;
+    protected bool AreSettingsInitialized => _currentSettings is not null;
+    protected TailwindSettings _settings
+    {
+        get =>
+            _currentSettings
+            ?? throw new InvalidOperationException("Tailwind settings are not initialized.");
+        set => _currentSettings = value;
+    }
     private bool _settingsSubscribed;
 
     /// <summary>
@@ -74,7 +82,7 @@ internal abstract class TailwindCliInterop : IDisposable
     {
         try
         {
-            return process != null && process.HasExited == false;
+            return process != null && !process.HasExited;
         }
         catch (InvalidOperationException)
         {

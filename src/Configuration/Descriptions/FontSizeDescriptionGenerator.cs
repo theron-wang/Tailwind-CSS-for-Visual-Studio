@@ -19,9 +19,13 @@ internal class FontSizeDescriptionGenerator : DescriptionGenerator
             {
                 return $"font-size: {value};";
             }
-            else if (value is IEnumerable<string> array && array.Count() == 2)
+            else if (value is IEnumerable<string> array)
             {
                 var list = array.ToList();
+                if (list.Count != 2)
+                {
+                    return null;
+                }
 
                 if (
                     list[1].Contains("lineHeight")
@@ -33,8 +37,8 @@ internal class FontSizeDescriptionGenerator : DescriptionGenerator
 
                     var fontSize = list[0];
                     var lineHeight = values!["lineHeight"];
-                    var letterSpacing = values!["letterSpacing"];
-                    var fontWeight = values!["fontWeight"];
+                    var letterSpacing = values["letterSpacing"];
+                    var fontWeight = values["fontWeight"];
 
                     return $"font-size: {fontSize};line-height: {lineHeight};letter-spacing: {letterSpacing};font-weight: {fontWeight};";
                 }

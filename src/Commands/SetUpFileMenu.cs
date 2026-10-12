@@ -7,7 +7,7 @@ using Microsoft.VisualStudio.Shell;
 using TailwindCSSIntellisense.Node;
 using TailwindCSSIntellisense.Settings;
 
-namespace TailwindCSSIntellisense;
+namespace TailwindCSSIntellisense.Commands;
 
 /// <summary>
 /// The menu for all set up Tailwind commands

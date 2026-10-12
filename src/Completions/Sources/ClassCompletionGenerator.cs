@@ -74,6 +74,7 @@ internal abstract class ClassCompletionGenerator : IDisposable
     /// Gets relevant Tailwind CSS completions for a certain input
     /// </summary>
     /// <param name="classRaw">The current class text from the caret to the previous break area (i.e. ' ')</param>
+    /// <param name="isRazor">Whether the completions are for a Razor document.</param>
     /// <returns>A list of completions</returns>
     protected List<Completion> GetCompletions(string classRaw, bool isRazor = false)
     {
@@ -149,7 +150,7 @@ internal abstract class ClassCompletionGenerator : IDisposable
         // If this is in v4+, also contains the prefix
         var variantsAsString = string.Join(":", variants);
         var prefixInsert = "";
-        if (string.IsNullOrWhiteSpace(variantsAsString) == false)
+        if (!string.IsNullOrWhiteSpace(variantsAsString))
         {
             variantsAsString += ":";
         }
@@ -168,30 +169,9 @@ internal abstract class ClassCompletionGenerator : IDisposable
                 .Replace("@(\"@\")", "@");
         }
 
-        var segments = currentClass.Split('-');
-
         IEnumerable<TailwindClass> scope = _projectCompletionValues.Classes;
-        string currentClassStem = "!";
-        if (string.IsNullOrWhiteSpace(currentClass))
-        {
-            if (!isImportant)
-            {
-                currentClassStem = "";
-            }
-        }
-        else
-        {
-            if (currentClass.Length > 0 && currentClass[0] == '-')
-            {
-                currentClassStem = $"-{currentClass.Split('-')[1]}";
-            }
-            else
-            {
-                currentClassStem = currentClass.Split('-')[0];
-            }
-        }
 
-        if (currentClass.StartsWith("-") == false)
+        if (!currentClass.StartsWith("-"))
         {
             scope = scope.OrderBy(c => c.Name.StartsWith("-"));
         }
@@ -646,7 +626,7 @@ internal abstract class ClassCompletionGenerator : IDisposable
                 _projectCompletionValues
             );
 
-            if (variants.Contains(variant) == false)
+            if (!variants.Contains(variant))
             {
                 var insert =
                     prefixInsert
@@ -718,7 +698,7 @@ internal abstract class ClassCompletionGenerator : IDisposable
         {
             foreach (var variant in _projectCompletionValues.PluginVariants)
             {
-                if (variants.Contains(variant) == false)
+                if (!variants.Contains(variant))
                 {
                     var insert =
                         prefixInsert
@@ -748,7 +728,7 @@ internal abstract class ClassCompletionGenerator : IDisposable
         {
             foreach (var screen in _projectCompletionValues.Breakpoints.Keys)
             {
-                if (variants.Contains(screen) == false)
+                if (!variants.Contains(screen))
                 {
                     var insert =
                         prefixInsert

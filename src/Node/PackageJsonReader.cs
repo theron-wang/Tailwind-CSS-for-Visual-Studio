@@ -15,7 +15,7 @@ internal sealed class PackageJsonReader
     internal SettingsProvider SettingsProvider { get; set; } = null!;
 
     internal async Task<(bool exists, string? fileName)> ScriptExistsAsync(
-        string configFileName,
+        string? configFileName,
         string? scriptName
     )
     {
@@ -41,12 +41,14 @@ internal sealed class PackageJsonReader
                 return (exists: false, fileName: null);
             }
 
-            packageJsonFileName = Path.Combine(
-                Path.GetDirectoryName(configFileName),
-                "package.json"
-            );
+            var directory = Path.GetDirectoryName(configFileName);
+            if (directory is null)
+            {
+                return (exists: false, fileName: null);
+            }
+            packageJsonFileName = Path.Combine(directory, "package.json");
 
-            if (packageJsonFileName is null || !File.Exists(packageJsonFileName))
+            if (!File.Exists(packageJsonFileName))
             {
                 return (exists: false, fileName: null);
             }

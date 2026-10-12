@@ -299,6 +299,6 @@ public class DiagnosticsTests : IDisposable
         }
 
         Assert.NotNull(field);
-        field!.SetValue(instance, value);
+        field.SetValue(instance, value);
     }
 }

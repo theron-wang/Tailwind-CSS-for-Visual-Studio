@@ -48,7 +48,7 @@ internal class JavaScriptAsyncCompletionSource : ClassCompletionGenerator, IAsyn
         CancellationToken token
     )
     {
-        if (JSParser.IsInClassScope(triggerLocation.Snapshot, triggerLocation, out _) == false)
+        if (!JSParser.IsInClassScope(triggerLocation.Snapshot, triggerLocation, out _))
         {
             return CompletionStartData.DoesNotParticipateInCompletion;
         }
@@ -88,18 +88,11 @@ internal class JavaScriptAsyncCompletionSource : ClassCompletionGenerator, IAsyn
         }
 
         if (
-            JSParser.IsCursorInClassScope(session.TextView, out var classSpan) == false
-            || classSpan is null
+            !JSParser.IsCursorInClassScope(session.TextView, out var classSpan) || classSpan is null
         )
         {
             return new CompletionContext([], null);
         }
-
-        var truncatedClassSpan = new SnapshotSpan(
-            classSpan.Value.Start,
-            session.TextView.Caret.Position.BufferPosition
-        );
-        string classText = truncatedClassSpan.GetText();
 
         var items = GetCompletions(applicableToSpan.GetText())
             .Select(c =>

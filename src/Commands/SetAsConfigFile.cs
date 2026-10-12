@@ -7,7 +7,7 @@ using Microsoft.VisualStudio.Shell;
 using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Settings;
 
-namespace TailwindCSSIntellisense;
+namespace TailwindCSSIntellisense.Commands;
 
 [Command(PackageGuids.guidVSPackageCmdSetString, PackageIds.SetAsConfigFileCmdId)]
 internal sealed class SetAsConfigFile : BaseCommand<SetAsConfigFile>

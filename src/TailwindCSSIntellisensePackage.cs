@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Community.VisualStudio.Toolkit;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Threading;
 using TailwindCSSIntellisense.Build;
 using TailwindCSSIntellisense.ClassOperations;
 using TailwindCSSIntellisense.Completions;
@@ -76,7 +75,7 @@ public sealed class TailwindCSSIntellisensePackage : AsyncPackage, IDisposable
 
     private TailwindBuildProcess _buildProcess = null!;
     private ProjectConfigurationInitializer _projectConfigurationInitializer = null!;
-    private ClassOperationService _classOperationService = null!;
+    private ClassOperationService? _classOperationService;
     private ConfigurationFileReloader _configurationFileReloader = null!;
 
     private readonly SemaphoreSlim _initializeLock = new(1, 1);
@@ -159,7 +158,7 @@ public sealed class TailwindCSSIntellisensePackage : AsyncPackage, IDisposable
             await _buildProcess.InitializeAsync(true);
             await _projectConfigurationInitializer.InitializeAsync();
             await _configurationFileReloader.InitializeAsync();
-            await _classOperationService.InitializeAsync();
+            await _classOperationService!.InitializeAsync();
         }
         catch (Exception ex)
         {

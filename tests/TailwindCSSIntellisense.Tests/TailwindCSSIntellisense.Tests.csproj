@@ -26,6 +26,22 @@
 
   <ItemGroup>
     <Compile
+      Include="../../src/Configuration/ConfigFileScanner.cs"
+      Link="Source/Configuration/ConfigFileScanner.cs"
+    />
+    <Compile
+      Include="../../src/Configuration/Descriptions/DescriptionGenerator.cs"
+      Link="Source/Configuration/Descriptions/DescriptionGenerator.cs"
+    />
+    <Compile
+      Include="../../src/Configuration/Descriptions/FontSizeDescriptionGenerator.cs"
+      Link="Source/Configuration/Descriptions/FontSizeDescriptionGenerator.cs"
+    />
+    <Compile
+      Include="../../src/Helpers/DefaultConfigurationFileNames.cs"
+      Link="Source/Helpers/DefaultConfigurationFileNames.cs"
+    />
+    <Compile
       Include="../../src/ClassOperations/ClassOperation.cs"
       Link="Source/ClassOperations/ClassOperation.cs"
     />

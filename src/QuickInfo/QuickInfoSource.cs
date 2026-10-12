@@ -1,5 +1,4 @@
-﻿using System;
-using System.Linq;
+﻿using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Language.Intellisense;
@@ -79,7 +78,7 @@ internal abstract class QuickInfoSource : IAsyncQuickInfoSource
                 SpanTrackingMode.EdgeInclusive
             );
 
-            if (string.IsNullOrEmpty(desc) == false)
+            if (!string.IsNullOrEmpty(desc))
             {
                 session.Properties.AddProperty(PropertyKey, true);
 

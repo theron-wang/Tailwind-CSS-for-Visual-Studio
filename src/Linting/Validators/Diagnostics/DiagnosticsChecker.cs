@@ -60,7 +60,7 @@ internal abstract class DiagnosticsChecker(bool isCssOnly, ErrorType errorType)
     /// Content = class1 class2
     /// </summary>
     /// <remarks>
-    /// Use instead of <seealso cref="Parsers.HtmlParser.GetClassAttributeValue(SnapshotPoint)"/> since this also gives the class= and quotation marks
+    /// Includes the class= prefix and quotation marks as well as the class attribute value.
     /// </remarks>
     protected (SnapshotPoint startOfScope, string? scope, string? content) GetFullScope(
         SnapshotSpan span,
@@ -120,9 +120,9 @@ internal abstract class DiagnosticsChecker(bool isCssOnly, ErrorType errorType)
         {
             var index = 0;
 
-            while (index < classContent!.Length)
+            while (index < classContent.Length)
             {
-                index = classContent.IndexOf(className, index);
+                index = classContent.IndexOf(className, index, StringComparison.Ordinal);
 
                 if (index == -1)
                 {

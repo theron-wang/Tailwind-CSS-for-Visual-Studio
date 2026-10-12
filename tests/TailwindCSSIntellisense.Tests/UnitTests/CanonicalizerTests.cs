@@ -274,11 +274,9 @@ public class CanonicalizerTests
         var response = new TaskCompletionSource<string[]>(
             TaskCreationOptions.RunContinuationsAsynchronously
         );
-        using var canonicalizer = new CanonicalizerStub
-        {
-            Handler = classes =>
-                classes.Length == 0 ? Task.FromResult(Array.Empty<string>()) : response.Task,
-        };
+        using var canonicalizer = new CanonicalizerStub();
+        canonicalizer.Handler = classes =>
+            classes.Length == 0 ? Task.FromResult(Array.Empty<string>()) : response.Task;
 
         var canonicalizing = canonicalizer.CanonicalizeAsync(["text-[#fff]"], FilePath);
 
@@ -292,10 +290,8 @@ public class CanonicalizerTests
     public async Task Canonicalize_PropagatesCliFailures()
     {
         var failure = new InvalidOperationException("CLI failed");
-        using var canonicalizer = new CanonicalizerStub
-        {
-            Handler = _ => Task.FromException<string[]>(failure),
-        };
+        using var canonicalizer = new CanonicalizerStub();
+        canonicalizer.Handler = _ => Task.FromException<string[]>(failure);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             canonicalizer.CanonicalizeAsync(["text-[#fff]"], FilePath)

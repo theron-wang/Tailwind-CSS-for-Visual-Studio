@@ -211,7 +211,7 @@ public sealed class SettingsProvider : IDisposable
                         ?? "";
                     if (
                         buildPair.Input == null
-                        || File.Exists(buildPair.Input) == false
+                        || !File.Exists(buildPair.Input)
                         || inputFiles.Contains(buildPair.Input)
                     )
                     {
@@ -238,7 +238,7 @@ public sealed class SettingsProvider : IDisposable
                     );
 #pragma warning restore CS8601 // Possible null reference assignment.
 
-                    if (string.IsNullOrWhiteSpace(config.Path) || File.Exists(config.Path) == false)
+                    if (string.IsNullOrWhiteSpace(config.Path) || !File.Exists(config.Path))
                     {
                         projectSettings.ConfigurationFiles.Remove(config);
                         i--;
@@ -280,7 +280,7 @@ public sealed class SettingsProvider : IDisposable
                 BuildFiles = projectSettings.BuildFiles ?? [],
                 PackageConfigurationFile = PathHelpers.GetAbsolutePath(
                     activeProjectPath,
-                    projectSettings?.PackageConfigurationFile?.Trim()
+                    projectSettings.PackageConfigurationFile?.Trim()
                 ),
                 AutomaticallyMinify = general.AutomaticallyMinify,
                 TailwindCliPath = general.TailwindCliPath,
@@ -336,7 +336,7 @@ public sealed class SettingsProvider : IDisposable
             {
                 var config = settings.ConfigurationFiles[i];
 
-                if (string.IsNullOrWhiteSpace(config.Path) || File.Exists(config.Path) == false)
+                if (string.IsNullOrWhiteSpace(config.Path) || !File.Exists(config.Path))
                 {
                     settings.ConfigurationFiles.Remove(config);
                     i--;
@@ -348,7 +348,7 @@ public sealed class SettingsProvider : IDisposable
         {
             var buildPair = settings.BuildFiles[i];
 
-            if (string.IsNullOrWhiteSpace(buildPair.Input) || File.Exists(buildPair.Input) == false)
+            if (string.IsNullOrWhiteSpace(buildPair.Input) || !File.Exists(buildPair.Input))
             {
                 settings.BuildFiles.Remove(buildPair);
                 i--;
@@ -389,6 +389,7 @@ public sealed class SettingsProvider : IDisposable
         }
 
         // Build list of config files not used as build inputs, with paths made relative to project root.
+        var configurationRoot = projectRoot;
         List<ConfigurationFile> configurationFiles =
         [
             .. settings
@@ -401,7 +402,7 @@ public sealed class SettingsProvider : IDisposable
                 {
                     return new ConfigurationFile()
                     {
-                        Path = PathHelpers.GetRelativePath(cf.Path.Trim(), projectRoot)!,
+                        Path = PathHelpers.GetRelativePath(cf.Path.Trim(), configurationRoot)!,
                     };
                 }),
         ];
@@ -434,7 +435,10 @@ public sealed class SettingsProvider : IDisposable
                     {
                         File.Delete(Path.Combine(projectRoot, ExtensionConfigFileName));
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        ex.Log();
+                    }
                 }
             }
             finally
@@ -531,9 +535,9 @@ public sealed class SettingsProvider : IDisposable
 
     private async Task<string?> GetDesiredConfigurationDirectoryAsync(string? configPath)
     {
-        var projects = await VS.Solutions.GetAllProjectsAsync();
+        var projects = (await VS.Solutions.GetAllProjectsAsync()).ToList();
 
-        if (projects.Any() == false || string.IsNullOrWhiteSpace(configPath))
+        if (projects.Count == 0 || string.IsNullOrWhiteSpace(configPath))
         {
             return null;
         }
@@ -548,10 +552,14 @@ public sealed class SettingsProvider : IDisposable
         foreach (var p in projects)
         {
             var projectRoot = Path.GetDirectoryName(p.FullPath);
+            if (projectRoot is null)
+            {
+                continue;
+            }
 
             var relativePath = PathHelpers.GetRelativePath(configPath, projectRoot)!;
 
-            if (!configPath.StartsWith(".."))
+            if (!relativePath.StartsWith("..", StringComparison.Ordinal))
             {
                 var numSlashes = relativePath.Count(c => c == Path.DirectorySeparatorChar);
 
@@ -589,10 +597,10 @@ public sealed class SettingsProvider : IDisposable
         }
 
         var projects = (await VS.Solutions.GetAllProjectsAsync(ProjectStateFilter.All))
-            ?.OrderBy(p => p.FullPath, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(p => p.FullPath, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        if (projects == null || projects.Any() == false)
+        if (projects.Count == 0)
         {
             var miscProjectPath = await FileFinder.GetCurrentMiscellaneousProjectPathAsync();
 
@@ -600,28 +608,23 @@ public sealed class SettingsProvider : IDisposable
         }
         else
         {
-            foreach (var p in projects)
+            var projectDirectories = projects
+                .Select(p => Path.GetDirectoryName(p.FullPath))
+                .OfType<string>()
+                .ToList();
+            foreach (var directory in projectDirectories)
             {
-                if (
-                    File.Exists(
-                        Path.Combine(Path.GetDirectoryName(p.FullPath), ExtensionConfigFileName)
-                    )
-                )
+                if (File.Exists(Path.Combine(directory, ExtensionConfigFileName)))
                 {
-                    return Path.GetDirectoryName(p.FullPath);
+                    return directory;
                 }
             }
 
-            return Path.GetDirectoryName(
-                projects
-                    .FirstOrDefault(p =>
-                        DefaultConfigurationFileNames.Names.Any(n =>
-                            File.Exists(Path.Combine(Path.GetDirectoryName(p.FullPath), n))
-                        )
+            return projectDirectories.FirstOrDefault(directory =>
+                    DefaultConfigurationFileNames.Names.Any(name =>
+                        File.Exists(Path.Combine(directory, name))
                     )
-                    ?.FullPath
-                    ?? projects.First().FullPath
-            );
+                ) ?? projectDirectories.FirstOrDefault();
         }
     }
 

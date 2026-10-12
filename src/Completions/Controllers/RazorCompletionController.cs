@@ -117,10 +117,7 @@ internal sealed class RazorCommandFilter : IOleCommandTarget
         }
 
         // Is the caret in a class="" scope?
-        if (
-            RazorParser.IsCursorInClassScope(_textView, out var classSpan) == false
-            || classSpan is null
-        )
+        if (!RazorParser.IsCursorInClassScope(_textView, out var classSpan) || classSpan is null)
         {
             return _next.Exec(pguidCmdGroup, nCmdID, nCmdexecopt, pvaIn, pvaOut);
         }
@@ -295,7 +292,7 @@ internal sealed class RazorCommandFilter : IOleCommandTarget
 
     private bool RetriggerIntellisense(string classText)
     {
-        return classText != null && classText.EndsWith(":");
+        return classText.EndsWith(":");
     }
 
     /// <summary>
@@ -401,7 +398,7 @@ internal sealed class RazorCommandFilter : IOleCommandTarget
     /// </summary>
     bool StartSession()
     {
-        if (_currentSession != null && _currentSession.IsDismissed == false)
+        if (_currentSession != null && !_currentSession.IsDismissed)
         {
             return false;
         }
@@ -432,7 +429,7 @@ internal sealed class RazorCommandFilter : IOleCommandTarget
 
             if (_currentSession is not null)
             {
-                _currentSession.Dismissed += (sender, args) => _currentSession = null;
+                _currentSession.Dismissed += (_, _) => _currentSession = null;
 
                 if (_currentSession.SelectedCompletionSet is TailwindCssCompletionSet)
                 {
@@ -458,7 +455,7 @@ internal sealed class RazorCommandFilter : IOleCommandTarget
                 snapshot.CreateTrackingPoint(caret, PointTrackingMode.Positive),
                 true
             );
-            _currentSession.Dismissed += (sender, args) => _currentSession = null;
+            _currentSession.Dismissed += (_, _) => _currentSession = null;
             _currentSession.Start();
         }
 

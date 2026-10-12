@@ -363,7 +363,7 @@ internal sealed class CssCommandFilter : IOleCommandTarget
         if (completionActive)
         {
             _currentSession = _broker.GetSessions(_textView)[0];
-            _currentSession.Dismissed += (sender, args) => _currentSession = null;
+            _currentSession.Dismissed += (_, _) => _currentSession = null;
         }
         else if (shouldStartNew)
         {
@@ -373,7 +373,7 @@ internal sealed class CssCommandFilter : IOleCommandTarget
                 snapshot.CreateTrackingPoint(caret, PointTrackingMode.Positive),
                 true
             );
-            _currentSession.Dismissed += (sender, args) => _currentSession = null;
+            _currentSession.Dismissed += (_, _) => _currentSession = null;
             _currentSession.Start();
 
             // Sometimes, creating another session will have irrelevant completions, so we need to filter
@@ -401,8 +401,8 @@ internal sealed class CssCommandFilter : IOleCommandTarget
         var searchSnapshot = new SnapshotSpan(startPos, caretPos);
         var text = searchSnapshot.GetText();
 
-        var lastIndexOfSemicolon = text.LastIndexOf(";");
-        var lastIndexOfAt = text.LastIndexOf("@apply");
+        var lastIndexOfSemicolon = text.LastIndexOf(";", StringComparison.Ordinal);
+        var lastIndexOfAt = text.LastIndexOf("@apply", StringComparison.Ordinal);
 
         return lastIndexOfAt != -1 && lastIndexOfAt > lastIndexOfSemicolon;
     }
@@ -415,7 +415,7 @@ internal sealed class CssCommandFilter : IOleCommandTarget
         var searchSnapshot = new SnapshotSpan(startPos, caretPos);
         var text = searchSnapshot.GetText();
 
-        var lastIndexOfAt = text.LastIndexOf("@apply");
+        var lastIndexOfAt = text.LastIndexOf("@apply", StringComparison.Ordinal);
 
         return text.Substring(lastIndexOfAt + "@apply".Length).TrimStart();
     }

@@ -71,7 +71,10 @@ internal sealed class ColorAdornment : Border
                 return Info[0].wPointSize;
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            ex.Log();
+        }
 
         return 0;
     }

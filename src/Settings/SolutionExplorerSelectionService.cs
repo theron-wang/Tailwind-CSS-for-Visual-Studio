@@ -123,7 +123,7 @@ internal sealed class SolutionExplorerSelectionService : IVsSelectionEvents, IDi
     /// <summary>
     /// Gets the full path of a hierarchy item.
     /// </summary>
-    private string GetFilePath(IVsHierarchy hierarchy, uint itemId)
+    private string GetFilePath(IVsHierarchy? hierarchy, uint itemId)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
 

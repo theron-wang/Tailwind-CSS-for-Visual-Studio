@@ -77,14 +77,14 @@ public sealed class FileFinder
         IEnumerable<string> extensions
     )
     {
-        var projects = await VS.Solutions.GetAllProjectsAsync();
+        var projects = (await VS.Solutions.GetAllProjectsAsync()).ToList();
         await TaskScheduler.Default;
 
         var extensionSet = new HashSet<string>(extensions, StringComparer.OrdinalIgnoreCase);
 
         var paths = new List<string>();
 
-        if (!projects.Any())
+        if (projects.Count == 0)
         {
             // If no projects, probably misc
             var miscPath = await GetCurrentMiscellaneousProjectPathAsync();
@@ -99,7 +99,9 @@ public sealed class FileFinder
         }
         else
         {
-            paths.AddRange(projects.Select(p => Path.GetDirectoryName(p.FullPath)));
+            paths.AddRange(
+                projects.Select(p => Path.GetDirectoryName(p.FullPath)).OfType<string>()
+            );
         }
 
         // Directory.Enumerate doesn't give the fine-grained control needed

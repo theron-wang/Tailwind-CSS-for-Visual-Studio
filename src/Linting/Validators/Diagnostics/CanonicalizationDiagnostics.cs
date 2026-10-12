@@ -26,15 +26,20 @@ internal class CanonicalizationDiagnostics()
     {
         (var startOfScope, var scope, var content) = GetFullScope(span, findClasses);
 
-        if (string.IsNullOrEmpty(scope) || string.IsNullOrWhiteSpace(content))
+        if (
+            scope is null
+            || content is null
+            || string.IsNullOrEmpty(scope)
+            || string.IsNullOrWhiteSpace(content)
+        )
         {
             yield break;
         }
 
-        List<string> classes = [.. splitClasses(content!).Select(c => c.Value)];
+        List<string> classes = [.. splitClasses(content).Select(c => c.Value)];
 
-        var offset = scope!.IndexOf(content);
-        var classesToLocations = GetClassPositions(startOfScope + offset, content!, classes);
+        var offset = scope.IndexOf(content, StringComparison.Ordinal);
+        var classesToLocations = GetClassPositions(startOfScope + offset, content, classes);
 
         var canonicalizations = await _canonicalizer.CanonicalizeAsync(
             classes,
@@ -45,13 +50,13 @@ internal class CanonicalizationDiagnostics()
         {
             var locations = classesToLocations
                 .Where(c => canonicalization.ClassNames.Contains(c.Key))
-                .SelectMany(c => c.Value.Select(v => (className: c.Key, location: v)))
-                .Where(tuple => !shouldNotAddErrors(tuple.location))
+                .SelectMany(c => c.Value)
+                .Where(location => !shouldNotAddErrors(location))
                 .ToList();
 
             var oldText = string.Join(" ", canonicalization.ClassNames);
 
-            foreach (var (className, location) in locations)
+            foreach (var location in locations)
             {
                 yield return new Error
                 {
@@ -66,42 +71,32 @@ internal class CanonicalizationDiagnostics()
                     {
                         Message =
                             $"Replace '{oldText}' with '{canonicalization.CanonicalizedClassName}'",
-                        SuggestedFix = locations
-                            .Select(s => s.location)
-                            .Select(s =>
+                        SuggestedFix = locations.Select(s =>
+                        {
+                            var replacementSpan = s;
+
+                            if (s != location)
                             {
-                                var replacementSpan = s;
-
-                                if (s != location)
+                                if (s.Start > 0 && s.Snapshot[s.Start - 1] == ' ')
                                 {
-                                    if (s.Start > 0 && s.Snapshot[s.Start - 1] == ' ')
-                                    {
-                                        replacementSpan = new SnapshotSpan(
-                                            s.Start - 1,
-                                            s.Length + 1
-                                        );
-                                    }
-                                    else if (
-                                        (int)s.End < s.Snapshot.Length
-                                        && s.Snapshot[s.End] == ' '
-                                    )
-                                    {
-                                        replacementSpan = new SnapshotSpan(s.Start, s.Length + 1);
-                                    }
+                                    replacementSpan = new SnapshotSpan(s.Start - 1, s.Length + 1);
                                 }
-
-                                return new SuggestionFix
+                                else if (s.End < s.Snapshot.Length && s.Snapshot[s.End] == ' ')
                                 {
-                                    ApplicableTo = span.Snapshot.CreateTrackingSpan(
-                                        replacementSpan,
-                                        SpanTrackingMode.EdgeExclusive
-                                    ),
-                                    Replacement =
-                                        s == location
-                                            ? canonicalization.CanonicalizedClassName
-                                            : "",
-                                };
-                            }),
+                                    replacementSpan = new SnapshotSpan(s.Start, s.Length + 1);
+                                }
+                            }
+
+                            return new SuggestionFix
+                            {
+                                ApplicableTo = span.Snapshot.CreateTrackingSpan(
+                                    replacementSpan,
+                                    SpanTrackingMode.EdgeExclusive
+                                ),
+                                Replacement =
+                                    s == location ? canonicalization.CanonicalizedClassName : "",
+                            };
+                        }),
                     },
                 };
             }

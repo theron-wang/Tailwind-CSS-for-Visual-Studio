@@ -49,7 +49,7 @@ internal class TailwindCssCompletionSet : CompletionSet
     )
         : base(moniker, displayName, applicableTo, completions, completionBuilders)
     {
-        _completions.AddRange(completions);
+        _completions.AddRange(base.Completions);
         Initialize();
     }
 
@@ -72,17 +72,13 @@ internal class TailwindCssCompletionSet : CompletionSet
         if (addToEnd)
         {
             _completions.AddRange(
-                completions.Where(c =>
-                    _completions.Any(c2 => c2.DisplayText == c.DisplayText) == false
-                )
+                completions.Where(c => !_completions.Any(c2 => c2.DisplayText == c.DisplayText))
             );
         }
         else
         {
             _completions.AddRangeToBeginning(
-                completions.Where(c =>
-                    _completions.Any(c2 => c2.DisplayText == c.DisplayText) == false
-                )
+                completions.Where(c => !_completions.Any(c2 => c2.DisplayText == c.DisplayText))
             );
         }
     }
@@ -118,7 +114,7 @@ internal class TailwindCssCompletionSet : CompletionSet
                     .DisplayText.Split([':'], StringSplitOptions.RemoveEmptyEntries)
                     .Last()
                     .Split('-');
-                var filterSegments = filterText!
+                var filterSegments = filterText
                     .Split(':')
                     .Last()
                     .Split(['-'], StringSplitOptions.RemoveEmptyEntries);
@@ -140,8 +136,8 @@ internal class TailwindCssCompletionSet : CompletionSet
             SelectionStatus = new CompletionSelectionStatus(_filteredCompletions[0], true, true);
         }
         else if (
-            string.IsNullOrWhiteSpace(FilterBufferText) == false
-            && string.IsNullOrWhiteSpace(FilterBufferText!.Split(':').Last()) == false
+            !string.IsNullOrWhiteSpace(FilterBufferText)
+            && !string.IsNullOrWhiteSpace(FilterBufferText!.Split(':').Last())
         )
         {
             foreach (var completion in Completions)

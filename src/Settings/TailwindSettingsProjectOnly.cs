@@ -12,25 +12,25 @@ internal class TailwindSettingsProjectOnly
     [JsonPropertyName("$schema")]
     public string SchemaProperty => Schema;
 
-    [Obsolete]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     /// <summary>
     /// Maintained for backwards compatibility: use <see cref="ConfigurationFiles"/> instead.
     /// </summary>
+    [Obsolete]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string? ConfigurationFile { get; set; }
 
-    [Obsolete]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     /// <summary>
     /// Maintained for backwards compatibility: use <see cref="BuildFiles"/> instead.
     /// </summary>
+    [Obsolete]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string? InputCssFile { get; set; }
 
-    [Obsolete]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     /// <summary>
     /// Maintained for backwards compatibility: use <see cref="BuildFiles"/> instead.
     /// </summary>
+    [Obsolete]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string? OutputCssFile { get; set; }
 
     /// <summary>
@@ -39,7 +39,7 @@ internal class TailwindSettingsProjectOnly
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public List<ConfigurationFile>? ConfigurationFiles { get; set; } = [];
-    public List<BuildPair> BuildFiles { get; set; } = [];
+    public List<BuildPair>? BuildFiles { get; set; } = [];
     public string? PackageConfigurationFile { get; set; }
     public CustomRegexes CustomRegexes { get; set; } = new();
     public bool UseCli { get; set; }

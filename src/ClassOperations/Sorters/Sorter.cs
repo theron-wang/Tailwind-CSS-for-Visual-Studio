@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Globalization;
@@ -60,11 +60,12 @@ internal sealed class Sorter : IClassOperation
                 if (projectCompletionValues.Version >= TailwindVersion.V4)
                 {
                     if (
-                        !string.IsNullOrWhiteSpace(projectCompletionValues.Prefix)
-                        && className.StartsWith(projectCompletionValues.Prefix)
+                        projectCompletionValues.Prefix is { } prefix1
+                        && !string.IsNullOrWhiteSpace(prefix1)
+                        && className.StartsWith(prefix1)
                     )
                     {
-                        className = className.Substring(projectCompletionValues.Prefix!.Length);
+                        className = className.Substring(prefix1.Length);
                     }
                 }
 
@@ -210,28 +211,24 @@ internal sealed class Sorter : IClassOperation
                 if (projectCompletionValues.Version >= TailwindVersion.V4)
                 {
                     if (
-                        !string.IsNullOrWhiteSpace(projectCompletionValues.Prefix)
-                        && className.StartsWith(projectCompletionValues.Prefix)
+                        projectCompletionValues.Prefix is { } prefix2
+                        && !string.IsNullOrWhiteSpace(prefix2)
+                        && className.StartsWith(prefix2)
                     )
                     {
-                        classToSearch = className.Substring(projectCompletionValues.Prefix!.Length);
+                        classToSearch = className.Substring(prefix2.Length);
                     }
                 }
 
                 if (
                     projectCompletionValues.Version == TailwindVersion.V3
-                    && string.IsNullOrWhiteSpace(projectCompletionValues.Prefix) == false
+                    && projectCompletionValues.Prefix is { } prefix3
+                    && !string.IsNullOrWhiteSpace(prefix3)
                 )
                 {
                     classToSearch = classToSearch
-                        .TrimPrefix(
-                            projectCompletionValues.Prefix,
-                            StringComparison.InvariantCultureIgnoreCase
-                        )
-                        .TrimPrefix(
-                            "-" + projectCompletionValues.Prefix,
-                            StringComparison.InvariantCultureIgnoreCase
-                        );
+                        .TrimPrefix(prefix3, StringComparison.InvariantCultureIgnoreCase)
+                        .TrimPrefix("-" + prefix3, StringComparison.InvariantCultureIgnoreCase);
 
                     if (className.StartsWith("-"))
                     {

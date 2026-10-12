@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -202,11 +202,14 @@ internal abstract class ColorTaggerBase : ITagger<IntraTextAdornmentTag>, IDispo
 
         // V4
         var v4Removed = false;
-        if (string.IsNullOrWhiteSpace(_projectConfigurationValues.Prefix) == false)
+        if (
+            _projectConfigurationValues.Prefix is { } prefix1
+            && !string.IsNullOrWhiteSpace(prefix1)
+        )
         {
-            if (text.StartsWith(_projectConfigurationValues.Prefix))
+            if (text.StartsWith(prefix1))
             {
-                text = text.Substring(_projectConfigurationValues.Prefix!.Length);
+                text = text.Substring(prefix1.Length);
                 v4Removed = true;
             }
             else
@@ -223,15 +226,19 @@ internal abstract class ColorTaggerBase : ITagger<IntraTextAdornmentTag>, IDispo
         }
 
         // V3
-        if (!v4Removed && string.IsNullOrWhiteSpace(_projectConfigurationValues.Prefix) == false)
+        if (
+            !v4Removed
+            && _projectConfigurationValues.Prefix is { } prefix2
+            && !string.IsNullOrWhiteSpace(prefix2)
+        )
         {
-            if (text.StartsWith(_projectConfigurationValues.Prefix))
+            if (text.StartsWith(prefix2))
             {
-                text = text.Substring(_projectConfigurationValues.Prefix!.Length);
+                text = text.Substring(prefix2.Length);
             }
-            else if (text.StartsWith($"-{_projectConfigurationValues.Prefix}"))
+            else if (text.StartsWith($"-{prefix2}"))
             {
-                text = text.Substring(_projectConfigurationValues.Prefix!.Length + 1);
+                text = text.Substring(prefix2.Length + 1);
             }
             else
             {
@@ -382,12 +389,12 @@ internal abstract class ColorTaggerBase : ITagger<IntraTextAdornmentTag>, IDispo
             }
 
             if (
-                _projectConfigurationValues.DescriptionMapper.ContainsKey(
+                !_projectConfigurationValues.DescriptionMapper.ContainsKey(
                     stem.Replace("{0}", "{c}")
-                ) == false
-                && _projectConfigurationValues.CustomDescriptionMapper.ContainsKey(
+                )
+                && !_projectConfigurationValues.CustomDescriptionMapper.ContainsKey(
                     stem.Replace("{0}", "{c}")
-                ) == false
+                )
             )
             {
                 return null;
@@ -400,20 +407,20 @@ internal abstract class ColorTaggerBase : ITagger<IntraTextAdornmentTag>, IDispo
             )
             {
                 if (
-                    _projectConfigurationValues
+                    !_projectConfigurationValues
                         .CustomColorMappers[stem]
-                        .TryGetValue(color, out value) == false
+                        .TryGetValue(color, out value)
                 )
                 {
                     return null;
                 }
             }
-            else if (_projectConfigurationValues.ColorMapper.TryGetValue(color, out value) == false)
+            else if (!_projectConfigurationValues.ColorMapper.TryGetValue(color, out value))
             {
                 return null;
             }
 
-            if (ColorHelpers.ForceConvertToRgb(value) is int[] converted && converted.Length == 3)
+            if (ColorHelpers.ForceConvertToRgb(value) is { } converted && converted.Length == 3)
             {
                 return
                 [

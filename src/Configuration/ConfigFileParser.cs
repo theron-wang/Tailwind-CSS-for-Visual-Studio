@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -51,7 +51,7 @@ internal static class ConfigFileParser
             FileName = "cmd",
             Arguments =
                 $"/c node \"{scriptLocation}\" \"{Path.GetFileName(path)}\" {(isAPlugin ? "--plugin" : "")}",
-            WorkingDirectory = Path.GetDirectoryName(path),
+            WorkingDirectory = PathHelpers.GetContainingDirectory(path),
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
         };
@@ -64,18 +64,18 @@ internal static class ConfigFileParser
 
         var file = new StringBuilder();
 
-        process.OutputDataReceived += (object sender, DataReceivedEventArgs e) =>
+        process.OutputDataReceived += (_, e) =>
         {
-            if (string.IsNullOrEmpty(e.Data) == false)
+            if (!string.IsNullOrEmpty(e.Data))
             {
                 file.AppendLine(e.Data);
             }
         };
         var hasError = false;
         var error = new StringBuilder();
-        process.ErrorDataReceived += (object sender, DataReceivedEventArgs e) =>
+        process.ErrorDataReceived += (_, e) =>
         {
-            if (string.IsNullOrEmpty(e.Data) == false && e.Data.Contains("warn") == false)
+            if (!string.IsNullOrEmpty(e.Data) && !e.Data.Contains("warn"))
             {
                 hasError = true;
                 error.AppendLine(e.Data);
@@ -125,7 +125,7 @@ internal static class ConfigFileParser
         TailwindVersion version
     )
     {
-        var fullText = "";
+        string fullText;
 
         using (
             var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)
@@ -262,7 +262,7 @@ internal static class ConfigFileParser
                         )
                         {
                             var importPath = PathHelpers.GetAbsolutePath(
-                                Path.GetDirectoryName(path)!,
+                                PathHelpers.GetContainingDirectory(path)!,
                                 import.EndsWith(".css") ? import : import + ".css"
                             );
 
@@ -275,7 +275,7 @@ internal static class ConfigFileParser
                                 // Look in node_modules
                                 var importPathFromPackage =
                                     await NpmHelpers.GetCssPluginMainFileAsync(
-                                        Path.GetDirectoryName(path)!,
+                                        PathHelpers.GetContainingDirectory(path)!,
                                         import
                                     );
                                 // Use importPath in case the package CSS file cannot be found, so an exception will be thrown later down the line
@@ -289,20 +289,24 @@ internal static class ConfigFileParser
                         {
                             // source is applied on tailwindcss, tailwindcss/index, tailwindcss/utilities (which may
                             // also be specified as ./node_modules/tailwindcss/utilities, etc.
+                            var sourceIndex = directiveParameter.IndexOf(
+                                "source(",
+                                secondQuote,
+                                StringComparison.Ordinal
+                            );
                             if (
                                 (
                                     import == "tailwindcss"
                                     || import.Contains("tailwindcss/index")
                                     || import.Contains("tailwindcss/utilities")
                                 )
-                                && directiveParameter.IndexOf("source(", secondQuote) is int index
-                                && index != -1
+                                && sourceIndex != -1
                             )
                             {
                                 isSourceSpecified = true;
                                 if (
                                     directiveParameter
-                                        .Substring(index + 7)
+                                        .Substring(sourceIndex + 7)
                                         .Trim()
                                         .StartsWith("none")
                                 )
@@ -310,7 +314,10 @@ internal static class ConfigFileParser
                                     continue;
                                 }
 
-                                firstQuote = directiveParameter.IndexOfAny(['\'', '"'], index);
+                                firstQuote = directiveParameter.IndexOfAny(
+                                    ['\'', '"'],
+                                    sourceIndex
+                                );
                                 secondQuote = directiveParameter.IndexOfAny(
                                     ['\'', '"'],
                                     firstQuote + 1
@@ -326,7 +333,7 @@ internal static class ConfigFileParser
                                     .Trim();
 
                                 source = PathHelpers.GetAbsolutePath(
-                                    Path.GetDirectoryName(path)!,
+                                    PathHelpers.GetContainingDirectory(path)!,
                                     source
                                 )!;
 
@@ -337,14 +344,17 @@ internal static class ConfigFileParser
                             }
 
                             // Either on the main import or theme
+                            var prefixIndex = directiveParameter.IndexOf(
+                                "prefix(",
+                                secondQuote,
+                                StringComparison.Ordinal
+                            );
                             if (
                                 (
                                     import == "tailwindcss"
                                     || import.Contains("tailwindcss/index")
                                     || import.Contains("tailwindcss/theme")
                                 )
-                                && directiveParameter.IndexOf("prefix(", secondQuote)
-                                    is int prefixIndex
                                 && prefixIndex != -1
                             )
                             {
@@ -370,7 +380,10 @@ internal static class ConfigFileParser
                             .TrimEnd(';')
                             .Trim();
 
-                        import = PathHelpers.GetAbsolutePath(Path.GetDirectoryName(path)!, import);
+                        import = PathHelpers.GetAbsolutePath(
+                            PathHelpers.GetContainingDirectory(path)!,
+                            import
+                        );
                         imports.Add($"@config{import}");
                         continue;
                     }
@@ -383,7 +396,7 @@ internal static class ConfigFileParser
                             .Trim();
 
                         var pluginAbsPath = PathHelpers.GetAbsolutePath(
-                            Path.GetDirectoryName(path)!,
+                            PathHelpers.GetContainingDirectory(path)!,
                             plugin
                         );
 
@@ -467,7 +480,7 @@ internal static class ConfigFileParser
                         {
                             // @source "../src/components/legacy";
                             var source = PathHelpers.GetAbsolutePath(
-                                Path.GetDirectoryName(path)!,
+                                PathHelpers.GetContainingDirectory(path)!,
                                 inQuotes
                             )!;
 
@@ -502,7 +515,7 @@ internal static class ConfigFileParser
                         var plugin = directiveParameter.Replace("\"", "").Replace("'", "").Trim();
 
                         var pluginAbsPath = PathHelpers.GetAbsolutePath(
-                            Path.GetDirectoryName(path)!,
+                            PathHelpers.GetContainingDirectory(path)!,
                             plugin
                         );
 
@@ -565,7 +578,7 @@ internal static class ConfigFileParser
         if (!isSourceSpecified)
         {
             // If no source(), the source path is the directory of the configuration file
-            content.Add(Path.GetDirectoryName(path)!);
+            content.Add(PathHelpers.GetContainingDirectory(path)!);
         }
 
         var themeValuePairs = CssConfigSplitter
@@ -712,7 +725,7 @@ internal static class ConfigFileParser
             // --text-tiny--font-weight: 500;
             if (namespaceStem == "--text-")
             {
-                var doubleDashIndex = valueKey.IndexOf("--");
+                var doubleDashIndex = valueKey.IndexOf("--", StringComparison.Ordinal);
                 var value =
                     doubleDashIndex == -1 ? valueKey : valueKey.Substring(0, doubleDashIndex);
 
@@ -886,7 +899,7 @@ internal static class ConfigFileParser
                         continue;
                     }
                     var commaSplitClasses = item.Split(
-                        new string[] { ",", " .", "." },
+                        [",", " .", "."],
                         StringSplitOptions.RemoveEmptyEntries
                     );
 
@@ -897,7 +910,11 @@ internal static class ConfigFileParser
                         {
                             continue;
                         }
-                        if (toAdd.Contains('[') && toAdd.IndexOf('[') != toAdd.IndexOf("-[") + 1)
+                        if (
+                            toAdd.Contains('[')
+                            && toAdd.IndexOf('[')
+                                != toAdd.IndexOf("-[", StringComparison.Ordinal) + 1
+                        )
                         {
                             toAdd = toAdd.Substring(0, toAdd.IndexOf('['));
                         }
@@ -912,10 +929,7 @@ internal static class ConfigFileParser
 
                         toAdd = toAdd.TrimEnd(')');
 
-                        if (
-                            config.PluginClasses.Contains(toAdd) == false
-                            && string.IsNullOrEmpty(toAdd) == false
-                        )
+                        if (!config.PluginClasses.Contains(toAdd) && !string.IsNullOrEmpty(toAdd))
                         {
                             config.PluginClasses.Add(toAdd);
                         }
@@ -1001,7 +1015,10 @@ internal static class ConfigFileParser
             return null;
         }
 
-        while (currentDirectory!.StartsWith(endDirectory))
+        while (
+            currentDirectory is not null
+            && currentDirectory.StartsWith(endDirectory, StringComparison.OrdinalIgnoreCase)
+        )
         {
             var nodeModulesPath = Path.Combine(currentDirectory, "node_modules");
 
@@ -1023,8 +1040,8 @@ internal static class ConfigFileParser
 
     /// <summary>
     /// Resolves the absolute file path to the main entry point of an installed npm package.
-    /// </summary>.
-    /// <param name="workingDir">The directory in which to execute the Node.js process. This should be the root directory where the npm package
+    /// </summary>
+    /// <param name="configFileLocation">The directory in which to execute the Node.js process. This should be the root directory where the npm package
     /// is installed.</param>
     /// <param name="package">The name of the npm package to resolve. Must be a valid package name installed in the specified working
     /// directory.</param>

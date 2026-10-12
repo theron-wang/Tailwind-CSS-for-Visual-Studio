@@ -7,7 +7,7 @@ using Microsoft.VisualStudio.Shell;
 using TailwindCSSIntellisense.Node;
 using TailwindCSSIntellisense.Settings;
 
-namespace TailwindCSSIntellisense;
+namespace TailwindCSSIntellisense.Commands;
 
 [Command(PackageGuids.guidVSPackageCmdSetString, PackageIds.SetUpTailwindGlobalCmdId)]
 internal sealed class SetUpAndUseTailwindGlobal : BaseCommand<SetUpAndUseTailwindGlobal>
@@ -35,6 +35,10 @@ internal sealed class SetUpAndUseTailwindGlobal : BaseCommand<SetUpAndUseTailwin
             var directory = Path.GetDirectoryName(
                 SolutionExplorerSelection.CurrentSelectedItemFullPath
             );
+            if (directory is null)
+            {
+                return;
+            }
             // Check again to see if there were any changes since the last settings cache
             // User may have manually run the setup command, for example
             SettingsProvider.RefreshSettings();
@@ -60,6 +64,10 @@ internal sealed class SetUpAndUseTailwindGlobal : BaseCommand<SetUpAndUseTailwin
             var file = await PhysicalFile.FromFileAsync(
                 SolutionExplorerSelection.CurrentSelectedItemFullPath
             );
+            if (directory is null)
+            {
+                return;
+            }
 
             if (file is not null && file.ContainingProject is not null)
             {

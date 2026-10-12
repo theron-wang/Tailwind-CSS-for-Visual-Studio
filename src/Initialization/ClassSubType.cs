@@ -1,7 +1,6 @@
 ﻿using System.Text.Json.Serialization;
-using TailwindCSSIntellisense.Initialization;
 
-namespace TailwindCSSIntellisense.Completions.V4;
+namespace TailwindCSSIntellisense.Initialization;
 
 internal class ClassSubType : ClassSubTypeBase
 {
