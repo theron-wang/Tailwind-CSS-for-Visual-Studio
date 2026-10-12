@@ -1,5 +1,15 @@
 # Changelog
 
+<!--
+## 1.15.0 (Unreleased)
+
+- Add a class canonicalization linting rule ([#161](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/issues/161))
+- Add commands to canonicalize all classes in a file or project ([#161](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/issues/161))
+- Fix a bug where Tailwind sort commands would show up in non-Tailwind projects
+- Fix UI hangs when right-clicking projects in the Solution Explorer
+
+-->
+
 ## 1.14.6 (September 24th, 2026)
 
 - Fix UI hangs when right-clicking files in the Solution Explorer from context menu commands

@@ -32,9 +32,20 @@ internal class DirectoryVersionFinder : IDisposable
     private readonly Dictionary<string, bool> _installedCache = [];
 
     /// <summary>
-    /// Gets the tailwind version for the directory of the given file. Caches the result, until a new project is opened.
+    /// Gets whether Tailwind is installed in the given directory, if available. If not available, returns null and populates the cache in the background.
     /// </summary>
-    public async Task<bool> IsTailwindInstalledAsync(string? directory, TailwindSettings settings)
+    /// <param name="directory">The directory to check for Tailwind installation.</param>
+    /// <param name="settings">The settings to use for the check.</param>
+    /// <returns>Whether Tailwind is installed, or null if not available.</returns>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Reliability",
+        "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync",
+        Justification = "FileAndForget is ok"
+    )]
+    public bool? GetCachedTailwindInstallationStatusOrPopulateInBackground(
+        string? directory,
+        TailwindSettings settings
+    )
     {
         if (settings.UseCli && !string.IsNullOrWhiteSpace(settings.TailwindCliPath))
         {
@@ -53,6 +64,20 @@ internal class DirectoryVersionFinder : IDisposable
             return value;
         }
 
+        ThreadHelper
+            .JoinableTaskFactory.RunAsync(() =>
+                PopulateIsTailwindInstalledAsync(directory!, settings)
+            )
+            .FileAndForget(nameof(TailwindCSSIntellisense) + "/PopulateVersionCache");
+
+        return null;
+    }
+
+    /// <summary>
+    /// Populates whether Tailwind is installed in the given directory into the cache.
+    /// </summary>
+    private async Task PopulateIsTailwindInstalledAsync(string directory, TailwindSettings settings)
+    {
         var processInfo = new ProcessStartInfo()
         {
             UseShellExecute = false,
@@ -100,24 +125,23 @@ internal class DirectoryVersionFinder : IDisposable
             if (output.Contains("@tailwindcss/cli"))
             {
                 _installedCache[directory] = true;
-                return true;
+                return;
             }
 
             if (output.Contains("tailwindcss@4") && output.Contains("@tailwindcss/cli"))
             {
                 _installedCache[directory] = true;
-                return true;
+                return;
             }
 
             if (output.Contains("tailwindcss") && !output.Contains("tailwindcss@4"))
             {
                 _installedCache[directory] = true;
-                return true;
+                return;
             }
         }
 
         _installedCache[directory] = false;
-        return false;
     }
 
     /// <summary>
