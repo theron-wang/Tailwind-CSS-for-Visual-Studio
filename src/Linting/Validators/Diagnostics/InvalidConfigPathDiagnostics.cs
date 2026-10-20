@@ -15,9 +15,6 @@ namespace TailwindCSSIntellisense.Linting.Validators.Diagnostics;
 [Export(typeof(DiagnosticsChecker))]
 internal class InvalidConfigPathDiagnostics() : CssDiagnosticsChecker(ErrorType.InvalidConfigPath)
 {
-    [Import]
-    private readonly ProjectConfigurationManager _projectConfigurationManager = null!;
-
     private static readonly Regex _themeRegex = new(
         @"(?<helper>theme|screen)\(\s*(?<path>[^)]+?)\s*\)",
         RegexOptions.Compiled,
@@ -203,14 +200,9 @@ internal class InvalidConfigPathDiagnostics() : CssDiagnosticsChecker(ErrorType.
                 string.Join("-", segments.Skip(1))
             );
         }
-        else if (_projectConfigurationManager.Configuration.LastConfig is not null)
+        else if (projectCompletionValues.LoadedConfiguration is { } loadedConfiguration)
         {
-            if (
-                _projectConfigurationManager.Configuration.LastConfig.OverridenValues.TryGetValue(
-                    segments[0],
-                    out var config
-                )
-            )
+            if (loadedConfiguration.OverridenValues.TryGetValue(segments[0], out var config))
             {
                 for (int i = 1; i < segments.Count; i++)
                 {
@@ -261,12 +253,7 @@ internal class InvalidConfigPathDiagnostics() : CssDiagnosticsChecker(ErrorType.
                 error = true;
             }
 
-            if (
-                _projectConfigurationManager.Configuration.LastConfig.ExtendedValues.TryGetValue(
-                    segments[0],
-                    out var extConfig
-                )
-            )
+            if (loadedConfiguration.ExtendedValues.TryGetValue(segments[0], out var extConfig))
             {
                 bool previouslyFound = foundButInvalid || !error;
                 bool found = true;

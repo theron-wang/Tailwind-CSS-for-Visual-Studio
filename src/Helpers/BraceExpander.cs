@@ -5,15 +5,32 @@ using System.Text.RegularExpressions;
 
 public static class BraceExpander
 {
+    private const int MaxExpansions = 100_000;
+
     public static List<string> Expand(string input)
     {
         var results = new HashSet<string>();
-        ExpandRecursive(input, results);
+        var remainingWork = MaxExpansions * 2;
+        ExpandRecursive(input, results, ref remainingWork);
         return new List<string>(results);
     }
 
-    private static void ExpandRecursive(string input, HashSet<string> results)
+    private static void ExpandRecursive(
+        string input,
+        HashSet<string> results,
+        ref int remainingWork,
+        int depth = 0
+    )
     {
+        // Bound work as well as distinct output: repeated alternatives can
+        // otherwise expand exponentially while producing just one unique result.
+        if (results.Count >= MaxExpansions || remainingWork-- <= 0 || depth > 128)
+        {
+            throw new ArgumentException(
+                "Brace expansion exceeds the supported limit.",
+                nameof(input)
+            );
+        }
         var match = Regex.Match(input, @"\{([^{}]*)\}");
         if (!match.Success)
         {
@@ -27,7 +44,7 @@ public static class BraceExpander
 
         foreach (var option in ExpandOptions(options))
         {
-            ExpandRecursive(prefix + option + suffix, results);
+            ExpandRecursive(prefix + option + suffix, results, ref remainingWork, depth + 1);
         }
     }
 
@@ -56,6 +73,14 @@ public static class BraceExpander
 
             // A wider counter prevents wrapping at int.MaxValue and looping forever.
             long increment = start <= end ? step : -step;
+            var count = Math.Abs((long)end - start) / step + 1;
+            if (count > MaxExpansions)
+            {
+                throw new ArgumentException(
+                    "Brace range exceeds the supported expansion limit.",
+                    nameof(options)
+                );
+            }
             for (long i = start; increment > 0 ? i <= end : i >= end; i += increment)
             {
                 yield return i.ToString(CultureInfo.InvariantCulture);

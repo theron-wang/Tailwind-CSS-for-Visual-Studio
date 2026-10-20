@@ -114,12 +114,12 @@ public sealed class SettingsProvider : IDisposable
                     using var fs = File.Open(
                         path,
                         FileMode.Open,
-                        FileAccess.ReadWrite,
+                        FileAccess.Read,
                         FileShare.ReadWrite
                     );
-                    projectSettings = (
-                        await JsonSerializer.DeserializeAsync<TailwindSettingsProjectOnly>(fs)
-                    )!;
+                    projectSettings =
+                        (await JsonSerializer.DeserializeAsync<TailwindSettingsProjectOnly>(fs))
+                        ?? throw new JsonException("Expected an extension settings object.");
                 }
                 catch (Exception ex)
                 {
@@ -509,7 +509,10 @@ public sealed class SettingsProvider : IDisposable
 
             var relativePath = PathHelpers.GetRelativePath(configPath, projectRoot)!;
 
-            if (!relativePath.StartsWith("..", StringComparison.Ordinal))
+            if (
+                !Path.IsPathRooted(relativePath)
+                && !relativePath.StartsWith("..", StringComparison.Ordinal)
+            )
             {
                 var numSlashes = relativePath.Count(c => c == Path.DirectorySeparatorChar);
 

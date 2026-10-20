@@ -17,7 +17,22 @@ public class UtilityHelpersTests
     {
         Assert.True(ImportantModifierHelper.IsImportantModifier("!text-red-500"));
         Assert.True(ImportantModifierHelper.IsImportantModifier("text-red-500!"));
+        Assert.True(ImportantModifierHelper.IsImportantModifier("hover:!text-red-500"));
+        Assert.False(ImportantModifierHelper.IsImportantModifier("hover:content-['!']"));
         Assert.False(ImportantModifierHelper.IsImportantModifier("!!text-red-500"));
+    }
+
+    [Fact]
+    public void NegativePrefixedClasses_RespectBlocklistAfterVariantsAndImportantModifiers()
+    {
+        var values = new TailwindCSSIntellisense.Completions.ProjectCompletionValues
+        {
+            Version = TailwindCSSIntellisense.Completions.TailwindVersion.V3,
+            Prefix = "tw-",
+            Blocklist = ["-mt-4"],
+        };
+        Assert.False(values.IsClassAllowed("hover:!-tw-mt-4"));
+        Assert.True(values.IsClassAllowed("hover:tw-mt-4"));
     }
 
     [Fact]

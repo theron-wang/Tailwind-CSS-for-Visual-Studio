@@ -9,6 +9,8 @@ public class ConfigFileParserTests
     [InlineData("tailwindcss", "tw-")]
     [InlineData("tailwindcss/index", "tw-")]
     [InlineData("tailwindcss/utilities", null)]
+    [InlineData("node_modules/tailwindcss/index.css", "tw-")]
+    [InlineData("./node_modules/tailwindcss/index.css", "tw-")]
     public async Task GetConfigurationAsync_ParsesCssSourcesPrefixUtilitiesAndVariants(
         string tailwindImport,
         string? expectedPrefix

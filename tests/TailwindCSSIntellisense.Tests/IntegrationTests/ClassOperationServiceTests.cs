@@ -194,13 +194,13 @@ public class ClassOperationServiceTests
             "utf16-be" => Encoding.BigEndianUnicode,
             _ => (Encoding)new UTF8Encoding(false),
         };
-        await File.WriteAllTextAsync(fixture.Path, "unsorted 日本語", encoding);
-        fixture.Operation.Transform = _ => "日本語";
+        await File.WriteAllTextAsync(fixture.Path, "unsorted 안녕하세요 日本語", encoding);
+        fixture.Operation.Transform = _ => "안녕하세요 日本語";
 
         await fixture.Service.ProcessAsync(fixture.Path);
 
         Assert.Equal(
-            encoding.GetPreamble().Concat(encoding.GetBytes("日本語")),
+            encoding.GetPreamble().Concat(encoding.GetBytes("안녕하세요 日本語")),
             await File.ReadAllBytesAsync(fixture.Path)
         );
     }
@@ -248,6 +248,68 @@ public class ClassOperationServiceTests
         }
     }
 
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("locked")]
+    [InlineData("readonly")]
+    public async Task Batch_UnavailableFilesDoNotPreventProcessingLaterFiles(string unavailable)
+    {
+        using var fixture = new Fixture();
+        var nextPath = fixture.Path + ".html";
+        await File.WriteAllTextAsync(nextPath, "unsorted");
+        fixture.Service.FileFinder.JavascriptFiles.Add(nextPath);
+        using var blockingFile =
+            unavailable == "locked"
+                ? File.Open(fixture.Path, FileMode.Open, FileAccess.ReadWrite, FileShare.None)
+                : null;
+        try
+        {
+            if (unavailable == "missing")
+                File.Delete(fixture.Path);
+            if (unavailable == "readonly")
+                File.SetAttributes(fixture.Path, FileAttributes.ReadOnly);
+            await fixture.Service.ProcessAllAsync();
+            Assert.Equal("sorted", await File.ReadAllTextAsync(nextPath));
+        }
+        finally
+        {
+            blockingFile?.Dispose();
+            if (File.Exists(fixture.Path))
+                File.SetAttributes(fixture.Path, FileAttributes.Normal);
+            File.Delete(nextPath);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task KoreanAnsiFile_UsesEditorEncodingOrPreservesUnrecognizedClosedFile(bool open)
+    {
+        using var fixture = new Fixture();
+        var originalCulture = System.Globalization.CultureInfo.CurrentCulture;
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        var encoding = Encoding.GetEncoding(949);
+        const string original = "<div class='unsorted'>안녕하세요</div>";
+        await File.WriteAllTextAsync(fixture.Path, original, encoding);
+        fixture.Operation.Transform = text => text.Replace("unsorted", "sorted");
+        if (open)
+            fixture.Open(original, encoding);
+        try
+        {
+            System.Globalization.CultureInfo.CurrentCulture =
+                System.Globalization.CultureInfo.GetCultureInfo("ko-KR");
+            await fixture.Service.ProcessAsync(fixture.Path);
+            Assert.Equal(
+                encoding.GetBytes(open ? original.Replace("unsorted", "sorted") : original),
+                await File.ReadAllBytesAsync(fixture.Path)
+            );
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = originalCulture;
+        }
+    }
+
     private sealed class Fixture : IDisposable
     {
         public string Path { get; } =
@@ -281,10 +343,14 @@ public class ClassOperationServiceTests
             };
         }
 
-        public DocumentView Open(string text)
+        public DocumentView Open(string text, Encoding? encoding = null)
         {
             var buffer = new FakeTextBuffer(text, Path);
-            var view = new DocumentView { TextBuffer = buffer, Document = new(buffer, Path) };
+            var view = new DocumentView
+            {
+                TextBuffer = buffer,
+                Document = new(buffer, Path, encoding),
+            };
             VS.Documents.Open[Path] = view;
             return view;
         }

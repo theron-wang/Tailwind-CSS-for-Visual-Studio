@@ -257,7 +257,9 @@ internal static class ConfigFileParser
                         var isTailwindImport =
                             import == "tailwindcss"
                             || import.StartsWith("tailwindcss/", StringComparison.Ordinal)
-                            || import.Replace('\\', '/').Contains("/node_modules/tailwindcss/");
+                            || ("/" + import.Replace('\\', '/')).Contains(
+                                "/node_modules/tailwindcss/"
+                            );
                         if (!isTailwindImport && !directiveParameter.StartsWith("url"))
                         {
                             var importPath = PathHelpers.GetAbsolutePath(
@@ -683,6 +685,8 @@ internal static class ConfigFileParser
                         v.Value.Split(Array.Empty<char>(), StringSplitOptions.RemoveEmptyEntries)
                     )
             ),
+            // Strip the seven-character @import, @config, or @plugin marker so
+            // dependency reloads can match the actual saved file path.
             Imports = [.. imports.Select(i => i.Substring(7))],
             ContentPaths = content,
             Blocklist = blocklist,

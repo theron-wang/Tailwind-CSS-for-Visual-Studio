@@ -1,12 +1,13 @@
 using System.Collections.Generic;
 using System.Linq;
+using TailwindCSSIntellisense.Configuration;
 
 namespace TailwindCSSIntellisense.Completions;
 
 public class ProjectCompletionValues
 {
     /// <summary>
-    /// When set, set to lowercase
+    /// The configuration file's absolute path.
     /// </summary>
     public string FilePath { get; set; } = null!;
 
@@ -21,6 +22,10 @@ public class ProjectCompletionValues
     public List<string> NotApplicablePaths { get; set; } = [];
 
     internal bool Initialized { get; set; }
+
+    // Published with this project's completion snapshot; never shared as a
+    // singleton "last config", which can belong to a different project.
+    internal TailwindConfiguration? LoadedConfiguration { get; set; }
     internal List<TailwindClass> Classes { get; set; } = [];
     internal List<string> Variants { get; set; } = [];
 
@@ -74,7 +79,7 @@ public class ProjectCompletionValues
     {
         if (Version == TailwindVersion.V3)
         {
-            className = className.Trim('!').Split(':').Last();
+            className = className.SplitClassVariants().Last().Trim('!');
 
             if (Prefix is { } prefix1 && !string.IsNullOrWhiteSpace(prefix1))
             {
@@ -84,7 +89,7 @@ public class ProjectCompletionValues
                 }
                 else if (className.StartsWith($"-{prefix1}"))
                 {
-                    className = className.Substring(prefix1.Length + 1);
+                    className = $"-{className.Substring(prefix1.Length + 1)}";
                 }
             }
         }
@@ -96,10 +101,15 @@ public class ProjectCompletionValues
     {
         return new ProjectCompletionValues
         {
+            FilePath = FilePath,
+            ApplicablePaths = [.. ApplicablePaths],
+            NotApplicablePaths = [.. NotApplicablePaths],
+            LoadedConfiguration = LoadedConfiguration,
             Initialized = Initialized,
             Classes = [.. Classes.Select(c => c)],
             Variants = [.. Variants],
             Breakpoints = Breakpoints.ToDictionary(p => p.Key, p => p.Value),
+            Containers = Containers.ToDictionary(p => p.Key, p => p.Value),
             Prefix = Prefix,
             ColorMapper = new Dictionary<string, string>(ColorMapper),
             SpacingMapper = new Dictionary<string, string>(SpacingMapper),

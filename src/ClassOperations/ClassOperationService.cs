@@ -152,6 +152,35 @@ internal sealed class ClassOperationService : IDisposable
         Type? operationType
     )
     {
+        try
+        {
+            await ProcessFileImplAsync(path, trigger, force, operationType);
+        }
+        catch (Exception ex) when (IsUnavailableFile(ex) || ex is DecoderFallbackException)
+        {
+            // Missing, locked, read-only, or undecodable files must not stop the
+            // rest of a batch. The caller owns progress/status reporting.
+        }
+    }
+
+    private static bool IsUnavailableFile(Exception exception)
+    {
+        // The low 16 bits of a Windows HRESULT contain its Win32 error code:
+        // 32 = ERROR_SHARING_VIOLATION, 33 = ERROR_LOCK_VIOLATION.
+        return exception
+                is UnauthorizedAccessException
+                    or FileNotFoundException
+                    or DirectoryNotFoundException
+            || (exception is IOException && (exception.HResult & 0xFFFF) is 32 or 33);
+    }
+
+    private async Task ProcessFileImplAsync(
+        string path,
+        SortClassesOptions? trigger,
+        bool force,
+        Type? operationType
+    )
+    {
         if (
             !Operations
                 .GetEnabledOperations(_settings, trigger, operationType)
@@ -167,6 +196,7 @@ internal sealed class ClassOperationService : IDisposable
         var view = await GetOpenDocumentAsync(path);
         var snapshot = view?.TextBuffer?.CurrentSnapshot;
         var wasDirty = view?.Document?.IsDirty == true;
+        var documentEncoding = view?.Document?.Encoding;
         if (isOpen && snapshot is null)
         {
             return;
@@ -182,10 +212,9 @@ internal sealed class ClassOperationService : IDisposable
             content = snapshot.GetText();
             if (!wasDirty)
             {
-                disk = await ReadFileAsync(path);
+                disk = await ReadFileAsync(path, documentEncoding);
                 if (disk.Value.text != content)
                 {
-                    await ReportSkippedFileAsync(path);
                     return;
                 }
             }
@@ -238,7 +267,6 @@ internal sealed class ClassOperationService : IDisposable
                 );
             if (!applied)
             {
-                await ReportSkippedFileAsync(path);
                 return;
             }
         }
@@ -253,7 +281,8 @@ internal sealed class ClassOperationService : IDisposable
         await VS.Documents.IsOpenAsync(path) ? await VS.Documents.GetDocumentViewAsync(path) : null;
 
     private static async Task<(byte[] bytes, string text, Encoding encoding)> ReadFileAsync(
-        string path
+        string path,
+        Encoding? documentEncoding = null
     )
     {
         using var file = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
@@ -263,10 +292,22 @@ internal sealed class ClassOperationService : IDisposable
         copy.Position = 0;
         using var reader = new StreamReader(
             copy,
-            new UTF8Encoding(false),
+            documentEncoding ?? new UTF8Encoding(false, throwOnInvalidBytes: true),
             detectEncodingFromByteOrderMarks: true
         );
         var text = await reader.ReadToEndAsync();
+        // Open documents supply Visual Studio's detected encoding (including
+        // legacy ANSI code pages). Closed files use strict UTF-8 or a detected
+        // Unicode BOM; never rewrite text that cannot round-trip losslessly.
+        var roundTrip = reader
+            .CurrentEncoding.GetPreamble()
+            .Concat(reader.CurrentEncoding.GetBytes(text));
+        if (!bytes.SequenceEqual(roundTrip))
+        {
+            throw new DecoderFallbackException(
+                "The file cannot be decoded without changing its bytes."
+            );
+        }
         return (bytes, text, reader.CurrentEncoding);
     }
 
@@ -336,19 +377,7 @@ internal sealed class ClassOperationService : IDisposable
         await TaskScheduler.Default;
         // Hold an exclusive handle across validation and writing. Opening an
         // editor or another writer cannot slip between the comparison and write.
-        FileStream file;
-        try
-        {
-            file = File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
-        }
-        catch (IOException ex)
-            when (ex is FileNotFoundException or DirectoryNotFoundException
-                || (ex.HResult & 0xFFFF) is 32 or 33
-            )
-        {
-            return false;
-        }
-        using var ownedFile = file;
+        using var file = File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
         using var current = new MemoryStream();
         await file.CopyToAsync(current);
         if (!current.ToArray().SequenceEqual(originalBytes))
@@ -371,11 +400,6 @@ internal sealed class ClassOperationService : IDisposable
         file.SetLength(file.Position);
         return true;
     }
-
-    private static Task ReportSkippedFileAsync(string path) =>
-        VS.StatusBar.ShowMessageAsync(
-            $"Tailwind CSS: Skipped '{Path.GetFileName(path)}' because its contents changed or it is unavailable for editing. Run the operation again to process the current content."
-        );
 
     private const string ErrorMessage =
         "Tailwind CSS: Error occurred while processing classes (check Extensions output pane for more details)";

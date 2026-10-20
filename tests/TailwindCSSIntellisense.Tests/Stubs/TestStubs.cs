@@ -68,12 +68,39 @@ namespace Microsoft.VisualStudio.Shell
 {
     public static class ThreadHelper
     {
-        public static JoinableTaskFactory JoinableTaskFactory { get; } = new();
+        public static Microsoft.VisualStudio.Threading.JoinableTaskFactory JoinableTaskFactory { get; } =
+            new();
+        public static Microsoft.VisualStudio.Threading.JoinableTaskContext JoinableTaskContext { get; } =
+            new();
+    }
+}
+
+namespace Microsoft.VisualStudio.Threading
+{
+    public sealed class JoinableTaskContext
+    {
+        public JoinableTaskCollection CreateCollection() => new();
+
+        public JoinableTaskFactory CreateFactory(JoinableTaskCollection collection) => new();
+    }
+
+    public sealed class JoinableTaskCollection
+    {
+        public IDisposable Join() => new JoinScope();
+
+        private sealed class JoinScope : IDisposable
+        {
+            public void Dispose() { }
+        }
     }
 
     public sealed class JoinableTaskFactory
     {
-        public Task RunAsync(Func<Task> asyncMethod) => asyncMethod();
+        public Task? LastTask { get; private set; }
+
+        public Task RunAsync(Func<Task> asyncMethod) => LastTask = asyncMethod();
+
+        public void Run(Func<Task> asyncMethod) => asyncMethod().GetAwaiter().GetResult();
 
         public T Run<T>(Func<Task<T>> asyncMethod)
         {
@@ -91,6 +118,8 @@ namespace Microsoft.VisualStudio.Threading
 {
     public static class TaskExtensions
     {
+        public static Task JoinAsync(this Task task) => task;
+
         public static void FileAndForget(this Task task, string name) { }
 
         public static System.Runtime.CompilerServices.TaskAwaiter GetAwaiter(
@@ -171,6 +200,8 @@ namespace Microsoft.VisualStudio.Text
     public sealed class PropertyCollection : IEnumerable<KeyValuePair<object, object>>
     {
         private readonly Dictionary<object, object> _values = [];
+
+        public void AddProperty(object key, object value) => _values.Add(key, value);
 
         public T GetOrCreateSingletonProperty<T>(Func<T> creator)
         {
@@ -342,50 +373,30 @@ namespace System
 
 namespace TailwindCSSIntellisense.Completions
 {
-    public sealed class ProjectConfigurationManager
+    public sealed partial class ProjectConfigurationManager
     {
-        private readonly Dictionary<string, ProjectCompletionValues> _byFilePath = new(
-            StringComparer.InvariantCultureIgnoreCase
-        );
+        public static object TailwindLogo { get; } = new();
 
-        public ProjectCompletionValues? DefaultProject { get; private set; }
-
-        internal ConfigurationState Configuration { get; } = new();
+        public ProjectConfigurationManager()
+        {
+            Configuration = new();
+            ProjectConfigurationInitializer = new();
+        }
 
         public void Seed(string filePath, ProjectCompletionValues values)
         {
-            _byFilePath[filePath] = values;
-            DefaultProject ??= values;
+            _filePathToProjectConfigurationCache[filePath] = values;
+            values.FilePath ??= filePath;
+            _projectCompletionConfiguration[values.FilePath] = values;
+            _defaultProjectCompletionConfiguration ??= values;
+            ProjectConfigurationInitializer.Original = values;
         }
 
         public void SeedDefault(ProjectCompletionValues values)
         {
-            DefaultProject = values;
-        }
-
-        public Task<ProjectCompletionValues> GetCompletionConfigurationByFilePathAsync(
-            string? filePath
-        )
-        {
-            if (
-                !string.IsNullOrWhiteSpace(filePath)
-                && _byFilePath.TryGetValue(filePath, out var value)
-            )
-            {
-                return Task.FromResult(value);
-            }
-
-            if (DefaultProject is not null)
-            {
-                return Task.FromResult(DefaultProject);
-            }
-
-            return Task.FromResult(new ProjectCompletionValues { Version = TailwindVersion.V3 });
-        }
-
-        internal sealed class ConfigurationState
-        {
-            internal TailwindConfiguration? LastConfig { get; set; }
+            values.FilePath ??= "test.config.js";
+            Seed(values.FilePath, values);
+            _defaultProjectCompletionConfiguration = values;
         }
     }
 }
@@ -542,6 +553,12 @@ namespace TailwindCSSIntellisense.Settings
         public List<ConfigurationFile> ConfigurationFiles { get; set; } = [];
         public List<BuildPair> BuildFiles { get; set; } = [];
         public string? PackageConfigurationFile { get; set; }
+        public BuildProcessOptions BuildType { get; set; }
+        public string? BuildScript { get; set; }
+        public bool OverrideBuild { get; set; }
+        public bool AutomaticallyMinify { get; set; }
+        public string DefaultOutputCssName { get; set; } = "{0}.output.css";
+        public string[] OnSaveTriggerFileExtensions { get; set; } = [];
         public SortClassesOptions SortClassesType { get; set; }
         public SortClassesOptions CanonicalizeClassesType { get; set; } = SortClassesOptions.None;
         public bool UseCli { get; set; }

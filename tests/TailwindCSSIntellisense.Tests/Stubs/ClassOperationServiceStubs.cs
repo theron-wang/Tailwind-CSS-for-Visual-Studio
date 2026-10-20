@@ -24,6 +24,10 @@ namespace Community.VisualStudio.Toolkit
 
         public sealed class BuildEventsProxy
         {
+            public event Action<Project?>? ProjectBuildStarted;
+
+            public void StartProjectBuild(Project? project) => ProjectBuildStarted?.Invoke(project);
+
             public event Action<object, EventArgs>? SolutionBuildStarted;
 
             public void StartBuild() => SolutionBuildStarted?.Invoke(this, EventArgs.Empty);
@@ -61,10 +65,11 @@ namespace Community.VisualStudio.Toolkit
         Encoding? encoding = null
     )
     {
-        private string _savedText = File.ReadAllText(path);
+        private string _savedText = File.ReadAllText(path, encoding ?? new UTF8Encoding(false));
         public string FilePath { get; set; } = path;
         public bool IsDirty => buffer.CurrentSnapshot.GetText() != _savedText;
         public int Saves { get; private set; }
+        public Encoding Encoding => encoding ?? new UTF8Encoding(false);
 
         public void Save()
         {
@@ -183,13 +188,5 @@ namespace Microsoft.VisualStudio.Text.Operations
 
             public void Dispose() { }
         }
-    }
-}
-
-namespace TailwindCSSIntellisense.Configuration
-{
-    public partial class CompletionConfiguration
-    {
-        public Func<Task>? ConfigurationUpdated;
     }
 }

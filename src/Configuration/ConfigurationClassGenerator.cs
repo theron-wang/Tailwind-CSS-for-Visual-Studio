@@ -72,7 +72,7 @@ public sealed partial class CompletionConfiguration
 
             foreach (var pair in dict)
             {
-                project.Breakpoints[pair.Key] = pair.Value.ToString();
+                project.Breakpoints[pair.Key] = (pair.Value.ToString() ?? "");
             }
         }
 
@@ -83,7 +83,7 @@ public sealed partial class CompletionConfiguration
         {
             foreach (var pair in dict)
             {
-                project.Breakpoints[pair.Key] = pair.Value.ToString();
+                project.Breakpoints[pair.Key] = (pair.Value.ToString() ?? "");
             }
         }
 
@@ -96,7 +96,7 @@ public sealed partial class CompletionConfiguration
 
             foreach (var pair in dict)
             {
-                project.Containers[pair.Key] = pair.Value.ToString();
+                project.Containers[pair.Key] = (pair.Value.ToString() ?? "");
             }
         }
         if (
@@ -106,7 +106,7 @@ public sealed partial class CompletionConfiguration
         {
             foreach (var pair in dict)
             {
-                project.Containers[pair.Key] = pair.Value.ToString();
+                project.Containers[pair.Key] = (pair.Value.ToString() ?? "");
             }
         }
 
@@ -115,7 +115,7 @@ public sealed partial class CompletionConfiguration
             && GetDictionary(config.OverridenValues["spacing"], out dict)
         )
         {
-            project.SpacingMapper = dict.ToDictionary(p => p.Key, p => p.Value.ToString());
+            project.SpacingMapper = dict.ToDictionary(p => p.Key, p => (p.Value.ToString() ?? ""));
         }
         if (
             config.ExtendedValues.ContainsKey("spacing")
@@ -124,7 +124,7 @@ public sealed partial class CompletionConfiguration
         {
             foreach (var pair in dict)
             {
-                project.SpacingMapper[pair.Key] = pair.Value.ToString();
+                project.SpacingMapper[pair.Key] = (pair.Value.ToString() ?? "");
             }
         }
 
@@ -381,7 +381,7 @@ public sealed partial class CompletionConfiguration
                         project.CustomSpacingMappers[stem.Replace("{s}", "{0}")] =
                             dict.ToDictionary(
                                 p => p.Key == "DEFAULT" ? "" : p.Key,
-                                p => p.Value.ToString()
+                                p => (p.Value.ToString() ?? "")
                             );
                     }
                     else
@@ -538,18 +538,14 @@ public sealed partial class CompletionConfiguration
                         else if (texts.Count == 1)
                         {
                             var text = texts.First();
-                            var colon = text.IndexOf(':');
-                            var length = text.IndexOf(';') - colon - 1;
-                            format = text.Replace(text.Substring(colon + 2, length), "{0}");
+                            format = GetFirstDeclarationFormat(text);
                         }
                         else
                         {
                             var text = texts.First();
                             if (text.Count(c => c == ':') == 1)
                             {
-                                var colon = text.IndexOf(':');
-                                var length = text.IndexOf(';') - colon - 1;
-                                format = text.Replace(text.Substring(colon + 2, length), "{0}");
+                                format = GetFirstDeclarationFormat(text);
                             }
                             else
                             {
@@ -573,7 +569,9 @@ public sealed partial class CompletionConfiguration
                                 );
                                 if (description is not null)
                                 {
-                                    project.CustomDescriptionMapper[s] = description;
+                                    project.CustomDescriptionMapper[
+                                        GetThemeClassName(s, pair.Key)
+                                    ] = description;
                                     continue;
                                 }
                             }
@@ -583,20 +581,8 @@ public sealed partial class CompletionConfiguration
                                 continue;
                             }
 
-                            if (pair.Key == "DEFAULT")
-                            {
-                                project.CustomDescriptionMapper[s] = string.Format(
-                                    format,
-                                    pair.Value
-                                );
-                            }
-                            else
-                            {
-                                project.CustomDescriptionMapper[$"{s}-{pair.Key}"] = string.Format(
-                                    format,
-                                    pair.Value
-                                );
-                            }
+                            project.CustomDescriptionMapper[GetThemeClassName(s, pair.Key)] =
+                                string.Format(format, pair.Value);
                         }
                     }
                 }
@@ -685,14 +671,19 @@ public sealed partial class CompletionConfiguration
                 {
                     if (GetDictionary(config.ExtendedValues[key], out var dict))
                     {
-                        var newSpacing = project.SpacingMapper.ToDictionary(
-                            p => p.Key,
-                            p => p.Value
-                        );
+                        var newSpacing = (
+                            project.CustomSpacingMappers.TryGetValue(
+                                stem.Replace("{s}", "{0}"),
+                                out var existing
+                            )
+                                ? existing
+                                : project.SpacingMapper
+                        ).ToDictionary(p => p.Key, p => p.Value);
                         foreach (var pair in dict)
                         {
-                            newSpacing[pair.Key == "DEFAULT" ? "" : pair.Key] =
-                                pair.Value.ToString();
+                            newSpacing[pair.Key == "DEFAULT" ? "" : pair.Key] = (
+                                pair.Value.ToString() ?? ""
+                            );
                         }
                         project.CustomSpacingMappers[stem.Replace("{s}", "{0}")] = newSpacing;
                     }
@@ -701,7 +692,14 @@ public sealed partial class CompletionConfiguration
                 {
                     if (GetDictionary(config.ExtendedValues[key], out var dict))
                     {
-                        var newMapper = project.ColorMapper.ToDictionary(p => p.Key, p => p.Value);
+                        var newMapper = (
+                            project.CustomColorMappers.TryGetValue(
+                                stem.Replace("{c}", "{0}"),
+                                out var existing
+                            )
+                                ? existing
+                                : project.ColorMapper
+                        ).ToDictionary(p => p.Key, p => p.Value);
                         foreach (var pair in GetColorMapper(dict, project.Version))
                         {
                             newMapper[pair.Key] = pair.Value;
@@ -809,17 +807,17 @@ public sealed partial class CompletionConfiguration
                         else if (texts.Count == 1)
                         {
                             var text = texts.First();
-                            var colon = text.IndexOf(':');
-                            var length = text.IndexOf(';') - colon - 1;
-                            format = text.Replace(text.Substring(colon + 2, length), "{0}");
+                            format = GetFirstDeclarationFormat(text);
                         }
                         else
                         {
                             var text = texts.First();
-                            var colon = text.IndexOf(':');
-                            var length = text.IndexOf(';') - colon - 2;
-                            var replace = text.Substring(colon + 2, length);
-                            if (text.Count(c => c == ':') == CountSubstring(text, replace))
+                            var replace = GetFirstDeclarationValue(text);
+                            if (string.IsNullOrEmpty(replace))
+                            {
+                                format = null;
+                            }
+                            else if (text.Count(c => c == ':') == CountSubstring(text, replace))
                             {
                                 format = text.Replace(replace, "{0}");
                             }
@@ -853,15 +851,9 @@ public sealed partial class CompletionConfiguration
                                     : string.Format(format, pair.Value);
                             }
 
-                            if (pair.Key == "DEFAULT")
-                            {
-                                project.CustomDescriptionMapper[insertStem] = description ?? "";
-                            }
-                            else
-                            {
-                                project.CustomDescriptionMapper[$"{insertStem}-{pair.Key}"] =
-                                    description ?? "";
-                            }
+                            project.CustomDescriptionMapper[
+                                GetThemeClassName(insertStem, pair.Key)
+                            ] = description ?? "";
                         }
                     }
                 }
@@ -930,13 +922,11 @@ public sealed partial class CompletionConfiguration
 
                 foreach (var pair in config.PluginVariantDescriptions)
                 {
-                    if (!project.VariantsToDescriptions.ContainsKey(pair.Key))
-                    {
-                        // @slot; and @slot are both valid
-                        project.VariantsToDescriptions[pair.Key] = pair
-                            .Value.Replace("@slot;", "{0}")
-                            .Replace("@slot", "{0}");
-                    }
+                    // Custom variants may deliberately redefine built-ins (for
+                    // example, switching dark mode from a media query to a selector).
+                    project.VariantsToDescriptions[pair.Key] = pair
+                        .Value.Replace("@slot;", "{0}")
+                        .Replace("@slot", "{0}");
                 }
             }
 
@@ -997,7 +987,7 @@ public sealed partial class CompletionConfiguration
                             if (split.Contains('{'))
                             {
                                 var media = split.Substring(0, split.IndexOf('{') + 1);
-                                attribute = split.Substring(media.Length + 1);
+                                attribute = split.Substring(media.Length);
 
                                 if (attribute.Trim().StartsWith("}"))
                                 {
@@ -1018,7 +1008,7 @@ public sealed partial class CompletionConfiguration
                             else if (split.Contains('}'))
                             {
                                 var bracket = split.Substring(0, split.LastIndexOf('}') + 1);
-                                attribute = split.Substring(bracket.Length + 1);
+                                attribute = split.Substring(bracket.Length);
                                 standard += bracket;
 
                                 foreach (var key in valueToDescription.Keys.ToList())
@@ -1036,11 +1026,11 @@ public sealed partial class CompletionConfiguration
                             // Case 1: No --value
                             else if (!attribute!.Contains("--value("))
                             {
-                                standard += attribute;
+                                standard += attribute + ";";
 
                                 foreach (var key in valueToDescription.Keys.ToList())
                                 {
-                                    valueToDescription[key] += attribute;
+                                    valueToDescription[key] += attribute + ";";
                                 }
                             }
                             else
@@ -1242,9 +1232,10 @@ public sealed partial class CompletionConfiguration
         }
         else
         {
-#pragma warning disable CS8619 // Nullability of reference types in value of type 'Dictionary<string, string>' doesn't match target type 'Dictionary<string, string?>
-            project.CustomDescriptionMapper = config.PluginDescriptions;
-#pragma warning restore CS8619
+            foreach (var pair in config.PluginDescriptions)
+            {
+                project.CustomDescriptionMapper[pair.Key] = pair.Value;
+            }
             project.PluginClasses = config.PluginClasses;
         }
         project.PluginVariants = config.PluginVariants;
@@ -1289,7 +1280,7 @@ public sealed partial class CompletionConfiguration
                 else if (s.StartsWith("rgb"))
                 {
                     var openParen = s.IndexOf('(');
-                    var closeParen = s.IndexOf(')', openParen);
+                    var closeParen = openParen < 0 ? -1 : s.IndexOf(')', openParen);
                     if (openParen != -1 && closeParen != -1 && closeParen - openParen > 1)
                     {
                         var text = s.Substring(openParen + 1, closeParen - openParen - 1);
@@ -1308,6 +1299,10 @@ public sealed partial class CompletionConfiguration
                             newColorToRgbMapper[actual] = "{noparse}" + s;
                         }
                     }
+                    else
+                    {
+                        newColorToRgbMapper[actual] = "{noparse}" + s;
+                    }
                 }
                 else
                 {
@@ -1324,6 +1319,32 @@ public sealed partial class CompletionConfiguration
         }
 
         return newColorToRgbMapper;
+    }
+
+    private static bool GetDictionary(object value, out Dictionary<string, object> dict)
+    {
+        dict = value as Dictionary<string, object> ?? [];
+        return value is Dictionary<string, object>;
+    }
+
+    private static string GetThemeClassName(string stem, string key) =>
+        key == "DEFAULT" ? stem
+        : key.StartsWith("-") ? $"-{stem}-{key.Substring(1)}"
+        : $"{stem}-{key}";
+
+    private static string GetFirstDeclarationValue(string text)
+    {
+        var colon = text.IndexOf(':');
+        var semicolon = text.IndexOf(';', colon + 1);
+        return colon < 0 || semicolon < 0
+            ? ""
+            : text.Substring(colon + 1, semicolon - colon - 1).Trim();
+    }
+
+    private static string? GetFirstDeclarationFormat(string text)
+    {
+        var value = GetFirstDeclarationValue(text);
+        return value.Length == 0 ? null : text.Replace(value, "{0}");
     }
 
     private string FindCommonPrefix(IReadOnlyList<string> texts)
@@ -1365,6 +1386,8 @@ public sealed partial class CompletionConfiguration
 
     public int CountSubstring(string text, string value)
     {
+        if (string.IsNullOrEmpty(value))
+            return 0;
         int count = 0,
             minIndex = text.IndexOf(value, 0, StringComparison.Ordinal);
         while (minIndex != -1)

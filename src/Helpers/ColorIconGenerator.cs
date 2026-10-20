@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Media;
 using TailwindCSSIntellisense.Completions;
@@ -15,10 +17,10 @@ internal class ColorIconGenerator
     [Import]
     internal ProjectConfigurationManager ProjectConfigurationManager { get; set; } = null!;
 
-    private readonly Dictionary<
+    private readonly ConditionalWeakTable<
         ProjectCompletionValues,
-        Dictionary<string, ImageSource>
-    > _colorToRgbMapperCaches = [];
+        ConcurrentDictionary<string, ImageSource>
+    > _colorToRgbMapperCaches = new();
 
     internal void ClearCache(ProjectCompletionValues project)
     {
@@ -35,11 +37,8 @@ internal class ColorIconGenerator
         int opacity = 100
     )
     {
-        if (!_colorToRgbMapperCaches.TryGetValue(projectCompletionValues, out var cache))
-        {
-            cache = [];
-            _colorToRgbMapperCaches[projectCompletionValues] = cache;
-        }
+        // Replaced configuration snapshots must not be kept alive by icon caches.
+        var cache = _colorToRgbMapperCaches.GetOrCreateValue(projectCompletionValues);
 
         string value;
         var custom = false;
@@ -153,6 +152,7 @@ internal class ColorIconGenerator
         geometry.Children.Add(vsPrevent);
 
         var output = new DrawingImage { Drawing = geometry };
+        output.Freeze();
 
         var key = $"{color}/{opacity}";
         if (custom)

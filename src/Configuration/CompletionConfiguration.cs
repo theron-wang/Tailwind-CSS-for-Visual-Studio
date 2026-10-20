@@ -38,8 +38,6 @@ public sealed partial class CompletionConfiguration
     [Import]
     public ProjectConfigurationInitializer ProjectConfigurationInitializer { get; set; } = null!;
 
-    internal TailwindConfiguration? LastConfig { get; private set; }
-
     /// <summary>
     /// Shorthand for calling <see cref="ReloadCustomAttributesAsync(ConfigurationFile, TailwindSettings)"/> on all projects
     /// </summary>
@@ -57,17 +55,7 @@ public sealed partial class CompletionConfiguration
             }
         }
 
-        if (ConfigurationUpdated is not null)
-        {
-            // Cannot call ConfigurationUpdated.Invoke() because that only calls the last subscriber
-            var tasks = ConfigurationUpdated
-                .GetInvocationList()
-                .Cast<Func<Task>>()
-                .Select(d => d());
-
-            await TaskScheduler.Default;
-            await Task.WhenAll(tasks);
-        }
+        await NotifyConfigurationUpdatedAsync();
 
         if (!failed && settings.ConfigurationFiles.Count > 0)
         {
@@ -85,17 +73,7 @@ public sealed partial class CompletionConfiguration
     {
         var success = await ReloadCustomAttributesImplAsync(configurationFile, settings);
 
-        if (ConfigurationUpdated is not null)
-        {
-            // Cannot call ConfigurationUpdated.Invoke() because that only calls the last subscriber
-            var tasks = ConfigurationUpdated
-                .GetInvocationList()
-                .Cast<Func<Task>>()
-                .Select(d => d());
-
-            await TaskScheduler.Default;
-            await Task.WhenAll(tasks);
-        }
+        await NotifyConfigurationUpdatedAsync();
 
         if (success)
         {
@@ -115,86 +93,69 @@ public sealed partial class CompletionConfiguration
         TailwindSettings settings
     )
     {
-        if (ProjectConfigurationManager is not null)
-        {
-            await VS.StatusBar.ShowMessageAsync("Reloading Tailwind CSS configuration");
-
-            try
-            {
-                // Switch to background thread
-                await TaskScheduler.Default;
-                var version = await DirectoryVersionFinder.GetTailwindVersionAsync(
-                    configurationFile.Path,
-                    settings
-                );
-
-                var config = await ConfigFileParser.GetConfigurationAsync(
-                    configurationFile.Path,
-                    version
-                );
-
-                foreach (var imports in config.Imports)
-                {
-                    await Reloader.AddImportAsync(imports, configurationFile);
-                }
-
-                var projectCompletionValues =
-                    await ProjectConfigurationManager.GetCompletionConfigurationByConfigFilePathAsync(
-                        configurationFile.Path
-                    );
-
-                if (projectCompletionValues is null)
-                {
-                    return false;
-                }
-
-                projectCompletionValues.ApplicablePaths =
-                [
-                    .. config.ContentPaths.Where(c => !c.StartsWith("!")),
-                ];
-                projectCompletionValues.NotApplicablePaths =
-                [
-                    .. config.ContentPaths.Where(c => c.StartsWith("!")).Select(c => c.Trim('!')),
-                ];
-
-                LastConfig = config;
-                if (version >= TailwindVersion.V4 && !string.IsNullOrWhiteSpace(config.Prefix))
-                {
-                    projectCompletionValues.Prefix = $"{config.Prefix}:";
-                }
-                else
-                {
-                    projectCompletionValues.Prefix = config.Prefix;
-                }
-                await LoadGlobalConfigurationAsync(projectCompletionValues, config);
-                projectCompletionValues.Variants = [.. projectCompletionValues.Variants.Distinct()];
-
-                await LoadIndividualConfigurationOverrideAsync(projectCompletionValues, config);
-                LoadIndividualConfigurationExtend(projectCompletionValues, config);
-
-                await LoadPluginsAsync(projectCompletionValues, config);
-            }
-            catch (Exception ex)
-            {
-                await VS.StatusBar.ShowMessageAsync(
-                    "Tailwind CSS: Failed to load configuration file; check the 'Extensions' output window for more details"
-                );
-                await ex.LogAsync();
-                return false;
-            }
-        }
-
-        return true;
+        var request = await ProjectConfigurationManager.BeginReloadAsync(configurationFile.Path);
+        if (request is null)
+            return false;
+        var version = await DirectoryVersionFinder.GetTailwindVersionAsync(
+            configurationFile.Path,
+            settings
+        );
+        var replacement = await CreateCompletionSnapshotAsync(configurationFile, version);
+        return replacement is not null
+            && await ProjectConfigurationManager.TryPublishReloadAsync(request, replacement);
     }
 
-    private bool GetDictionary(object value, out Dictionary<string, object> dict)
+    internal async Task NotifyConfigurationUpdatedAsync()
     {
-        if (value is Dictionary<string, object> values)
+        var listeners = ConfigurationUpdated;
+        if (listeners is not null)
         {
-            dict = values;
-            return true;
+            await TaskScheduler.Default;
+            await Task.WhenAll(listeners.GetInvocationList().Cast<Func<Task>>().Select(d => d()));
         }
-        dict = [];
-        return false;
+    }
+
+    internal async Task<ProjectCompletionValues?> CreateCompletionSnapshotAsync(
+        ConfigurationFile file,
+        TailwindVersion version
+    )
+    {
+        await VS.StatusBar.ShowMessageAsync("Reloading Tailwind CSS configuration");
+        try
+        {
+            await TaskScheduler.Default;
+            var config = await ConfigFileParser.GetConfigurationAsync(file.Path, version);
+            // Generators only mutate this private copy. Readers retain the old,
+            // complete snapshot until the manager publishes the replacement.
+            var project = (
+                await ProjectConfigurationInitializer.GetUnsetCompletionConfigurationAsync(version)
+            ).Copy();
+            project.FilePath = file.Path;
+            project.Version = version;
+            project.LoadedConfiguration = config;
+            project.ApplicablePaths = [.. config.ContentPaths.Where(c => !c.StartsWith("!"))];
+            project.NotApplicablePaths =
+            [
+                .. config.ContentPaths.Where(c => c.StartsWith("!")).Select(c => c.TrimStart('!')),
+            ];
+            project.Prefix =
+                version >= TailwindVersion.V4 && !string.IsNullOrWhiteSpace(config.Prefix)
+                    ? $"{config.Prefix}:"
+                    : config.Prefix;
+            await LoadGlobalConfigurationAsync(project, config);
+            await LoadIndividualConfigurationOverrideAsync(project, config);
+            LoadIndividualConfigurationExtend(project, config);
+            await LoadPluginsAsync(project, config);
+            project.Variants = [.. project.Variants.Distinct()];
+            return project;
+        }
+        catch (Exception ex)
+        {
+            await VS.StatusBar.ShowMessageAsync(
+                "Tailwind CSS: Failed to load configuration file; check the 'Extensions' output window for more details"
+            );
+            await ex.LogAsync();
+            return null;
+        }
     }
 }

@@ -122,7 +122,9 @@ internal static class ResourcesLoader
                         project.SpacingMapper[s] =
                             s == "px"
                                 ? "1px"
-                                : $"{float.Parse(s, CultureInfo.InvariantCulture) / 4}rem";
+                                : (float.Parse(s, CultureInfo.InvariantCulture) / 4).ToString(
+                                    CultureInfo.InvariantCulture
+                                ) + "rem";
                     }
                 }
             ),
@@ -219,7 +221,9 @@ internal static class ResourcesLoader
                         project.SpacingMapper[s] =
                             s == "px"
                                 ? "1px"
-                                : $"{float.Parse(s, CultureInfo.InvariantCulture) / 4}rem";
+                                : (float.Parse(s, CultureInfo.InvariantCulture) / 4).ToString(
+                                    CultureInfo.InvariantCulture
+                                ) + "rem";
                     }
                 }
             ),

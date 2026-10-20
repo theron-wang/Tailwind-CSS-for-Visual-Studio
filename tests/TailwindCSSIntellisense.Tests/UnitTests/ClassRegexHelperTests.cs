@@ -5,6 +5,79 @@ namespace TailwindCSSIntellisense.Tests.UnitTests;
 [Collection("Non-Parallel Tests")]
 public class ClassRegexHelperTests : IDisposable
 {
+    [Theory]
+    [InlineData("html", false)]
+    [InlineData("javascript", false)]
+    [InlineData("razor", false)]
+    [InlineData("html", true)]
+    [InlineData("javascript", true)]
+    [InlineData("razor", true)]
+    public void QuotedClassSegments_StayWithinContentCapture(string language, bool custom)
+    {
+        var settings = new TailwindSettings();
+        if (custom)
+        {
+            var regex = new CustomRegexes.CustomRegex
+            {
+                Override = true,
+                Values = ["tw=\"(?<content>[^\"]*)\""],
+            };
+            settings.CustomRegexes.HTML = regex;
+            settings.CustomRegexes.JavaScript = regex;
+            settings.CustomRegexes.Razor = regex;
+            ClassRegexHelper.GetTailwindSettings = () => Task.FromResult(settings);
+        }
+        var attribute =
+            custom ? "tw"
+            : language == "javascript" ? "className"
+            : "class";
+        var text = $"<div {attribute}=\"open ? 'p-1' : 'p-2'\" data-other=\"'leave-me'\"></div>";
+        var bulk = language switch
+        {
+            "razor" => ClassRegexHelper.GetClassesRazor(text),
+            "javascript" => ClassRegexHelper.GetClassesJavaScript(text),
+            _ => ClassRegexHelper.GetClassesNormal(text),
+        };
+        var streamed = language switch
+        {
+            "razor" => ClassRegexHelper.GetClassesRazorEnumerator(text),
+            "javascript" => ClassRegexHelper.GetClassesJavaScriptEnumerator(text),
+            _ => ClassRegexHelper.GetClassesNormalEnumerator(text),
+        };
+        Assert.Equal(["p-1", "p-2"], bulk.Select(m => ClassRegexHelper.GetClassTextGroup(m).Value));
+        Assert.Equal(
+            ["p-1", "p-2"],
+            streamed.Select(m => ClassRegexHelper.GetClassTextGroup(m).Value)
+        );
+    }
+
+    [Fact]
+    public void ZeroWidthCustomRegex_AdvancesWithoutHanging()
+    {
+        var regex = new CustomRegexes.CustomRegex { Override = true, Values = ["(?<content>a*)"] };
+        var settings = new TailwindSettings
+        {
+            CustomRegexes = new()
+            {
+                HTML = regex,
+                JavaScript = regex,
+                Razor = regex,
+            },
+        };
+        ClassRegexHelper.GetTailwindSettings = () => Task.FromResult(settings);
+        foreach (
+            var matches in new[]
+            {
+                ClassRegexHelper.GetClassesNormalEnumerator("baca"),
+                ClassRegexHelper.GetClassesJavaScriptEnumerator("baca"),
+                ClassRegexHelper.GetClassesRazorEnumerator("baca"),
+            }
+        )
+        {
+            Assert.Equal(["a", "a"], matches.Take(5).Select(m => m.Value));
+        }
+    }
+
     private readonly Func<Task<TailwindSettings>>? _originalSettingsDelegate;
 
     public ClassRegexHelperTests()

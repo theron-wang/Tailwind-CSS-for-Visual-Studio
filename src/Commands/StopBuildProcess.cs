@@ -55,6 +55,6 @@ internal sealed class StopBuildProcess : BaseCommand<StopBuildProcess>
     {
         await BuildProcess.InitializeAsync();
 
-        BuildProcess.EndAllProcesses();
+        await BuildProcess.EndAllProcessesAsync();
     }
 }

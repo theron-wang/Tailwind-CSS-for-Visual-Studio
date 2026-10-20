@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text;
+using Microsoft.VisualStudio.Threading;
 using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Settings;
 
@@ -101,11 +102,11 @@ internal abstract class ClassCompletionGenerator : IDisposable
             prefix = "";
         }
 
-        var variants = classRaw.Split(':').ToList();
+        var variants = classRaw.SplitClassVariants();
 
         var currentClass = variants.Last();
 
-        var isImportant = ImportantModifierHelper.IsImportantModifier(classRaw);
+        var isImportant = ImportantModifierHelper.IsImportantModifier(currentClass);
 
         var suffix = "";
 
@@ -155,7 +156,10 @@ internal abstract class ClassCompletionGenerator : IDisposable
             variantsAsString += ":";
         }
 
-        if (string.IsNullOrWhiteSpace(variantsAsString) || !variantsAsString.StartsWith(prefix))
+        if (
+            _projectCompletionValues.Version >= TailwindVersion.V4
+            && (string.IsNullOrWhiteSpace(variantsAsString) || !variantsAsString.StartsWith(prefix))
+        )
         {
             prefixInsert += prefix;
         }
@@ -475,7 +479,7 @@ internal abstract class ClassCompletionGenerator : IDisposable
                         {
                             if (
                                 !_projectCompletionValues.IsClassAllowed(
-                                    $"{variantsAsStringUnescaped}/{className}/{modifier}{suffix}"
+                                    $"{variantsAsStringUnescaped}{className}/{modifier}{suffix}"
                                 )
                             )
                             {
@@ -526,7 +530,7 @@ internal abstract class ClassCompletionGenerator : IDisposable
                         {
                             if (
                                 !_projectCompletionValues.IsClassAllowed(
-                                    $"{variantsAsStringUnescaped}/{className}/{modifier}{suffix}"
+                                    $"{variantsAsStringUnescaped}{className}/{modifier}{suffix}"
                                 )
                             )
                             {
@@ -582,7 +586,7 @@ internal abstract class ClassCompletionGenerator : IDisposable
                 var insert =
                     prefixInsert
                     + variantsAsString
-                    + prefix
+                    + (_projectCompletionValues.Version == TailwindVersion.V3 ? prefix : "")
                     + (isRazor ? pluginClass.Replace("@", "@@") : pluginClass).TrimStart('.')
                     + suffix;
 

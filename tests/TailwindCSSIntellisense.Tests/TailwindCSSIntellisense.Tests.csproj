@@ -7,6 +7,51 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile
+      Include="../../src/Initialization/*.cs"
+      Link="Source/Initialization/%(Filename)%(Extension)"
+    />
+    <Compile
+      Include="../../src/Configuration/UnsetProjectCompletionValues.cs"
+      Link="Source/Configuration/UnsetProjectCompletionValues.cs"
+    />
+    <None
+      Include="../../src/Resources/**/*.json"
+      Link="Resources/%(RecursiveDir)%(Filename)%(Extension)"
+      CopyToOutputDirectory="PreserveNewest"
+    />
+    <Compile
+      Include="../../src/Configuration/ConfigurationFileReloader.cs"
+      Link="Source/Configuration/ConfigurationFileReloader.cs"
+    />
+    <Compile
+      Include="../../src/Completions/ProjectConfigurationManager.cs"
+      Link="Source/Completions/ProjectConfigurationManager.cs"
+    />
+    <Compile
+      Include="../../src/Configuration/CompletionConfiguration.cs"
+      Link="Source/Configuration/CompletionConfiguration.cs"
+    />
+    <Compile
+      Include="../../src/Configuration/ConfigurationClassGenerator.cs"
+      Link="Source/Configuration/ConfigurationClassGenerator.cs"
+    />
+    <Compile
+      Include="../../src/Configuration/Descriptions/GeneratorAggregator.cs"
+      Link="Source/Configuration/Descriptions/GeneratorAggregator.cs"
+    />
+    <Compile
+      Include="../../src/Completions/Sources/ClassCompletionGenerator.cs"
+      Link="Source/Completions/Sources/ClassCompletionGenerator.cs"
+    />
+    <Compile
+      Include="../../src/Build/TailwindBuildProcess.cs"
+      Link="Source/Build/TailwindBuildProcess.cs"
+    />
+    <Compile
+      Include="../../src/Node/PackageJsonReader.cs"
+      Link="Source/Node/PackageJsonReader.cs"
+    />
     <PackageReference Include="coverlet.collector" Version="10.0.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

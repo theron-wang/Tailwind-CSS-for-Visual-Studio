@@ -7,6 +7,8 @@
 - Add commands to canonicalize all classes in a file or project ([#161](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/issues/161))
 - Fix a bug where Tailwind sort commands would show up in non-Tailwind projects
 - Fix UI hangs when right-clicking projects in the Solution Explorer
+- Fix configuration scanning, path handling, and repeated processing in IntelliSense and class operations ([#164](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/pull/164))
+- Fix concurrent builds and configuration reloads, legacy theme and completion bugs, and protect class operations from overwriting edits or changing file encodings ([#165](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/pull/165))
 
 -->
 
