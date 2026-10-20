@@ -212,7 +212,7 @@ public sealed class SettingsProvider : IDisposable
                     if (
                         buildPair.Input == null
                         || !File.Exists(buildPair.Input)
-                        || inputFiles.Contains(buildPair.Input)
+                        || !inputFiles.Add(buildPair.Input)
                     )
                     {
                         projectSettings.BuildFiles.Remove(buildPair);
@@ -220,8 +220,6 @@ public sealed class SettingsProvider : IDisposable
                         changed = true;
                         continue;
                     }
-
-                    inputFiles.Add(buildPair.Input);
                 }
             }
 
@@ -355,9 +353,7 @@ public sealed class SettingsProvider : IDisposable
             }
         }
 
-        var defaultConfigFile =
-            settings.ConfigurationFiles.FirstOrDefault()?.Path
-            ?? settings.ConfigurationFiles.FirstOrDefault()?.Path;
+        var defaultConfigFile = settings.ConfigurationFiles.FirstOrDefault()?.Path;
 
         string? oldDefaultConfigFile = null;
         if (_cachedSettings is not null)
@@ -373,48 +369,24 @@ public sealed class SettingsProvider : IDisposable
         }
 
         var desiredProjectRoot = await GetDesiredConfigurationDirectoryAsync(defaultConfigFile);
-        var copyBuildFilePair = new List<BuildPair>();
-
-        foreach (var buildFilePair in settings.BuildFiles)
-        {
-            copyBuildFilePair.Add(
-                new()
-                {
-                    Input = PathHelpers.GetRelativePath(buildFilePair.Input, projectRoot)!,
-                    Output = string.IsNullOrWhiteSpace(buildFilePair.Output)
-                        ? ""
-                        : PathHelpers.GetRelativePath(buildFilePair.Output, projectRoot)!,
-                }
+        var currentSettingsFile = Path.Combine(projectRoot, ExtensionConfigFileName);
+        // Intentional: follow a newly selected default config into its project, but
+        // preserve an explicit save directory or an unchanged config's current location.
+        var relocate =
+            preferredSaveDirectory is null
+            && desiredProjectRoot != null
+            && !string.Equals(
+                Path.GetFullPath(Path.Combine(desiredProjectRoot, ExtensionConfigFileName)),
+                Path.GetFullPath(currentSettingsFile),
+                StringComparison.OrdinalIgnoreCase
+            )
+            && (
+                _cachedSettings is null
+                || (defaultConfigFile is not null && defaultConfigFile != oldDefaultConfigFile)
             );
-        }
-
-        // Build list of config files not used as build inputs, with paths made relative to project root.
-        List<ConfigurationFile> configurationFiles =
-        [
-            .. settings
-                .ConfigurationFiles.Where(cf =>
-                    settings.BuildFiles.All(b =>
-                        !b.Input.Equals(cf.Path, StringComparison.InvariantCultureIgnoreCase)
-                    )
-                )
-                .Select(cf =>
-                {
-                    return new ConfigurationFile()
-                    {
-                        Path = PathHelpers.GetRelativePath(cf.Path.Trim(), projectRoot)!,
-                    };
-                }),
-        ];
-
-        var projectSettings = new TailwindSettingsProjectOnly()
-        {
-            ConfigurationFiles = configurationFiles.Count > 0 ? configurationFiles : null,
-            BuildFiles = copyBuildFilePair,
-            PackageConfigurationFile = settings.PackageConfigurationFile is null
-                ? null
-                : PathHelpers.GetRelativePath(settings.PackageConfigurationFile, projectRoot),
-            UseCli = settings.UseCli,
-        };
+        var saveDirectory = relocate ? desiredProjectRoot! : projectRoot;
+        // Resolve relative paths against the final destination, before serializing.
+        var projectSettings = TailwindSettingsProjectOnly.FromSettings(settings, saveDirectory);
 
         if (
             (
@@ -428,11 +400,11 @@ public sealed class SettingsProvider : IDisposable
             try
             {
                 await _extensionConfigWriteLock.WaitAsync();
-                if (File.Exists(Path.Combine(projectRoot, ExtensionConfigFileName)))
+                if (File.Exists(currentSettingsFile))
                 {
                     try
                     {
-                        File.Delete(Path.Combine(projectRoot, ExtensionConfigFileName));
+                        File.Delete(currentSettingsFile);
                     }
                     catch (Exception ex)
                     {
@@ -447,60 +419,39 @@ public sealed class SettingsProvider : IDisposable
         }
         else
         {
-            // If the configuration file is not located in the same project as the configuration file,
-            // move it there. If the configuration file has not been changed, however, respect the user's
-            // decision to keep it where it is.
-            if (
-                preferredSaveDirectory is null
-                && desiredProjectRoot != null
-                && desiredProjectRoot != projectRoot
-                && (
-                    _cachedSettings is null
-                    || (defaultConfigFile is not null && defaultConfigFile != oldDefaultConfigFile)
-                )
-            )
-            {
-                try
-                {
-                    await _extensionConfigWriteLock.WaitAsync();
-
-                    if (File.Exists(Path.Combine(projectRoot, ExtensionConfigFileName)))
-                    {
-                        try
-                        {
-                            File.Delete(Path.Combine(projectRoot, ExtensionConfigFileName));
-                        }
-                        catch (Exception ex)
-                        {
-                            await ex.LogAsync(
-                                $"Tailwind CSS: Failed to delete old configuration file at ${Path.Combine(projectRoot, ExtensionConfigFileName)}"
-                            );
-                        }
-                    }
-                }
-                finally
-                {
-                    _extensionConfigWriteLock.Release();
-                }
-
-                projectRoot = desiredProjectRoot;
-            }
-
             try
             {
                 await _extensionConfigWriteLock.WaitAsync();
-                using var fs = File.Open(
-                    Path.Combine(projectRoot, ExtensionConfigFileName),
-                    FileMode.Create,
-                    FileAccess.ReadWrite,
-                    FileShare.ReadWrite
-                );
+                using (
+                    var fs = File.Open(
+                        Path.Combine(saveDirectory, ExtensionConfigFileName),
+                        FileMode.Create,
+                        FileAccess.ReadWrite,
+                        FileShare.ReadWrite
+                    )
+                )
+                {
+                    await JsonSerializer.SerializeAsync(
+                        fs,
+                        projectSettings,
+                        options: new() { WriteIndented = true }
+                    );
+                }
 
-                await JsonSerializer.SerializeAsync(
-                    fs,
-                    projectSettings,
-                    options: new() { WriteIndented = true }
-                );
+                // Keep the old settings if writing the destination fails.
+                if (relocate)
+                {
+                    try
+                    {
+                        File.Delete(currentSettingsFile);
+                    }
+                    catch (Exception ex)
+                    {
+                        await ex.LogAsync(
+                            $"Tailwind CSS: Failed to delete old configuration file at {currentSettingsFile}"
+                        );
+                    }
+                }
             }
             finally
             {

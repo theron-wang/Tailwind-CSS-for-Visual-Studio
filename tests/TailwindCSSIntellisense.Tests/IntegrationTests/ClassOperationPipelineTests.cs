@@ -234,7 +234,7 @@ public class ClassOperationPipelineTests
         new()
         {
             EnableTailwindCss = true,
-            ConfigurationFiles = ["tailwind.css"],
+            ConfigurationFiles = [new() { Path = "tailwind.css" }],
             SortClassesType = SortClassesOptions.Manual,
             CanonicalizeClassesType = SortClassesOptions.Manual,
         };

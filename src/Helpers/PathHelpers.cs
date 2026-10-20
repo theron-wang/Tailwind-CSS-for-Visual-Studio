@@ -44,8 +44,13 @@ public static class PathHelpers
             folder += Path.DirectorySeparatorChar;
         }
         var folderUri = new Uri(folder);
+        var relativeUri = folderUri.MakeRelativeUri(pathUri);
+        if (relativeUri.IsAbsoluteUri)
+        {
+            return Path.GetFullPath(file);
+        }
         return Uri.UnescapeDataString(
-            folderUri.MakeRelativeUri(pathUri).ToString().Replace('/', Path.DirectorySeparatorChar)
+            relativeUri.ToString().Replace('/', Path.DirectorySeparatorChar)
         );
     }
 
@@ -64,18 +69,8 @@ public static class PathHelpers
         {
             return null;
         }
-        // Folders must end in a slash
-        if (!dir.EndsWith(Path.DirectorySeparatorChar.ToString()))
-        {
-            dir += Path.DirectorySeparatorChar;
-        }
-
-        var dirUri = new Uri(dir);
-        var absUri = new Uri(dirUri, rel);
-
-        return Uri.UnescapeDataString(
-            absUri.AbsolutePath.Replace('/', Path.DirectorySeparatorChar)
-        );
+        // These are file-system paths, not URI references: '#' and '%' are literal.
+        return Path.GetFullPath(Path.Combine(dir, rel));
     }
 
     /// <summary>
@@ -93,10 +88,10 @@ public static class PathHelpers
         }
 
         // Normalize path separators for consistency
-        path = path.ToLower().Replace('\\', '/');
-        pattern = pattern.ToLower().Replace('\\', '/');
+        path = path.ToLowerInvariant().Replace('\\', '/');
+        pattern = pattern.ToLowerInvariant().Replace('\\', '/');
 
-        string regexPattern = "^" + GlobToRegex(pattern) + "$";
+        string regexPattern = @"\A" + GlobToRegex(pattern) + @"\z";
         return Regex.IsMatch(path, regexPattern);
     }
 
@@ -111,9 +106,17 @@ public static class PathHelpers
             {
                 if (i + 1 < pattern.Length && pattern[i + 1] == '*')
                 {
-                    // ** => match any characters including slashes
-                    regex.Append(".*");
-                    i += 2;
+                    // **/ also matches zero directories, as in src/**/file.html.
+                    if (i + 2 < pattern.Length && pattern[i + 2] == '/')
+                    {
+                        regex.Append("(?:.*/)?");
+                        i += 3;
+                    }
+                    else
+                    {
+                        regex.Append(".*");
+                        i += 2;
+                    }
                 }
                 else
                 {
@@ -124,7 +127,7 @@ public static class PathHelpers
             }
             else if (c == '?')
             {
-                regex.Append("."); // match any single character
+                regex.Append("[^/]"); // match one character within a path segment
                 i++;
             }
             else if (c == '{')
@@ -140,6 +143,10 @@ public static class PathHelpers
                 {
                     string group = pattern.Substring(i + 1, end - i - 1);
                     string[] options = group.Split(',');
+                    for (var option = 0; option < options.Length; option++)
+                    {
+                        options[option] = GlobToRegex(options[option]);
+                    }
                     regex.Append("(?:");
                     regex.Append(string.Join("|", options));
                     regex.Append(")");

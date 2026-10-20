@@ -509,7 +509,9 @@ namespace TailwindCSSIntellisense.Settings
     public sealed class TailwindSettings
     {
         public bool EnableTailwindCss { get; set; }
-        public List<string> ConfigurationFiles { get; set; } = [];
+        public List<ConfigurationFile> ConfigurationFiles { get; set; } = [];
+        public List<BuildPair> BuildFiles { get; set; } = [];
+        public string? PackageConfigurationFile { get; set; }
         public SortClassesOptions SortClassesType { get; set; }
         public SortClassesOptions CanonicalizeClassesType { get; set; } = SortClassesOptions.None;
         public bool UseCli { get; set; }

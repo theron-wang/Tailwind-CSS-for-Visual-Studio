@@ -66,6 +66,23 @@
       Link="Source/Options/SortClassesOptions.cs"
     />
     <Compile Include="../../src/Usings.cs" Link="Source/Usings.cs" />
+    <Compile Include="../../src/Settings/BuildPair.cs" Link="Source/Settings/BuildPair.cs" />
+    <Compile
+      Include="../../src/Settings/BuildBehavior.cs"
+      Link="Source/Settings/BuildBehavior.cs"
+    />
+    <Compile
+      Include="../../src/Settings/ConfigurationFile.cs"
+      Link="Source/Settings/ConfigurationFile.cs"
+    />
+    <Compile
+      Include="../../src/Settings/TailwindSettingsProjectOnly.cs"
+      Link="Source/Settings/TailwindSettingsProjectOnly.cs"
+    />
+    <Compile
+      Include="../../src/Helpers/DescriptionGenerator.cs"
+      Link="Source/Helpers/DescriptionGenerator.cs"
+    />
     <Compile
       Include="../../src/Build/TailwindCliInterop.cs"
       Link="Source/Build/TailwindCliInterop.cs"

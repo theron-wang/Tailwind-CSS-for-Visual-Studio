@@ -664,7 +664,7 @@ internal static class ConfigFileParser
                 v =>
                     string.Join(
                         " ",
-                        v.Value.Split(new char[] { }, StringSplitOptions.RemoveEmptyEntries)
+                        v.Value.Split(Array.Empty<char>(), StringSplitOptions.RemoveEmptyEntries)
                     )
             ),
             Imports = [.. imports.Select(i => i.Replace("@import", "").Replace("@config", ""))],

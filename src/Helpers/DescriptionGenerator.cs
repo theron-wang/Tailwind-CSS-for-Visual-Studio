@@ -29,10 +29,7 @@ internal sealed class DescriptionGenerator : IDisposable
     {
         _settingsProvider = settingsProvider;
 
-        if (_settingsProvider.OnSettingsChanged is not null)
-        {
-            _settingsProvider.OnSettingsChanged += OnSettingsChangedAsync;
-        }
+        _settingsProvider.OnSettingsChanged += OnSettingsChangedAsync;
     }
 
     /// <summary>
@@ -172,7 +169,7 @@ internal sealed class DescriptionGenerator : IDisposable
                         if (!_colorDescriptionMapper.TryGetValue(value, out var hex))
                         {
                             hex = ColorHelpers.ConvertToHexIfPossible(value);
-                            _colorDescriptionMapper[color] = hex;
+                            _colorDescriptionMapper[value] = hex;
                         }
 
                         if (string.IsNullOrWhiteSpace(hex) || hex == value)
@@ -797,7 +794,7 @@ internal sealed class DescriptionGenerator : IDisposable
         }
         else if (variant.StartsWith("max-["))
         {
-            return $"@media (min-width: {variant.Substring(5).TrimEnd(']')})";
+            return $"@media (max-width: {variant.Substring(5).TrimEnd(']')})";
         }
         else if (
             projectCompletionValues.Breakpoints.TryGetValue(
@@ -1003,9 +1000,15 @@ internal sealed class DescriptionGenerator : IDisposable
                     return null;
                 }
             }
-            else if (!projectCompletionValues.SpacingMapper.TryGetValue(spacing, out spacingValue))
+            else if (
+                !projectCompletionValues.SpacingMapper.TryGetValue(spacing, out var mappedSpacing)
+            )
             {
                 return null;
+            }
+            else
+            {
+                spacingValue = mappedSpacing;
             }
         }
 
