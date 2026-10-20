@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Linq;
 using System.Threading.Tasks;
@@ -95,7 +94,10 @@ public sealed partial class CompletionConfiguration
     {
         var request = await ProjectConfigurationManager.BeginReloadAsync(configurationFile.Path);
         if (request is null)
+        {
             return false;
+        }
+
         var version = await DirectoryVersionFinder.GetTailwindVersionAsync(
             configurationFile.Path,
             settings
@@ -147,6 +149,7 @@ public sealed partial class CompletionConfiguration
             LoadIndividualConfigurationExtend(project, config);
             await LoadPluginsAsync(project, config);
             project.Variants = [.. project.Variants.Distinct()];
+            await VS.StatusBar.ShowMessageAsync("Finished reloading Tailwind CSS configuration");
             return project;
         }
         catch (Exception ex)
