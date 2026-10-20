@@ -63,7 +63,10 @@ public sealed class ConfigurationFileReloader : IDisposable
                 foreach (var import in project.LoadedConfiguration?.Imports ?? [])
                 {
                     if (!_importToConfigurationFiles.TryGetValue(import, out var values))
+                    {
                         _importToConfigurationFiles[import] = values = [];
+                    }
+
                     values.Add(new() { Path = project.FilePath });
                 }
             }
@@ -92,11 +95,17 @@ public sealed class ConfigurationFileReloader : IDisposable
                     .Select(p => p.Key)
                     .ToArray()
             )
+            {
                 _importToConfigurationFiles.Remove(key);
+            }
+
             foreach (var import in imports)
             {
                 if (!_importToConfigurationFiles.TryGetValue(import, out var values))
+                {
                     _importToConfigurationFiles[import] = values = [];
+                }
+
                 values.Add(config);
             }
         }

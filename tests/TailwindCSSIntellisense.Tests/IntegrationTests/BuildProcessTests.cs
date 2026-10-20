@@ -52,7 +52,10 @@ public class BuildProcessTests
         Community.VisualStudio.Toolkit.VS.WriteOutput = text =>
         {
             if (!text.Contains("slow output"))
+            {
                 return Task.CompletedTask;
+            }
+
             entered.TrySetResult();
             return resume.Task;
         };
@@ -86,7 +89,10 @@ public class BuildProcessTests
         Community.VisualStudio.Toolkit.VS.WriteOutput = text =>
         {
             if (text.Contains("199ms"))
+            {
                 reported.TrySetResult();
+            }
+
             return Task.CompletedTask;
         };
         try

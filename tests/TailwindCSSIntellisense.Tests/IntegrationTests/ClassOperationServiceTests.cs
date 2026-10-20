@@ -265,9 +265,15 @@ public class ClassOperationServiceTests
         try
         {
             if (unavailable == "missing")
+            {
                 File.Delete(fixture.Path);
+            }
+
             if (unavailable == "readonly")
+            {
                 File.SetAttributes(fixture.Path, FileAttributes.ReadOnly);
+            }
+
             await fixture.Service.ProcessAllAsync();
             Assert.Equal("sorted", await File.ReadAllTextAsync(nextPath));
         }
@@ -275,7 +281,10 @@ public class ClassOperationServiceTests
         {
             blockingFile?.Dispose();
             if (File.Exists(fixture.Path))
+            {
                 File.SetAttributes(fixture.Path, FileAttributes.Normal);
+            }
+
             File.Delete(nextPath);
         }
     }
@@ -293,7 +302,10 @@ public class ClassOperationServiceTests
         await File.WriteAllTextAsync(fixture.Path, original, encoding);
         fixture.Operation.Transform = text => text.Replace("unsorted", "sorted");
         if (open)
+        {
             fixture.Open(original, encoding);
+        }
+
         try
         {
             System.Globalization.CultureInfo.CurrentCulture =

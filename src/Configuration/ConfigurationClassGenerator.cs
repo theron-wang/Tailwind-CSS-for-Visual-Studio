@@ -1387,7 +1387,10 @@ public sealed partial class CompletionConfiguration
     public int CountSubstring(string text, string value)
     {
         if (string.IsNullOrEmpty(value))
+        {
             return 0;
+        }
+
         int count = 0,
             minIndex = text.IndexOf(value, 0, StringComparison.Ordinal);
         while (minIndex != -1)

@@ -872,7 +872,10 @@ internal class TailwindBuildProcess : TailwindCliInterop
             || sender is not Process process
             || !_outputContexts.TryGetValue(process, out var context)
         )
+        {
             return;
+        }
+
         ThreadHelper
             .JoinableTaskFactory.RunAsync(() => HandleOutputAsync(process, data, context))
             .FileAndForget(nameof(TailwindCSSIntellisense) + "/TailwindBuildProcess/Output");
@@ -931,9 +934,11 @@ internal class TailwindBuildProcess : TailwindCliInterop
                     return Task.CompletedTask;
                 });
                 if (restarting)
+                {
                     await WriteToBuildPaneAsync(
                         "Tailwind CSS: Build process ran out of memory; restarting..."
                     );
+                }
             }
             else if (data.Contains("Error"))
             {
@@ -1095,7 +1100,10 @@ internal class TailwindBuildProcess : TailwindCliInterop
             return Task.CompletedTask;
         });
         if (!tracked)
+        {
             return;
+        }
+
         try
         {
             await Task.Run(() => process.WaitForExit());

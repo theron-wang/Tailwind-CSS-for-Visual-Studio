@@ -1346,7 +1346,10 @@ internal sealed class DescriptionGenerator : IDisposable
 
                 var explicitlyColor = c.StartsWith("color:", StringComparison.Ordinal);
                 if (explicitlyColor)
+                {
                     c = c.Substring(6).Trim();
+                }
+
                 if (
                     string.IsNullOrWhiteSpace(c)
                     || (!explicitlyColor && GetSpecialArbitraryTypeByInput(c) != "color")
@@ -1361,7 +1364,9 @@ internal sealed class DescriptionGenerator : IDisposable
             {
                 var c = color.Substring(1, color.Length - 2);
                 if (c.StartsWith("color:", StringComparison.Ordinal))
+                {
                     c = c.Substring(6).Trim();
+                }
 
                 if (string.IsNullOrWhiteSpace(c) || !c.StartsWith("--"))
                 {
@@ -1474,7 +1479,9 @@ internal sealed class DescriptionGenerator : IDisposable
                 special = GetSpecialArbitraryTypeByInput(arbitrary);
                 // Unhinted bg lengths resolve to position; an explicit length: hint selects size.
                 if (stem == "bg-{a}" && special == "length")
+                {
                     special = "position";
+                }
             }
         }
         else

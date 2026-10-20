@@ -191,7 +191,9 @@ public class DescriptionGeneratorTests
                 {
                     start.SignalAndWait();
                     while (!stop.IsCancellationRequested)
+                    {
                         await provider.OnSettingsChanged!(settings);
+                    }
                 },
                 CancellationToken.None,
                 TaskCreationOptions.LongRunning,
@@ -203,10 +205,12 @@ public class DescriptionGeneratorTests
             {
                 start.SignalAndWait();
                 for (var i = 0; i < 10_000; i++)
+                {
                     Assert.Equal(
                         "font-size: 2px;",
                         generator.GetDescription("text-[length:2px]", values, shouldFormat: false)
                     );
+                }
             },
             CancellationToken.None,
             TaskCreationOptions.LongRunning,

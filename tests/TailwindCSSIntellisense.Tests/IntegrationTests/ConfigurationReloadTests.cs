@@ -331,7 +331,10 @@ public class ConfigurationReloadTests
         public void Dispose()
         {
             foreach (var pause in _pauses)
+            {
                 pause.TrySetResult();
+            }
+
             Manager.Dispose();
             Loader.Reloader.Dispose();
             _finder.Dispose();

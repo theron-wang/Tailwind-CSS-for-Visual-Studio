@@ -82,13 +82,20 @@ public class DirectoryVersionFinderTests
         );
         var oldCheck = Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.LastTask!;
         if (invalidation == "directory")
+        {
             finder.ClearCacheForDirectory(directory);
+        }
         else if (invalidation == "folder")
+        {
             VS.Events.SolutionEvents.OpenFolder(directory);
+        }
         else
+        {
             VS.Events.SolutionEvents.OpenProject(
                 new Project { FullPath = Path.Combine(directory, "app.csproj") }
             );
+        }
+
         Assert.Null(
             finder.GetCachedTailwindInstallationStatusOrPopulateInBackground(directory, settings)
         );

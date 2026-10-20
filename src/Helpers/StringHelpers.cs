@@ -25,15 +25,24 @@ internal static class StringHelpers
             if (quote != '\0')
             {
                 if (c == quote)
+                {
                     quote = '\0';
+                }
+
                 continue;
             }
             if (c is '\'' or '"')
+            {
                 quote = c;
+            }
             else if (c is '[' or '(')
+            {
                 depth++;
+            }
             else if (c is ']' or ')')
+            {
                 depth = Math.Max(0, depth - 1);
+            }
             else if (c == ':' && depth == 0)
             {
                 parts.Add(className.Substring(start, i - start));
