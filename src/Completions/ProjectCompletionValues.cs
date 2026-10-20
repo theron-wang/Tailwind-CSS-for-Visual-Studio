@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace TailwindCSSIntellisense.Completions;
@@ -76,15 +76,15 @@ public class ProjectCompletionValues
         {
             className = className.Trim('!').Split(':').Last();
 
-            if (!string.IsNullOrWhiteSpace(Prefix))
+            if (Prefix is { } prefix1 && !string.IsNullOrWhiteSpace(prefix1))
             {
-                if (className.StartsWith(Prefix))
+                if (className.StartsWith(prefix1))
                 {
-                    className = className.Substring(Prefix!.Length);
+                    className = className.Substring(prefix1.Length);
                 }
-                else if (className.StartsWith($"-{Prefix}"))
+                else if (className.StartsWith($"-{prefix1}"))
                 {
-                    className = className.Substring(Prefix!.Length + 1);
+                    className = className.Substring(prefix1.Length + 1);
                 }
             }
         }

@@ -80,7 +80,7 @@ internal class TailwindBuildProcess : TailwindCliInterop
         await SetFilePathsAsync(_settings);
 
         // Prevent more than one subscription when projects are changed
-        if (_subscribed == false)
+        if (!_subscribed)
         {
             VS.Events.BuildEvents.ProjectBuildStarted += OnBuild;
             VS.Events.DocumentEvents.Saved += OnFileSave;
@@ -129,7 +129,7 @@ internal class TailwindBuildProcess : TailwindCliInterop
     /// <returns><see langword="true"/> if the process is running and building is enabled; otherwise, <see langword="false"/>.</returns>
     protected override bool IsProcessActive(Process? process)
     {
-        if (_settings?.BuildType == BuildProcessOptions.None)
+        if (AreSettingsInitialized && _settings.BuildType == BuildProcessOptions.None)
         {
             return false;
         }
@@ -259,7 +259,6 @@ internal class TailwindBuildProcess : TailwindCliInterop
         {
             if (
                 _settings.ConfigurationFiles.Count == 0
-                || _inputFileToBuildInfo == null
                 || _inputFileToBuildInfo.Count == 0
                 || _settings.BuildType == BuildProcessOptions.None
             )
@@ -280,11 +279,11 @@ internal class TailwindBuildProcess : TailwindCliInterop
                         {
                             BuildBehavior.Minified => true,
                             BuildBehavior.Unminified => false,
-                            BuildBehavior.Default or _ => pair.Value.Behavior switch
+                            _ => pair.Value.Behavior switch
                             {
                                 BuildBehavior.Minified => true,
                                 BuildBehavior.Unminified => false,
-                                BuildBehavior.Default or _ => _settings.AutomaticallyMinify,
+                                _ => _settings.AutomaticallyMinify,
                             },
                         }
                     );
@@ -323,10 +322,8 @@ internal class TailwindBuildProcess : TailwindCliInterop
             return;
         }
 
-        var hasScript = false;
-        string? packageJsonPath = null;
-
-        if (!_configsToPackageJsons.ContainsKey(config.FilePath))
+        bool hasScript;
+        if (!_configsToPackageJsons.TryGetValue(config.FilePath, out var packageJsonPath))
         {
             (hasScript, packageJsonPath) = await PackageJsonReader.ScriptExistsAsync(
                 config.FilePath,
@@ -336,16 +333,15 @@ internal class TailwindBuildProcess : TailwindCliInterop
         }
         else
         {
-            packageJsonPath = _configsToPackageJsons[config.FilePath];
             hasScript = packageJsonPath is not null;
         }
 
         var needOtherProcess =
-            _settings.OverrideBuild == false
+            !_settings.OverrideBuild
             && hasScript
-            && string.IsNullOrWhiteSpace(_settings.BuildScript) == false;
+            && !string.IsNullOrWhiteSpace(_settings.BuildScript);
         // Run from the directory of the input file so Tailwind can find the configuration file, not us
-        var dir = Path.GetDirectoryName(config.FilePath);
+        var dir = PathHelpers.GetContainingDirectory(config.FilePath);
 
         var inputFile = PathHelpers.GetRelativePath(input, dir)!;
         var outputFile = PathHelpers.GetRelativePath(output, dir)!;
@@ -367,7 +363,7 @@ internal class TailwindBuildProcess : TailwindCliInterop
             )
             {
                 if (
-                    _settings.OverrideBuild == false
+                    !_settings.OverrideBuild
                     || !hasScript
                     || string.IsNullOrWhiteSpace(_settings.BuildScript)
                 )
@@ -405,7 +401,7 @@ internal class TailwindBuildProcess : TailwindCliInterop
                 }
 
                 if (
-                    _settings.OverrideBuild == false
+                    !_settings.OverrideBuild
                     || !hasScript
                     || string.IsNullOrWhiteSpace(_settings.BuildScript)
                 )
@@ -441,7 +437,14 @@ internal class TailwindBuildProcess : TailwindCliInterop
                 else if (_settings.OverrideBuild)
                 {
                     CreateAndSetAndStartSecondaryProcess(
-                        GetProcessStartInfo(Path.GetDirectoryName(packageJsonPath))
+                        GetProcessStartInfo(
+                            PathHelpers.GetContainingDirectory(
+                                packageJsonPath
+                                    ?? throw new InvalidOperationException(
+                                        "The build script has no package.json path."
+                                    )
+                            )
+                        )
                     );
 
                     await _secondaryProcess!.StandardInput.WriteLineAsync(
@@ -467,7 +470,14 @@ internal class TailwindBuildProcess : TailwindCliInterop
                         $"Tailwind CSS: Running '{_settings.BuildScript}' script..."
                     );
 
-                    var processInfo = GetProcessStartInfo(Path.GetDirectoryName(packageJsonPath));
+                    var processInfo = GetProcessStartInfo(
+                        PathHelpers.GetContainingDirectory(
+                            packageJsonPath
+                                ?? throw new InvalidOperationException(
+                                    "The build script has no package.json path."
+                                )
+                        )
+                    );
                     CreateAndSetAndStartSecondaryProcess(processInfo);
 
                     await _secondaryProcess!.StandardInput.WriteLineAsync(
@@ -495,7 +505,7 @@ internal class TailwindBuildProcess : TailwindCliInterop
                 }
 
                 if (
-                    _settings.OverrideBuild == false
+                    !_settings.OverrideBuild
                     || !hasScript
                     || string.IsNullOrWhiteSpace(_settings.BuildScript)
                 )
@@ -535,7 +545,14 @@ internal class TailwindBuildProcess : TailwindCliInterop
                 }
                 else if (_settings.OverrideBuild)
                 {
-                    var processInfo = GetProcessStartInfo(Path.GetDirectoryName(packageJsonPath));
+                    var processInfo = GetProcessStartInfo(
+                        PathHelpers.GetContainingDirectory(
+                            packageJsonPath
+                                ?? throw new InvalidOperationException(
+                                    "The build script has no package.json path."
+                                )
+                        )
+                    );
                     processInfo.Arguments = $"/c npm run {_settings.BuildScript}";
 
                     CreateAndSetAndStartSecondaryProcess(processInfo);
@@ -549,13 +566,20 @@ internal class TailwindBuildProcess : TailwindCliInterop
             #endregion
             #region Secondary process
 
-            if (IsProcessActive(_secondaryProcess) == false && needOtherProcess)
+            if (!IsProcessActive(_secondaryProcess) && needOtherProcess)
             {
                 await WriteToBuildPaneAsync(
                     $"Tailwind CSS: Running '{_settings.BuildScript}' script..."
                 );
 
-                var processInfo = GetProcessStartInfo(Path.GetDirectoryName(packageJsonPath));
+                var processInfo = GetProcessStartInfo(
+                    PathHelpers.GetContainingDirectory(
+                        packageJsonPath
+                            ?? throw new InvalidOperationException(
+                                "The build script has no package.json path."
+                            )
+                    )
+                );
                 processInfo.Arguments = $"/c npm run {_settings.BuildScript}";
 
                 CreateAndSetAndStartSecondaryProcess(processInfo);
@@ -700,7 +724,7 @@ internal class TailwindBuildProcess : TailwindCliInterop
             {
                 f.Output = string.IsNullOrEmpty(f.Output)
                     ? Path.Combine(
-                        Path.GetDirectoryName(f.Input),
+                        PathHelpers.GetContainingDirectory(f.Input),
                         string.Format(
                             settings.DefaultOutputCssName.EndsWith(".css")
                                 ? settings.DefaultOutputCssName
@@ -762,11 +786,6 @@ internal class TailwindBuildProcess : TailwindCliInterop
     /// <param name="data">The output line, without its line terminator.</param>
     protected override void OutputDataReceived(object sender, string data)
     {
-        if (data == null)
-        {
-            return;
-        }
-
         if (_settings.OverrideBuild || sender == _secondaryProcess)
         {
             if (
@@ -789,9 +808,9 @@ internal class TailwindBuildProcess : TailwindCliInterop
             }
             // usually messages with backslashes (path) and > are the lines where the command is being written to the command prompt
             else if (
-                string.IsNullOrWhiteSpace(data) == false
-                && data.Contains("Microsoft") == false
-                && (data.Contains('>') == false || data.Contains('\\') == false)
+                !string.IsNullOrWhiteSpace(data)
+                && !data.Contains("Microsoft")
+                && (!data.Contains('>') || !data.Contains('\\'))
             )
             {
                 ThreadHelper.JoinableTaskFactory.Run(async () =>
@@ -840,7 +859,7 @@ internal class TailwindBuildProcess : TailwindCliInterop
             }
             else if (_general.VerboseBuild)
             {
-                if (string.IsNullOrWhiteSpace(data) == false && data.Contains("Microsoft") == false)
+                if (!string.IsNullOrWhiteSpace(data) && !data.Contains("Microsoft"))
                 {
                     // Regex: remove ANSI escape codes
                     ThreadHelper.JoinableTaskFactory.Run(async () =>
@@ -950,7 +969,7 @@ internal class TailwindBuildProcess : TailwindCliInterop
     {
         _secondaryProcess = StartProcess(startInfo);
 
-        _secondaryProcess.Exited += (s, e) =>
+        _secondaryProcess.Exited += (_, _) =>
         {
             ThreadHelper.JoinableTaskFactory.Run(() =>
                 WriteToBuildPaneAsync("Tailwind CSS: Build stopped")
@@ -969,12 +988,12 @@ internal class TailwindBuildProcess : TailwindCliInterop
     {
         var process = StartProcess(startInfo);
 
-        process.Exited += (s, e) =>
+        process.Exited += (s, _) =>
         {
             var proc = (Process)s;
             _processToIsMinify.Remove(proc);
 
-            proc?.Dispose();
+            proc.Dispose();
             string? keyToRemove = null;
             foreach (var kvp in _outputFileToProcesses)
             {

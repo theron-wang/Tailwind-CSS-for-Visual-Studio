@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -53,13 +54,15 @@ internal abstract class RazorClassOperator<TOperation> : ClassOperator<TOperatio
             // returns the text up to the content capture group (such as class=" or class=')
             var total = match.Value;
             var classContent = ClassRegexHelper.GetClassTextGroup(match).Value;
-            yield return total.Substring(0, total.IndexOf(classContent));
+            yield return total.Substring(0, total.IndexOf(classContent, StringComparison.Ordinal));
 
             yield return new CustomSplitClassOpToken(
                 ClassRegexHelper.SplitRazorClasses(classContent).Select(m => m.Value),
                 classContent
             );
-            yield return total.Substring(total.IndexOf(classContent) + classContent.Length);
+            yield return total.Substring(
+                total.IndexOf(classContent, StringComparison.Ordinal) + classContent.Length
+            );
         }
 
         yield return content.Substring(lastIndex);

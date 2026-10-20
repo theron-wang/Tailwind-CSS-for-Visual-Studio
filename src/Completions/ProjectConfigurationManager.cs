@@ -8,7 +8,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Threading;
 using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Node;
@@ -36,7 +35,7 @@ public sealed class ProjectConfigurationManager : IDisposable
         new BitmapImage(
             new Uri(
                 Path.Combine(
-                    Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+                    PathHelpers.GetContainingDirectory(Assembly.GetExecutingAssembly().Location),
                     "Resources",
                     "tailwindlogo.png"
                 ),
@@ -67,7 +66,7 @@ public sealed class ProjectConfigurationManager : IDisposable
     private readonly SemaphoreSlim _configLock = new SemaphoreSlim(1, 1);
     private readonly object _subscriptionLock = new object();
 
-    private bool _hasSubscribedToConfigurationChangedEvent = false;
+    private bool _hasSubscribedToConfigurationChangedEvent;
 
     private void InitializeEventSubscriptions()
     {
@@ -213,7 +212,8 @@ public sealed class ProjectConfigurationManager : IDisposable
         ProjectCompletionValues? closest = null;
         var minDist = int.MaxValue;
 
-        var inputFileDirectories = Path.GetDirectoryName(filePath)
+        var inputFileDirectories = PathHelpers
+            .GetContainingDirectory(filePath)
             .ToLower()
             .Split(Path.DirectorySeparatorChar);
 
@@ -249,7 +249,8 @@ public sealed class ProjectConfigurationManager : IDisposable
             {
                 // Find the distance from this configuration file to filePath.
                 // i.e., find the number of subdirectories that differ between the two paths
-                var applicablePathDirectories = Path.GetDirectoryName(path)
+                var applicablePathDirectories = PathHelpers
+                    .GetContainingDirectory(path)
                     .ToLower()
                     .Split(Path.DirectorySeparatorChar);
 
@@ -393,7 +394,9 @@ public sealed class ProjectConfigurationManager : IDisposable
                 if (!settings.UseCli || string.IsNullOrWhiteSpace(settings.TailwindCliPath))
                 {
                     await CheckForUpdates.UpdateConfigFileFolderAsync(file.Path);
-                    DirectoryVersionFinder.ClearCacheForDirectory(Path.GetDirectoryName(file.Path));
+                    DirectoryVersionFinder.ClearCacheForDirectory(
+                        PathHelpers.GetContainingDirectory(file.Path)
+                    );
                 }
 
                 projectConfig = (

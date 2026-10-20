@@ -8,7 +8,7 @@ using TailwindCSSIntellisense.Node;
 using TailwindCSSIntellisense.Options;
 using TailwindCSSIntellisense.Settings;
 
-namespace TailwindCSSIntellisense;
+namespace TailwindCSSIntellisense.Commands;
 
 [Command(PackageGuids.guidVSPackageCmdSetString, PackageIds.SetUpTailwindCliCmdId)]
 internal sealed class SetUpAndUseTailwindCli : BaseCommand<SetUpAndUseTailwindCli>
@@ -44,6 +44,10 @@ internal sealed class SetUpAndUseTailwindCli : BaseCommand<SetUpAndUseTailwindCl
             var directory = Path.GetDirectoryName(
                 SolutionExplorerSelection.CurrentSelectedItemFullPath
             );
+            if (directory is null)
+            {
+                return;
+            }
             // Check again to see if there were any changes since the last settings cache
             // User may have manually run the setup command, for example
             SettingsProvider.RefreshSettings();

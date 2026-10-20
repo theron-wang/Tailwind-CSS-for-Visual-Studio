@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
@@ -15,7 +15,7 @@ public sealed partial class CompletionConfiguration
     /// </summary>
     private async Task LoadGlobalConfigurationAsync(
         ProjectCompletionValues project,
-        TailwindConfiguration config
+        TailwindConfiguration? config
     )
     {
         var original = await ProjectConfigurationInitializer.GetUnsetCompletionConfigurationAsync(
@@ -153,10 +153,8 @@ public sealed partial class CompletionConfiguration
         {
             foreach (var plugin in config.EnabledCorePlugins)
             {
-                if (project.ConfigurationValueToClassStems.ContainsKey(plugin))
+                if (project.ConfigurationValueToClassStems.TryGetValue(plugin, out var stems))
                 {
-                    var stems = project.ConfigurationValueToClassStems[plugin];
-
                     foreach (var stem in stems)
                     {
                         if (stem.Contains("{*}"))
@@ -165,9 +163,7 @@ public sealed partial class CompletionConfiguration
 
                             enabledClasses.AddRange(
                                 original.Classes.Where(c =>
-                                    c.Name.StartsWith(s)
-                                    && c.UseColors == false
-                                    && c.UseSpacing == false
+                                    c.Name.StartsWith(s) && !c.UseColors && !c.UseSpacing
                                 )
                             );
                         }
@@ -177,7 +173,7 @@ public sealed partial class CompletionConfiguration
 
                             enabledClasses.AddRange(
                                 original.Classes.Where(c =>
-                                    c.Name.StartsWith(s) && c.UseColors == false && c.UseSpacing
+                                    c.Name.StartsWith(s) && !c.UseColors && c.UseSpacing
                                 )
                             );
                         }
@@ -187,7 +183,7 @@ public sealed partial class CompletionConfiguration
 
                             enabledClasses.AddRange(
                                 original.Classes.Where(c =>
-                                    c.Name.StartsWith(s) && c.UseColors && c.UseSpacing == false
+                                    c.Name.StartsWith(s) && c.UseColors && !c.UseSpacing
                                 )
                             );
                         }
@@ -203,16 +199,16 @@ public sealed partial class CompletionConfiguration
                                 values[0] = values[0].Trim('!');
                             }
 
-                            var classes = values.Select(v => $"{s}-{v}");
+                            var classes = values.Select(v => $"{s}-{v}").ToArray();
 
                             if (negate)
                             {
                                 enabledClasses.AddRange(
                                     original.Classes.Where(c =>
                                         c.Name.StartsWith(s)
-                                        && classes.Contains(c.Name) == false
-                                        && c.UseColors == false
-                                        && c.UseSpacing == false
+                                        && !classes.Contains(c.Name)
+                                        && !c.UseColors
+                                        && !c.UseSpacing
                                     )
                                 );
                             }
@@ -220,9 +216,7 @@ public sealed partial class CompletionConfiguration
                             {
                                 enabledClasses.AddRange(
                                     original.Classes.Where(c =>
-                                        classes.Contains(c.Name)
-                                        && c.UseColors == false
-                                        && c.UseSpacing == false
+                                        classes.Contains(c.Name) && !c.UseColors && !c.UseSpacing
                                     )
                                 );
                             }
@@ -233,8 +227,8 @@ public sealed partial class CompletionConfiguration
                                 original.Classes.Where(c =>
                                     c.Name.StartsWith(stem)
                                     && c.Name.Replace($"{stem}-", "").Count(ch => ch == '-') == 0
-                                    && c.UseColors == false
-                                    && c.UseSpacing == false
+                                    && !c.UseColors
+                                    && !c.UseSpacing
                                 )
                             );
                         }
@@ -250,10 +244,8 @@ public sealed partial class CompletionConfiguration
             {
                 foreach (var plugin in config.DisabledCorePlugins)
                 {
-                    if (project.ConfigurationValueToClassStems.ContainsKey(plugin))
+                    if (project.ConfigurationValueToClassStems.TryGetValue(plugin, out var stems))
                     {
-                        var stems = project.ConfigurationValueToClassStems[plugin];
-
                         foreach (var stem in stems)
                         {
                             if (stem.Contains("{*}"))
@@ -261,9 +253,7 @@ public sealed partial class CompletionConfiguration
                                 var s = stem.Replace("-{*}", "");
 
                                 enabledClasses.RemoveAll(c =>
-                                    c.Name.StartsWith(s)
-                                    && c.UseColors == false
-                                    && c.UseSpacing == false
+                                    c.Name.StartsWith(s) && !c.UseColors && !c.UseSpacing
                                 );
                             }
                             else if (stem.Contains("{s}"))
@@ -271,7 +261,7 @@ public sealed partial class CompletionConfiguration
                                 var s = stem.Replace("-{s}", "");
 
                                 enabledClasses.RemoveAll(c =>
-                                    c.Name.StartsWith(s) && c.UseColors == false && c.UseSpacing
+                                    c.Name.StartsWith(s) && !c.UseColors && c.UseSpacing
                                 );
                             }
                             else if (stem.Contains("{c}"))
@@ -279,7 +269,7 @@ public sealed partial class CompletionConfiguration
                                 var s = stem.Replace("-{c}", "");
 
                                 enabledClasses.RemoveAll(c =>
-                                    c.Name.StartsWith(s) && c.UseColors && c.UseSpacing == false
+                                    c.Name.StartsWith(s) && c.UseColors && !c.UseSpacing
                                 );
                             }
                             else if (stem.Contains('{'))
@@ -294,23 +284,21 @@ public sealed partial class CompletionConfiguration
                                     values[0] = values[0].Trim('!');
                                 }
 
-                                var classes = values.Select(v => $"{s}-{v}");
+                                var classes = values.Select(v => $"{s}-{v}").ToArray();
 
                                 if (negate)
                                 {
                                     enabledClasses.RemoveAll(c =>
                                         c.Name.StartsWith(s)
-                                        && classes.Contains(c.Name) == false
-                                        && c.UseColors == false
-                                        && c.UseSpacing == false
+                                        && !classes.Contains(c.Name)
+                                        && !c.UseColors
+                                        && !c.UseSpacing
                                     );
                                 }
                                 else
                                 {
                                     enabledClasses.RemoveAll(c =>
-                                        classes.Contains(c.Name)
-                                        && c.UseColors == false
-                                        && c.UseSpacing == false
+                                        classes.Contains(c.Name) && !c.UseColors && !c.UseSpacing
                                     );
                                 }
                             }
@@ -319,8 +307,8 @@ public sealed partial class CompletionConfiguration
                                 enabledClasses.RemoveAll(c =>
                                     c.Name.StartsWith(stem)
                                     && c.Name.Replace($"{stem}-", "").Count(ch => ch == '-') == 0
-                                    && c.UseColors == false
-                                    && c.UseSpacing == false
+                                    && !c.UseColors
+                                    && !c.UseSpacing
                                 );
                             }
                         }
@@ -335,10 +323,11 @@ public sealed partial class CompletionConfiguration
     /// <summary>
     /// Reconfigures all classes based on the specified configuration (configures theme.____)
     /// </summary>
+    /// <param name="project">The project completion configuration.</param>
     /// <param name="config">The configuration object</param>
     private async Task LoadIndividualConfigurationOverrideAsync(
         ProjectCompletionValues project,
-        TailwindConfiguration config
+        TailwindConfiguration? config
     )
     {
         if (config is null)
@@ -353,7 +342,7 @@ public sealed partial class CompletionConfiguration
         );
 
         var applicable = project.ConfigurationValueToClassStems.Keys.Where(k =>
-            config.OverridenValues?.ContainsKey(k) == true
+            config.OverridenValues.ContainsKey(k)
         );
         project.Variants = [.. original.Variants];
         var classesToRemove = new List<TailwindClass>();
@@ -375,7 +364,7 @@ public sealed partial class CompletionConfiguration
                     project.Variants.RemoveAll(c =>
                         c.StartsWith(s)
                         && c.Replace($"{s}-", "").Count(ch => ch == '-') == 0
-                        && c.Contains("[]") == false
+                        && !c.Contains("[]")
                     );
 
                     if (GetDictionary(config.OverridenValues[key], out var dict))
@@ -418,24 +407,28 @@ public sealed partial class CompletionConfiguration
                 }
                 else
                 {
-                    IEnumerable<TailwindClass> descClasses;
+                    List<TailwindClass> descClasses;
                     var s = stem;
+                    var classStem = stem.Replace("-{*}", "");
 
                     if (stem.Contains("{*}"))
                     {
                         s = stem.Replace("-{*}", "");
 
-                        descClasses = project.Classes.Where(c =>
-                            c.Name.StartsWith(s)
-                            && c.HasArbitrary == false
-                            && c.UseColors == false
-                            && c.UseSpacing == false
-                        );
+                        descClasses = project
+                            .Classes.Where(c =>
+                                c.Name.StartsWith(classStem)
+                                && !c.HasArbitrary
+                                && !c.UseColors
+                                && !c.UseSpacing
+                            )
+                            .ToList();
                         classesToRemove.AddRange(descClasses);
                     }
                     else if (stem.Contains('{'))
                     {
                         s = stem.Replace($"-{stem.Split('-').Last()}", "");
+                        classStem = s;
                         var values = stem.Split('-').Last().Trim('{', '}').Split('|');
 
                         bool negate = false;
@@ -445,38 +438,44 @@ public sealed partial class CompletionConfiguration
                             values[0] = values[0].Trim('!');
                         }
 
-                        var classes = values.Select(v => $"{s}-{v}");
+                        var classes = values.Select(v => $"{classStem}-{v}").ToArray();
 
                         if (negate)
                         {
-                            descClasses = project.Classes.Where(c =>
-                                c.Name.StartsWith(s)
-                                && classes.Contains(c.Name) == false
-                                && c.HasArbitrary == false
-                                && c.UseColors == false
-                                && c.UseSpacing == false
-                            );
+                            descClasses = project
+                                .Classes.Where(c =>
+                                    c.Name.StartsWith(classStem)
+                                    && !classes.Contains(c.Name)
+                                    && !c.HasArbitrary
+                                    && !c.UseColors
+                                    && !c.UseSpacing
+                                )
+                                .ToList();
                         }
                         else
                         {
-                            descClasses = project.Classes.Where(c =>
-                                classes.Contains(c.Name)
-                                && c.HasArbitrary == false
-                                && c.UseColors == false
-                                && c.UseSpacing == false
-                            );
+                            descClasses = project
+                                .Classes.Where(c =>
+                                    classes.Contains(c.Name)
+                                    && !c.HasArbitrary
+                                    && !c.UseColors
+                                    && !c.UseSpacing
+                                )
+                                .ToList();
                         }
                         classesToRemove.AddRange(descClasses);
                     }
                     else
                     {
-                        descClasses = project.Classes.Where(c =>
-                            c.Name.StartsWith(stem)
-                            && c.Name.Replace($"{stem}-", "").Count(ch => ch == '-') == 0
-                            && c.HasArbitrary == false
-                            && c.UseColors == false
-                            && c.UseSpacing == false
-                        );
+                        descClasses = project
+                            .Classes.Where(c =>
+                                c.Name.StartsWith(stem)
+                                && c.Name.Replace($"{stem}-", "").Count(ch => ch == '-') == 0
+                                && !c.HasArbitrary
+                                && !c.UseColors
+                                && !c.UseSpacing
+                            )
+                            .ToList();
                         classesToRemove.AddRange(descClasses);
                     }
 
@@ -491,17 +490,14 @@ public sealed partial class CompletionConfiguration
                         classesToAdd.AddRange(
                             dict.Keys.Where(k =>
                                     (
-                                        project.CustomSpacingMappers.ContainsKey(stem + "-{0}")
-                                            == false
-                                        || project
+                                        !project.CustomSpacingMappers.ContainsKey(stem + "-{0}")
+                                        || !project
                                             .CustomSpacingMappers[stem + "-{0}"]
-                                            .ContainsKey(k) == false
+                                            .ContainsKey(k)
                                     )
                                     && (
-                                        project.CustomColorMappers.ContainsKey(stem + "-{0}")
-                                            == false
-                                        || project.CustomColorMappers[stem + "-{0}"].ContainsKey(k)
-                                            == false
+                                        !project.CustomColorMappers.ContainsKey(stem + "-{0}")
+                                        || !project.CustomColorMappers[stem + "-{0}"].ContainsKey(k)
                                     )
                                 )
                                 .Select(k =>
@@ -526,7 +522,8 @@ public sealed partial class CompletionConfiguration
 
                         var texts = descClasses
                             .Where(c => project.DescriptionMapper.ContainsKey(c.Name))
-                            .Select(c => project.DescriptionMapper[c.Name]);
+                            .Select(c => project.DescriptionMapper[c.Name])
+                            .ToList();
 
                         string? format;
 
@@ -534,11 +531,11 @@ public sealed partial class CompletionConfiguration
                         {
                             format = null;
                         }
-                        else if (texts.Count() == 0)
+                        else if (texts.Count == 0)
                         {
                             continue;
                         }
-                        else if (texts.Count() == 1)
+                        else if (texts.Count == 1)
                         {
                             var text = texts.First();
                             var colon = text.IndexOf(':');
@@ -560,7 +557,7 @@ public sealed partial class CompletionConfiguration
                                 var suffix = FindCommonSuffix(texts);
                                 var replace = text.Substring(
                                     prefix.Length,
-                                    text.IndexOf(suffix) - prefix.Length
+                                    text.IndexOf(suffix, StringComparison.Ordinal) - prefix.Length
                                 );
                                 format = text.Replace(replace, "{0}");
                             }
@@ -581,18 +578,23 @@ public sealed partial class CompletionConfiguration
                                 }
                             }
 
+                            if (format is null)
+                            {
+                                continue;
+                            }
+
                             if (pair.Key == "DEFAULT")
                             {
                                 project.CustomDescriptionMapper[s] = string.Format(
                                     format,
-                                    pair.Value.ToString()
+                                    pair.Value
                                 );
                             }
                             else
                             {
                                 project.CustomDescriptionMapper[$"{s}-{pair.Key}"] = string.Format(
                                     format,
-                                    pair.Value.ToString()
+                                    pair.Value
                                 );
                             }
                         }
@@ -609,12 +611,13 @@ public sealed partial class CompletionConfiguration
     /// Reconfigures all classes based on the specified configuration (configures theme.extend.____).
     /// </summary>
     /// <remarks>
-    /// Should be called after <see cref="LoadIndividualConfigurationOverride(TailwindConfiguration)"/>.
+    /// Should be called after <see cref="LoadIndividualConfigurationOverrideAsync(ProjectCompletionValues, TailwindConfiguration)"/>.
     /// </remarks>
+    /// <param name="project">The project completion configuration.</param>
     /// <param name="config">The configuration object</param>
     private void LoadIndividualConfigurationExtend(
         ProjectCompletionValues project,
-        TailwindConfiguration config
+        TailwindConfiguration? config
     )
     {
         if (config is null)
@@ -623,7 +626,7 @@ public sealed partial class CompletionConfiguration
         }
 
         var applicable = project.ConfigurationValueToClassStems.Keys.Where(k =>
-            config.ExtendedValues?.ContainsKey(k) == true
+            config.ExtendedValues.ContainsKey(k)
         );
 
         if (
@@ -645,7 +648,7 @@ public sealed partial class CompletionConfiguration
 
                 foreach (var insert in toInsert)
                 {
-                    if (project.Variants.Contains(insert) == false)
+                    if (!project.Variants.Contains(insert))
                     {
                         project.Variants.Add(insert);
                     }
@@ -671,12 +674,11 @@ public sealed partial class CompletionConfiguration
                         {
                             var insert = k == "DEFAULT" ? s : $"{s}-{k}";
 
-                            if (project.Variants.Contains(insert) == false)
+                            if (!project.Variants.Contains(insert))
                             {
                                 project.Variants.Add(insert);
                             }
                         }
-                        ;
                     }
                 }
                 else if (stem.Contains("{s}"))
@@ -710,51 +712,55 @@ public sealed partial class CompletionConfiguration
                 }
                 else
                 {
-                    var s = stem;
-                    IEnumerable<TailwindClass> descClasses;
+                    var classStem = stem.Replace("-{*}", "");
+                    List<TailwindClass> descClasses;
                     if (stem.Contains("{*}"))
                     {
-                        s = stem.Replace("-{*}", "");
-
-                        descClasses = project.Classes.Where(c =>
-                            c.Name.StartsWith(s)
-                            && c.HasArbitrary == false
-                            && c.UseColors == false
-                            && c.UseSpacing == false
-                        );
+                        descClasses = project
+                            .Classes.Where(c =>
+                                c.Name.StartsWith(classStem)
+                                && !c.HasArbitrary
+                                && !c.UseColors
+                                && !c.UseSpacing
+                            )
+                            .ToList();
                     }
                     else if (stem.Contains('{'))
                     {
-                        s = stem.Replace($"-{stem.Split('-').Last()}", "");
+                        classStem = stem.Replace($"-{stem.Split('-').Last()}", "");
                         var values = stem.Split('-')
                             .Last()
                             .Trim('{', '}')
                             .Split('|')
-                            .Select(v => $"{s}-{v}");
+                            .Select(v => $"{classStem}-{v}");
 
-                        descClasses = project.Classes.Where(c =>
-                            values.Contains(c.Name)
-                            && c.HasArbitrary == false
-                            && c.UseColors == false
-                            && c.UseSpacing == false
-                        );
+                        descClasses = project
+                            .Classes.Where(c =>
+                                values.Contains(c.Name)
+                                && !c.HasArbitrary
+                                && !c.UseColors
+                                && !c.UseSpacing
+                            )
+                            .ToList();
                     }
                     else
                     {
-                        descClasses = project.Classes.Where(c =>
-                            c.Name.StartsWith(stem)
-                            && c.Name.Replace($"{stem}-", "").Count(ch => ch == '-') == 0
-                            && c.HasArbitrary == false
-                            && c.UseColors == false
-                            && c.UseSpacing == false
-                        );
+                        descClasses = project
+                            .Classes.Where(c =>
+                                c.Name.StartsWith(stem)
+                                && c.Name.Replace($"{stem}-", "").Count(ch => ch == '-') == 0
+                                && !c.HasArbitrary
+                                && !c.UseColors
+                                && !c.UseSpacing
+                            )
+                            .ToList();
                     }
 
-                    var insertStem = s;
+                    var insertStem = classStem;
                     // row-span and col-span are actually row and col internally
-                    if (s.EndsWith("-span"))
+                    if (classStem.EndsWith("-span"))
                     {
-                        insertStem = s.Replace("-span", "");
+                        insertStem = classStem.Replace("-span", "");
                     }
 
                     if (GetDictionary(config.ExtendedValues[key], out var dict))
@@ -777,7 +783,7 @@ public sealed partial class CompletionConfiguration
                                 })
                                 .Where(k =>
                                     !string.IsNullOrWhiteSpace(k)
-                                    && project.Classes.Any(c => c.Name == k) == false
+                                    && !project.Classes.Any(c => c.Name == k)
                                 )
                                 .Select(k =>
                                 {
@@ -787,7 +793,8 @@ public sealed partial class CompletionConfiguration
 
                         var texts = descClasses
                             .Where(c => project.DescriptionMapper.ContainsKey(c.Name))
-                            .Select(c => project.DescriptionMapper[c.Name]);
+                            .Select(c => project.DescriptionMapper[c.Name])
+                            .ToList();
 
                         string? format;
 
@@ -795,11 +802,11 @@ public sealed partial class CompletionConfiguration
                         {
                             format = null;
                         }
-                        else if (texts.Count() == 0)
+                        else if (texts.Count == 0)
                         {
                             continue;
                         }
-                        else if (texts.Count() == 1)
+                        else if (texts.Count == 1)
                         {
                             var text = texts.First();
                             var colon = text.IndexOf(':');
@@ -822,7 +829,7 @@ public sealed partial class CompletionConfiguration
                                 var suffix = FindCommonSuffix(texts);
                                 replace = text.Substring(
                                     prefix.Length,
-                                    text.IndexOf(suffix) - prefix.Length
+                                    text.IndexOf(suffix, StringComparison.Ordinal) - prefix.Length
                                 );
                                 format = text.Replace(replace, "{0}");
                             }
@@ -841,7 +848,9 @@ public sealed partial class CompletionConfiguration
                             }
                             else
                             {
-                                description = string.Format(format, pair.Value.ToString());
+                                description = format is null
+                                    ? null
+                                    : string.Format(format, pair.Value);
                             }
 
                             if (pair.Key == "DEFAULT")
@@ -900,6 +909,7 @@ public sealed partial class CompletionConfiguration
     /// <summary>
     /// Loads IntelliSense for plugins, @custom-variant and @utility
     /// </summary>
+    /// <param name="project">The project completion configuration.</param>
     /// <param name="config">The configuration object</param>
     private async Task LoadPluginsAsync(
         ProjectCompletionValues project,
@@ -920,7 +930,7 @@ public sealed partial class CompletionConfiguration
 
                 foreach (var pair in config.PluginVariantDescriptions)
                 {
-                    if (project.VariantsToDescriptions.ContainsKey(pair.Key) == false)
+                    if (!project.VariantsToDescriptions.ContainsKey(pair.Key))
                     {
                         // @slot; and @slot are both valid
                         project.VariantsToDescriptions[pair.Key] = pair
@@ -1021,7 +1031,7 @@ public sealed partial class CompletionConfiguration
 
                             if (string.IsNullOrWhiteSpace(attribute))
                             {
-                                continue;
+                                // Empty CSS declarations have no description to generate.
                             }
                             // Case 1: No --value
                             else if (!attribute!.Contains("--value("))
@@ -1040,11 +1050,9 @@ public sealed partial class CompletionConfiguration
                                     continue;
                                 }
 
-                                var attributeKey = attribute.Substring(0, attribute.IndexOf(':'));
-
                                 // Handle multiple or single --value
                                 // --value(--tab-size-*, integer, [integer])
-                                var start = attribute.IndexOf("--value(");
+                                var start = attribute.IndexOf("--value(", StringComparison.Ordinal);
 
                                 var end = attribute.IndexOf(')', start + 1);
 
@@ -1074,7 +1082,7 @@ public sealed partial class CompletionConfiguration
                                             continue;
                                         }
 
-                                        if (valueToDescription.ContainsKey(trimmed) == false)
+                                        if (!valueToDescription.ContainsKey(trimmed))
                                         {
                                             valueToDescription[trimmed] = standard;
                                         }
@@ -1088,7 +1096,7 @@ public sealed partial class CompletionConfiguration
                                         || trimmed == "ratio"
                                     )
                                     {
-                                        if (valueToDescription.ContainsKey(trimmed) == false)
+                                        if (!valueToDescription.ContainsKey(trimmed))
                                         {
                                             valueToDescription[trimmed] = standard;
                                         }
@@ -1097,7 +1105,7 @@ public sealed partial class CompletionConfiguration
                                     // Case 4: [...] (arbitrary, such as [integer])
                                     else if (trimmed.StartsWith("[") && trimmed.EndsWith("]"))
                                     {
-                                        if (valueToDescription.ContainsKey(trimmed) == false)
+                                        if (!valueToDescription.ContainsKey(trimmed))
                                         {
                                             valueToDescription[trimmed] = standard;
                                         }
@@ -1116,7 +1124,14 @@ public sealed partial class CompletionConfiguration
                             int spacingIndex;
                             var shouldContinue = false;
 
-                            while ((spacingIndex = desc.IndexOf("--spacing(")) != -1)
+                            while (
+                                (
+                                    spacingIndex = desc.IndexOf(
+                                        "--spacing(",
+                                        StringComparison.Ordinal
+                                    )
+                                ) != -1
+                            )
                             {
                                 // Find a balancing pair of parenthesis
 
@@ -1182,9 +1197,9 @@ public sealed partial class CompletionConfiguration
                                 // --color-red-* -> this does not do anything
                                 else if (!stem.StartsWith("--color-"))
                                 {
-                                    var variables = project.CssVariables.Where(k =>
-                                        k.Key.StartsWith(stem)
-                                    );
+                                    var variables = project
+                                        .CssVariables.Where(k => k.Key.StartsWith(stem))
+                                        .ToList();
 
                                     project.PluginClasses.AddRange(
                                         variables.Select(v =>
@@ -1228,7 +1243,7 @@ public sealed partial class CompletionConfiguration
         else
         {
 #pragma warning disable CS8619 // Nullability of reference types in value of type 'Dictionary<string, string>' doesn't match target type 'Dictionary<string, string?>
-            project.CustomDescriptionMapper = config.PluginDescriptions ?? [];
+            project.CustomDescriptionMapper = config.PluginDescriptions;
 #pragma warning restore CS8619
             project.PluginClasses = config.PluginClasses;
         }
@@ -1311,9 +1326,9 @@ public sealed partial class CompletionConfiguration
         return newColorToRgbMapper;
     }
 
-    private string FindCommonPrefix(IEnumerable<string> texts)
+    private string FindCommonPrefix(IReadOnlyList<string> texts)
     {
-        if (texts.Any() == false)
+        if (texts.Count == 0)
         {
             return "";
         }
@@ -1332,10 +1347,10 @@ public sealed partial class CompletionConfiguration
         return prefix;
     }
 
-    private string FindCommonSuffix(IEnumerable<string> texts)
+    private string FindCommonSuffix(IReadOnlyList<string> texts)
     {
         var suffix = new string(
-            FindCommonPrefix(texts.Select(t => new string(t.Reverse().ToArray())))
+            FindCommonPrefix(texts.Select(t => new string(t.Reverse().ToArray())).ToList())
                 .Reverse()
                 .ToArray()
         );
@@ -1351,10 +1366,10 @@ public sealed partial class CompletionConfiguration
     public int CountSubstring(string text, string value)
     {
         int count = 0,
-            minIndex = text.IndexOf(value, 0);
+            minIndex = text.IndexOf(value, 0, StringComparison.Ordinal);
         while (minIndex != -1)
         {
-            minIndex = text.IndexOf(value, minIndex + value.Length);
+            minIndex = text.IndexOf(value, minIndex + value.Length, StringComparison.Ordinal);
             count++;
         }
         return count;

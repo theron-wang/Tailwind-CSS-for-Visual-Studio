@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Community.VisualStudio.Toolkit;
 using TailwindCSSIntellisense.Settings;
 
-namespace TailwindCSSIntellisense;
+namespace TailwindCSSIntellisense.Commands;
 
 [Command(PackageGuids.guidVSPackageCmdSetString, PackageIds.SetAsOutputCssFileMenu)]
 internal sealed class SetAsOutputFileMenu : BaseCommand<SetAsOutputFileMenu>

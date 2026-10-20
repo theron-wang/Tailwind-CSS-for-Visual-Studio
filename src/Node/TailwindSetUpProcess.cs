@@ -25,6 +25,8 @@ internal sealed class TailwindSetUpProcess
     /// Starts a process to install Tailwind in the specified directory (uses npm), if needInstall = true. Otherwise, it just creates a tailwind.css file with the import statement.
     /// </summary>
     /// <param name="directory">The directory to install in</param>
+    /// <param name="needInstall">Whether to install the Tailwind packages.</param>
+    /// <param name="shouldCreateTailwindDotCss">Whether to create a CSS entry point.</param>
     public async Task<string?> RunAsync(
         string directory,
         bool needInstall,
@@ -53,7 +55,12 @@ internal sealed class TailwindSetUpProcess
             if (needInstall)
             {
                 await VS.StatusBar.StartAnimationAsync(StatusAnimation.General);
-                using var process = Process.Start(processInfo);
+                using var process = (
+                    Process.Start(processInfo)
+                    ?? throw new InvalidOperationException(
+                        "Unable to start the Tailwind command process."
+                    )
+                );
                 process.BeginOutputReadLine();
                 process.BeginErrorReadLine();
 

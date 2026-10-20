@@ -9,5 +9,5 @@ internal abstract class ClassSubTypeBase
     public string Stem { get; set; } = null!;
 
     [JsonPropertyName("v")]
-    public List<string> Variants { get; set; } = null!;
+    public List<string>? Variants { get; set; }
 }

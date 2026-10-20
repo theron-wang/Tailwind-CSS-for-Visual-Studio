@@ -120,10 +120,7 @@ internal sealed class HtmlCommandFilter : IOleCommandTarget
         }
 
         // Is the caret in a class="" scope?
-        if (
-            HtmlParser.IsCursorInClassScope(_textView, out var classSpan) == false
-            || classSpan is null
-        )
+        if (!HtmlParser.IsCursorInClassScope(_textView, out var classSpan) || classSpan is null)
         {
             return _next.Exec(pguidCmdGroup, nCmdID, nCmdexecopt, pvaIn, pvaOut);
         }
@@ -195,7 +192,7 @@ internal sealed class HtmlCommandFilter : IOleCommandTarget
                             || character == '/'
                             || character == ':'
                             || (
-                                !string.IsNullOrWhiteSpace(classText?.Split(' ')?.Last())
+                                !string.IsNullOrWhiteSpace(classText?.Split(' ').Last())
                                 && character == '!'
                             )
                         )
@@ -248,7 +245,7 @@ internal sealed class HtmlCommandFilter : IOleCommandTarget
 
     private bool RetriggerIntellisense(string classText)
     {
-        return classText != null && classText.EndsWith(":");
+        return classText.EndsWith(":");
     }
 
     /// <summary>

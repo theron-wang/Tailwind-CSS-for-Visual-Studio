@@ -40,7 +40,7 @@ internal abstract class ClassOperator<TOperation>
         {
             if (segment.Type == ClassOpTokenType.Class)
             {
-                var origClasses = segment.GetClasses();
+                var origClasses = segment.GetClasses().ToArray();
 
                 var operatedClasses = await OperateOnClassesAsync(origClasses, filePath);
                 output.Append(FormatClasses(operatedClasses, origClasses, segment.Raw));

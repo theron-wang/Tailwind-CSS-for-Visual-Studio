@@ -151,8 +151,9 @@ internal class Canonicalizer : TailwindCliInterop
 
         for (int i = 0; i < deduped.Count; i++)
         {
+            var excludedIndex = i;
             var canonicalizeMinusI = await CanonicalizeViaCliAsync(
-                deduped.Where((_, index) => index != i),
+                deduped.Where((_, index) => index != excludedIndex),
                 filePath
             );
 
@@ -237,7 +238,7 @@ internal class Canonicalizer : TailwindCliInterop
             await _settingsGate.WaitAsync();
             try
             {
-                if (_settings is null)
+                if (!AreSettingsInitialized)
                 {
                     await InitializeSettingsAsync();
                 }
@@ -383,7 +384,7 @@ internal class Canonicalizer : TailwindCliInterop
             var newProcess = StartProcess(startInfo);
             // Keep stderr drained independently. PostSetupProcess cannot be used here,
             // because it would also consume stdout needed by the request/response reader.
-            newProcess.ErrorDataReceived += (sender, e) =>
+            newProcess.ErrorDataReceived += (_, e) =>
             {
                 if (e.Data is not null)
                 {

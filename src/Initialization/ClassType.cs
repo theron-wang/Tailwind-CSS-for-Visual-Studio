@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using System.Text.Json.Serialization;
-using TailwindCSSIntellisense.Completions.V4;
 
 namespace TailwindCSSIntellisense.Initialization;
 

@@ -68,7 +68,7 @@ internal static class ResourcesLoader
     )
     {
         var baseFolder = Path.Combine(
-            Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+            PathHelpers.GetContainingDirectory(Assembly.GetExecutingAssembly().Location),
             "Resources"
         );
         var fileName = forVariants ? "variantorder.json" : "order.json";
@@ -96,7 +96,7 @@ internal static class ResourcesLoader
     private static async Task<Result> LoadMajorVersionAsync(TailwindVersion version)
     {
         var baseFolder = Path.Combine(
-            Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+            PathHelpers.GetContainingDirectory(Assembly.GetExecutingAssembly().Location),
             "Resources"
         );
         var versionFolder = Path.Combine(baseFolder, version.ToString());
@@ -142,7 +142,7 @@ internal static class ResourcesLoader
             loadTasks.Add(
                 LoadJsonAsync<List<ClassType>>(
                     Path.Combine(versionFolder, "classes.json"),
-                    v => classTypes = [.. v.Cast<ClassTypeBase>()]
+                    v => classTypes = [.. v]
                 )
             );
             loadTasks.Add(
@@ -163,7 +163,7 @@ internal static class ResourcesLoader
             loadTasks.Add(
                 LoadJsonAsync<List<ClassTypeV3>>(
                     Path.Combine(versionFolder, "classes.json"),
-                    v => classTypes = [.. v.Cast<ClassTypeBase>()]
+                    v => classTypes = [.. v]
                 )
             );
             loadTasks.Add(
@@ -193,7 +193,7 @@ internal static class ResourcesLoader
     private static async Task<Result> LoadMinorVersionAsync(TailwindVersion minorVersion)
     {
         var baseFolder = Path.Combine(
-            Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+            PathHelpers.GetContainingDirectory(Assembly.GetExecutingAssembly().Location),
             "Resources"
         );
         var majorVersionFolder = Path.Combine(
@@ -256,7 +256,7 @@ internal static class ResourcesLoader
                 loadTasks.Add(
                     LoadJsonAsync<List<ClassType>>(
                         Path.Combine(majorVersionFolder, "classes.json"),
-                        v => classTypes = [.. v.Cast<ClassTypeBase>()]
+                        v => classTypes = [.. v]
                     )
                 );
             }
@@ -265,7 +265,7 @@ internal static class ResourcesLoader
                 loadTasks.Add(
                     LoadJsonAsync<List<ClassTypeV3>>(
                         Path.Combine(majorVersionFolder, "classes.json"),
-                        v => classTypes = [.. v.Cast<ClassTypeBase>()]
+                        v => classTypes = [.. v]
                     )
                 );
             }
@@ -357,7 +357,7 @@ internal static class ResourcesLoader
                 });
         }
 
-        return LoadJsonAsync<T>(majorPath, assign);
+        return LoadJsonAsync(majorPath, assign);
     }
 
     /// <summary>

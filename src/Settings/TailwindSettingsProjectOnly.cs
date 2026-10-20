@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json.Serialization;
 
 namespace TailwindCSSIntellisense.Settings;
@@ -12,25 +13,25 @@ internal class TailwindSettingsProjectOnly
     [JsonPropertyName("$schema")]
     public string SchemaProperty => Schema;
 
-    [Obsolete]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     /// <summary>
     /// Maintained for backwards compatibility: use <see cref="ConfigurationFiles"/> instead.
     /// </summary>
+    [Obsolete]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string? ConfigurationFile { get; set; }
 
-    [Obsolete]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     /// <summary>
     /// Maintained for backwards compatibility: use <see cref="BuildFiles"/> instead.
     /// </summary>
+    [Obsolete]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string? InputCssFile { get; set; }
 
-    [Obsolete]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     /// <summary>
     /// Maintained for backwards compatibility: use <see cref="BuildFiles"/> instead.
     /// </summary>
+    [Obsolete]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string? OutputCssFile { get; set; }
 
     /// <summary>
@@ -39,8 +40,46 @@ internal class TailwindSettingsProjectOnly
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public List<ConfigurationFile>? ConfigurationFiles { get; set; } = [];
-    public List<BuildPair> BuildFiles { get; set; } = [];
+    public List<BuildPair>? BuildFiles { get; set; } = [];
     public string? PackageConfigurationFile { get; set; }
     public CustomRegexes CustomRegexes { get; set; } = new();
     public bool UseCli { get; set; }
+
+    internal static TailwindSettingsProjectOnly FromSettings(
+        TailwindSettings settings,
+        string saveDirectory
+    )
+    {
+        var buildFiles = settings
+            .BuildFiles.Select(pair => new BuildPair
+            {
+                Input = PathHelpers.GetRelativePath(pair.Input, saveDirectory)!,
+                Output = string.IsNullOrWhiteSpace(pair.Output)
+                    ? ""
+                    : PathHelpers.GetRelativePath(pair.Output, saveDirectory)!,
+                Behavior = pair.Behavior,
+            })
+            .ToList();
+        var buildInputs = new HashSet<string>(
+            settings.BuildFiles.Select(pair => pair.Input),
+            StringComparer.OrdinalIgnoreCase
+        );
+        var configurations = settings
+            .ConfigurationFiles.Where(config => !buildInputs.Contains(config.Path))
+            .Select(config => new ConfigurationFile
+            {
+                Path = PathHelpers.GetRelativePath(config.Path.Trim(), saveDirectory)!,
+            })
+            .ToList();
+        return new TailwindSettingsProjectOnly
+        {
+            ConfigurationFiles = configurations.Count > 0 ? configurations : null,
+            BuildFiles = buildFiles,
+            PackageConfigurationFile = settings.PackageConfigurationFile is null
+                ? null
+                : PathHelpers.GetRelativePath(settings.PackageConfigurationFile, saveDirectory),
+            CustomRegexes = settings.CustomRegexes,
+            UseCli = settings.UseCli,
+        };
+    }
 }

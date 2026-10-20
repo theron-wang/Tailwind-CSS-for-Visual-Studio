@@ -123,7 +123,7 @@ public class ClassOperationPipelineTests
                 new() { [TailwindVersion.V4_2] = [] }
             )
         );
-        batch.AddExportedValue<TailwindCSSIntellisense.Linting.Validators.Canonicalization.Canonicalizer>(
+        batch.AddExportedValue<Linting.Validators.Canonicalization.Canonicalizer>(
             new CanonicalizerStub()
         );
         container.Compose(batch);
@@ -234,7 +234,7 @@ public class ClassOperationPipelineTests
         new()
         {
             EnableTailwindCss = true,
-            ConfigurationFiles = ["tailwind.css"],
+            ConfigurationFiles = [new() { Path = "tailwind.css" }],
             SortClassesType = SortClassesOptions.Manual,
             CanonicalizeClassesType = SortClassesOptions.Manual,
         };

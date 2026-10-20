@@ -4,7 +4,7 @@ using Community.VisualStudio.Toolkit;
 using Microsoft.VisualStudio.Shell;
 using TailwindCSSIntellisense.Settings;
 
-namespace TailwindCSSIntellisense;
+namespace TailwindCSSIntellisense.Commands;
 
 [Command(PackageGuids.guidVSPackageCmdSetString, PackageIds.RemoveAsPackageConfigFileCmdId)]
 internal sealed class RemoveAsPackageConfigFile : BaseCommand<RemoveAsPackageConfigFile>

@@ -128,32 +128,29 @@ public sealed class ConfigFileScanner
     {
         string? configLine = null;
         // Read up to line 15
-        var lines = 0;
         using (var fs = File.OpenRead(filePath))
         {
             using var reader = new StreamReader(fs);
-            var line = await reader.ReadLineAsync();
-            lines++;
-
-            if (line.Contains("@config"))
+            for (var lineNumber = 0; lineNumber < 15; lineNumber++)
             {
-                configLine = line.Trim();
-                goto End;
-            }
-
-            if (lines > 15)
-            {
-                goto End;
+                var line = await reader.ReadLineAsync();
+                if (line is null)
+                {
+                    break;
+                }
+                if (line.Contains("@config"))
+                {
+                    configLine = line.Trim();
+                    break;
+                }
             }
         }
-
-        End:
 
         if (configLine == null)
         {
             return null;
         }
-        var indexOfConfig = configLine.IndexOf("@config");
+        var indexOfConfig = configLine.IndexOf("@config", StringComparison.Ordinal);
         var indexOfSemicolon = configLine.IndexOf(';', indexOfConfig);
 
         string scanText;

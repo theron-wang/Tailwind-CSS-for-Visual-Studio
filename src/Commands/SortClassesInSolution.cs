@@ -6,7 +6,7 @@ using Microsoft.VisualStudio.Shell;
 using TailwindCSSIntellisense.ClassOperations;
 using TailwindCSSIntellisense.Settings;
 
-namespace TailwindCSSIntellisense;
+namespace TailwindCSSIntellisense.Commands;
 
 [Command(PackageGuids.guidVSPackageCmdSetString, PackageIds.SortClassesInSolutionCmdId)]
 internal sealed class SortClassesInSolution : BaseCommand<SortClassesInSolution>

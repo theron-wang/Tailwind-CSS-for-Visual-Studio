@@ -7,7 +7,7 @@ using Microsoft.VisualStudio.Text;
 using TailwindCSSIntellisense.ClassOperations;
 using TailwindCSSIntellisense.Settings;
 
-namespace TailwindCSSIntellisense;
+namespace TailwindCSSIntellisense.Commands;
 
 [Command(PackageGuids.guidVSPackageCmdSetString, PackageIds.CanonicalizeClassesInOpenFileCmdId)]
 internal sealed class CanonicalizeClassesInOpenFile : BaseCommand<CanonicalizeClassesInOpenFile>
