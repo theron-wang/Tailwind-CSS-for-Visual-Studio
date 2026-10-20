@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 public static class BraceExpander
@@ -35,13 +37,28 @@ public static class BraceExpander
         var rangeMatch = Regex.Match(options, @"^(\d+)\.\.(\d+)(?:\.\.(\d+))?$");
         if (rangeMatch.Success)
         {
-            int start = int.Parse(rangeMatch.Groups[1].Value);
-            int end = int.Parse(rangeMatch.Groups[2].Value);
-            int step = rangeMatch.Groups[3].Success ? int.Parse(rangeMatch.Groups[3].Value) : 1;
-
-            for (int i = start; i <= end; i += step)
+            var step = 1;
+            if (
+                !int.TryParse(rangeMatch.Groups[1].Value, out var start)
+                || !int.TryParse(rangeMatch.Groups[2].Value, out var end)
+                || (
+                    rangeMatch.Groups[3].Success
+                    && !int.TryParse(rangeMatch.Groups[3].Value, out step)
+                )
+                || step == 0
+            )
             {
-                yield return i.ToString();
+                throw new ArgumentException(
+                    "Brace ranges require valid integers and a positive step.",
+                    nameof(options)
+                );
+            }
+
+            // A wider counter prevents wrapping at int.MaxValue and looping forever.
+            long increment = start <= end ? step : -step;
+            for (long i = start; increment > 0 ? i <= end : i >= end; i += increment)
+            {
+                yield return i.ToString(CultureInfo.InvariantCulture);
             }
             yield break;
         }

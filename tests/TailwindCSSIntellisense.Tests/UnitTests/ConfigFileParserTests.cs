@@ -72,7 +72,7 @@ public class ConfigFileParserTests
                 cssPath,
                 """
                 @import "tailwindcss";
-                @source inline("{hover:,focus:,}bg-red-{50,{100..300..100}}");
+                @source not inline("{hover:,focus:,}bg-red-{50,{100..300..100}}");
                 """
             );
 
@@ -90,5 +90,140 @@ public class ConfigFileParserTests
         {
             Directory.Delete(tempRoot, recursive: true);
         }
+    }
+
+    [Theory]
+    [InlineData("@source inline(\"bg-red-500\");")]
+    [InlineData("@source not inline(\"bg-red-500\");", TailwindVersion.V4)]
+    public async Task GetConfigurationAsync_DoesNotBlocklistIncludedOrUnsupportedInlineSources(
+        string source,
+        TailwindVersion version = TailwindVersion.V4_1
+    )
+    {
+        await WithCssFilesAsync(
+            new() { ["app.css"] = source },
+            config => Assert.Empty(config.Blocklist ?? []),
+            version
+        );
+    }
+
+    [Fact]
+    public async Task GetConfigurationAsync_KeepsBlocklistsFromAllImports()
+    {
+        await WithCssFilesAsync(
+            new()
+            {
+                ["app.css"] = "@import './a.css'; @import './b.css';",
+                ["a.css"] = "@source not inline(\"hidden\");",
+                ["b.css"] = "@source not inline(\"flex\");",
+            },
+            config => Assert.Equal(new[] { "flex", "hidden" }, config.Blocklist!.Order())
+        );
+    }
+
+    [Fact]
+    public async Task GetConfigurationAsync_ParsesPrefixWhenAutomaticSourcesAreDisabled()
+    {
+        await WithCssFilesAsync(
+            new() { ["app.css"] = "@import 'tailwindcss' prefix(tw) source(none);" },
+            config =>
+            {
+                Assert.Equal("tw", config.Prefix);
+                Assert.Empty(config.ContentPaths);
+            }
+        );
+    }
+
+    [Fact]
+    public async Task GetConfigurationAsync_ResolvesPluginImportPaths()
+    {
+        await WithCssFilesAsync(
+            new()
+            {
+                ["app.css"] = "@import './my-tailwindcss-components.css';",
+                ["my-tailwindcss-components.css"] = "@utility example { display: block; }",
+            },
+            config => Assert.Contains("example", config.PluginClasses)
+        );
+    }
+
+    [Fact]
+    public async Task GetConfigurationAsync_HandlesCyclicCssImports()
+    {
+        await WithCssFilesAsync(
+            new()
+            {
+                ["app.css"] = "@import './a.css'; @utility root { display: block; }",
+                ["a.css"] = "@import './app.css'; @utility child { display: flex; }",
+            },
+            config => Assert.Equal(new[] { "child", "root" }, config.PluginClasses.Order())
+        );
+    }
+
+    private static async Task WithCssFilesAsync(
+        Dictionary<string, string> files,
+        Action<TailwindConfiguration> verify,
+        TailwindVersion version = TailwindVersion.V4_1
+    )
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"tailwind-config-tests-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            foreach (var file in files)
+            {
+                await File.WriteAllTextAsync(Path.Combine(root, file.Key), file.Value);
+            }
+            verify(
+                await ConfigFileParser.GetConfigurationAsync(Path.Combine(root, "app.css"), version)
+            );
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData("\"{;/*literal*/}\"")]
+    [InlineData("\"font's name\"")]
+    [InlineData("\"escaped\\\"{;value}\"")]
+    public async Task GetConfigurationAsync_PreservesQuotedThemeValuesAndFollowingDeclarations(
+        string value
+    )
+    {
+        await WithCssFilesAsync(
+            new() { ["app.css"] = $"@theme {{ --custom: {value}; --following: 123; }}" },
+            config =>
+            {
+                Assert.Equal(value, config.ThemeVariables["--custom"]);
+                Assert.Equal("123", config.ThemeVariables["--following"]);
+            }
+        );
+    }
+
+    [Theory]
+    [InlineData("prefix(tw) source('./src')")]
+    [InlineData("source('./src') prefix(tw)")]
+    public async Task GetConfigurationAsync_ParsesPrefixAndSourceInEitherOrder(string options)
+    {
+        await WithCssFilesAsync(
+            new() { ["app.css"] = $"@import 'tailwindcss' {options};" },
+            config =>
+            {
+                Assert.Equal("tw", config.Prefix);
+                Assert.EndsWith("src", Assert.Single(config.ContentPaths));
+            }
+        );
+    }
+
+    [Fact]
+    public async Task GetConfigurationAsync_ExpandsEachExcludedInlineCandidateIndependently()
+    {
+        await WithCssFilesAsync(
+            new() { ["app.css"] = "@source not inline('hidden {hover:,}flex');" },
+            config =>
+                Assert.Equal(new[] { "flex", "hidden", "hover:flex" }, config.Blocklist!.Order())
+        );
     }
 }

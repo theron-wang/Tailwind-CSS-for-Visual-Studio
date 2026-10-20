@@ -5,8 +5,25 @@ using TailwindCSSIntellisense.Options;
 
 namespace Community.VisualStudio.Toolkit
 {
-    public static class VS
+    public static partial class VS
     {
+        public static EventsProxy Events { get; } = new();
+
+        public sealed partial class EventsProxy
+        {
+            public SolutionEventsProxy SolutionEvents { get; } = new();
+        }
+
+        public sealed class SolutionEventsProxy
+        {
+            public event Action<string?>? OnAfterOpenFolder;
+            public event Action<Project?>? OnAfterOpenProject;
+
+            public void OpenFolder(string path) => OnAfterOpenFolder?.Invoke(path);
+
+            public void OpenProject(Project project) => OnAfterOpenProject?.Invoke(project);
+        }
+
         public static MessageBoxProxy MessageBox { get; } = new();
 
         public sealed class MessageBoxProxy
@@ -56,6 +73,8 @@ namespace Microsoft.VisualStudio.Shell
 
     public sealed class JoinableTaskFactory
     {
+        public Task RunAsync(Func<Task> asyncMethod) => asyncMethod();
+
         public T Run<T>(Func<Task<T>> asyncMethod)
         {
             return asyncMethod().GetAwaiter().GetResult();
@@ -68,7 +87,17 @@ namespace Microsoft.VisualStudio.Shell
     }
 }
 
-namespace Microsoft.VisualStudio.Threading { }
+namespace Microsoft.VisualStudio.Threading
+{
+    public static class TaskExtensions
+    {
+        public static void FileAndForget(this Task task, string name) { }
+
+        public static System.Runtime.CompilerServices.TaskAwaiter GetAwaiter(
+            this TaskScheduler scheduler
+        ) => Task.CompletedTask.GetAwaiter();
+    }
+}
 
 namespace Microsoft.VisualStudio.Text
 {
@@ -123,9 +152,10 @@ namespace Microsoft.VisualStudio.Text
     {
         ITextSnapshot CurrentSnapshot { get; }
         PropertyCollection Properties { get; }
+        ITextEdit CreateEdit(EditOptions options, int? reiteratedVersionNumber, object? editTag);
     }
 
-    public sealed class FakeTextBuffer : ITextBuffer
+    public sealed partial class FakeTextBuffer : ITextBuffer
     {
         public FakeTextBuffer(string text, string filePath = "")
         {
@@ -134,7 +164,7 @@ namespace Microsoft.VisualStudio.Text
         }
 
         public string FilePath { get; }
-        public ITextSnapshot CurrentSnapshot { get; init; }
+        public ITextSnapshot CurrentSnapshot { get; set; }
         public PropertyCollection Properties { get; } = new();
     }
 
@@ -535,5 +565,5 @@ namespace TailwindCSSIntellisense.Settings
 
 namespace TailwindCSSIntellisense.Configuration
 {
-    public class CompletionConfiguration { }
+    public partial class CompletionConfiguration { }
 }

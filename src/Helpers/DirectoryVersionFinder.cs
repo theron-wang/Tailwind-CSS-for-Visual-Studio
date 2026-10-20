@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.ComponentModel.Composition;
 using System.Diagnostics;
 using System.IO;
@@ -28,9 +28,15 @@ internal class DirectoryVersionFinder : IDisposable
         VS.Events.SolutionEvents.OnAfterOpenProject += InvalidateCache;
     }
 
-    private readonly Dictionary<string, TailwindVersion> _cache = [];
-    private readonly Dictionary<string, bool> _installedCache = [];
-    private readonly HashSet<string> _pendingInstallChecks = [];
+    private readonly ConcurrentDictionary<string, TailwindVersion> _cache = new(
+        StringComparer.OrdinalIgnoreCase
+    );
+    private readonly ConcurrentDictionary<string, bool> _installedCache = new(
+        StringComparer.OrdinalIgnoreCase
+    );
+    private readonly ConcurrentDictionary<string, byte> _pendingInstallChecks = new(
+        StringComparer.OrdinalIgnoreCase
+    );
 
     /// <summary>
     /// Gets whether Tailwind is installed in the given directory, if available. If not available, returns null and populates the cache in the background.
@@ -65,7 +71,7 @@ internal class DirectoryVersionFinder : IDisposable
             return value;
         }
 
-        if (!_pendingInstallChecks.Add(directory))
+        if (!_pendingInstallChecks.TryAdd(directory, 0))
         {
             return null;
         }
@@ -79,7 +85,7 @@ internal class DirectoryVersionFinder : IDisposable
                 }
                 finally
                 {
-                    _pendingInstallChecks.Remove(directory!);
+                    _pendingInstallChecks.TryRemove(directory!, out _);
                 }
             })
             .FileAndForget(nameof(TailwindCSSIntellisense) + "/PopulateVersionCache");
@@ -325,34 +331,48 @@ internal class DirectoryVersionFinder : IDisposable
             return;
         }
 
-        directory = directory.ToLower();
+        directory = directory
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            .ToLower();
 
         if (recursive)
         {
-            foreach (var key in _cache.Keys.ToList())
+            foreach (var key in _cache.Keys.Concat(_installedCache.Keys).Distinct().ToList())
             {
-                if (key.StartsWith(directory))
+                if (
+                    key.Equals(directory, StringComparison.OrdinalIgnoreCase)
+                    || key.StartsWith(
+                        directory + Path.DirectorySeparatorChar,
+                        StringComparison.OrdinalIgnoreCase
+                    )
+                    || key.StartsWith(
+                        directory + Path.AltDirectorySeparatorChar,
+                        StringComparison.OrdinalIgnoreCase
+                    )
+                )
                 {
-                    _cache.Remove(key);
-                    _installedCache.Remove(key);
+                    _cache.TryRemove(key, out _);
+                    _installedCache.TryRemove(key, out _);
                 }
             }
         }
         else
         {
-            _cache.Remove(directory);
-            _installedCache.Remove(directory);
+            _cache.TryRemove(directory, out _);
+            _installedCache.TryRemove(directory, out _);
         }
     }
 
     private void InvalidateCache(string? _)
     {
         _cache.Clear();
+        _installedCache.Clear();
     }
 
     private void InvalidateCache(Project? _)
     {
         _cache.Clear();
+        _installedCache.Clear();
     }
 
     public void Dispose()

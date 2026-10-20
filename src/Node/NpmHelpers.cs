@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Diagnostics;
+using System.IO;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Threading;
 
@@ -83,39 +86,34 @@ internal static class NpmHelpers
     /// <returns>The absolute path of the CSS plugin main file or an empty string if none was found</returns>
     public static async Task<string> GetCssPluginMainFileAsync(string workingDir, string package)
     {
-        var processStartInfo = GetCmdProcessStartInfo($"npm view {package} style");
-        processStartInfo.WorkingDirectory = workingDir;
-
-        string relativePath;
-        using (
-            Process process =
-                Process.Start(processStartInfo)
-                ?? throw new InvalidOperationException("Failed to start npm process.")
-        )
-        {
-            var errorTask = process.StandardError.ReadToEndAsync();
-            var outputTask = process.StandardOutput.ReadToEndAsync();
-
-            await Task.WhenAll(errorTask, outputTask, process.WaitForExitAsync());
-            var error = await errorTask;
-            relativePath = await outputTask;
-
-            if (process.ExitCode != 0)
-            {
-                throw new InvalidOperationException(
-                    $"npm view {package} style failed (exit {process.ExitCode}): {error.Trim()}"
-                );
-            }
-        }
-
-        if (string.IsNullOrWhiteSpace(relativePath))
+        var packageDir = Path.Combine(await GetLocalNpmRootAsync(workingDir), package);
+        var manifestPath = Path.Combine(packageDir, "package.json");
+        if (!File.Exists(manifestPath))
         {
             return "";
         }
 
-        var packageDir = await GetLocalNpmRootAsync(workingDir);
+        // Resolve the installed version's metadata, including unpublished local
+        // packages. A registry query can return a different version's style path
+        // and unnecessarily sends CSS import text through a shell.
+        using var stream = File.Open(
+            manifestPath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite
+        );
+        var manifest = await JsonSerializer.DeserializeAsync<JsonObject>(stream);
+        var style = manifest?["style"];
+        if (
+            style is not JsonValue value
+            || !value.TryGetValue<string>(out var relativePath)
+            || string.IsNullOrWhiteSpace(relativePath)
+        )
+        {
+            return "";
+        }
 
-        return PathHelpers.GetAbsolutePath(packageDir, package + "/" + relativePath.Trim())!;
+        return PathHelpers.GetAbsolutePath(packageDir, relativePath.Trim())!;
     }
 
     /// <summary>

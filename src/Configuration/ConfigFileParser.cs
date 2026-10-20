@@ -117,9 +117,17 @@ internal static class ConfigFileParser
 
     private static async Task<TailwindConfiguration> GetCssConfigurationAsync(
         string path,
-        TailwindVersion version
+        TailwindVersion version,
+        HashSet<string>? importingPaths = null
     )
     {
+        // Track the current import chain, so cycles are ignored while shared imports
+        // can still be evaluated in each branch with their normal precedence.
+        importingPaths = importingPaths is null
+            ? new(StringComparer.OrdinalIgnoreCase)
+            : new(importingPaths, StringComparer.OrdinalIgnoreCase);
+        importingPaths.Add(Path.GetFullPath(path));
+
         string fullText;
 
         using (
@@ -142,7 +150,9 @@ internal static class ConfigFileParser
         var blocklist = new List<string>();
 
         var level = 0;
-        var inComment = false;
+        fullText = CommentRemover.StripCssComments(fullText);
+        char? quote = null;
+        var escaped = false;
 
         var directive = "";
         var buildingDirective = false;
@@ -158,38 +168,30 @@ internal static class ConfigFileParser
         {
             var current = fullText[i];
 
-            if (
-                current == '/'
-                && (
-                    !buildingDirectiveParameter
-                    || !(
-                        directiveParameter.Count(p => p == '\'') == 1
-                        || directiveParameter.Count(p => p == '"') == 1
-                    )
-                )
-            )
+            var isQuoted = quote is not null;
+            if (escaped)
             {
-                if (i + 1 < fullText.Length && fullText[i + 1] == '*')
-                {
-                    inComment = true;
-                }
-                else if (i > 0 && fullText[i - 1] == '*')
-                {
-                    inComment = false;
-                    continue;
-                }
+                escaped = false;
+            }
+            else if (isQuoted && current == '\\')
+            {
+                escaped = true;
+            }
+            else if (current == quote)
+            {
+                quote = null;
+            }
+            else if (!isQuoted && current is '\'' or '"')
+            {
+                quote = current;
+                isQuoted = true;
             }
 
-            if (inComment)
-            {
-                continue;
-            }
-
-            if (current == '{' && !buildingDirectiveParameter)
+            if (current == '{' && !buildingDirectiveParameter && !isQuoted)
             {
                 level++;
             }
-            else if (current == '}' && !buildingDirectiveParameter)
+            else if (current == '}' && !buildingDirectiveParameter && !isQuoted)
             {
                 level--;
 
@@ -200,7 +202,7 @@ internal static class ConfigFileParser
                 }
             }
 
-            if (current == '@' && level == 0 && !buildingDirectiveParameter)
+            if (current == '@' && level == 0 && !buildingDirectiveParameter && !isQuoted)
             {
                 directive = "";
                 buildingDirective = true;
@@ -224,7 +226,7 @@ internal static class ConfigFileParser
 
             if (buildingDirectiveParameter)
             {
-                if (current == ';')
+                if (current == ';' && !isQuoted)
                 {
                     directiveParameter = directiveParameter.Trim();
                     buildingDirectiveParameter = false;
@@ -252,9 +254,11 @@ internal static class ConfigFileParser
                         // @import "some-plugin";
                         // But not:
                         // @import "tailwindcss/utilities";
-                        if (
-                            !import.Contains("tailwindcss") && !directiveParameter.StartsWith("url")
-                        )
+                        var isTailwindImport =
+                            import == "tailwindcss"
+                            || import.StartsWith("tailwindcss/", StringComparison.Ordinal)
+                            || import.Replace('\\', '/').Contains("/node_modules/tailwindcss/");
+                        if (!isTailwindImport && !directiveParameter.StartsWith("url"))
                         {
                             var importPath = PathHelpers.GetAbsolutePath(
                                 PathHelpers.GetContainingDirectory(path)!,
@@ -280,8 +284,9 @@ internal static class ConfigFileParser
                             }
                         }
                         // Handle @import "tailwindcss" plus optional source(...) and prefix(...)
-                        else if (import.Contains("tailwindcss"))
+                        else if (isTailwindImport)
                         {
+                            var importEndQuote = secondQuote;
                             // source is applied on tailwindcss, tailwindcss/index, tailwindcss/utilities (which may
                             // also be specified as ./node_modules/tailwindcss/utilities, etc.
                             var sourceIndex = directiveParameter.IndexOf(
@@ -300,48 +305,46 @@ internal static class ConfigFileParser
                             {
                                 isSourceSpecified = true;
                                 if (
-                                    directiveParameter
+                                    !directiveParameter
                                         .Substring(sourceIndex + 7)
                                         .Trim()
                                         .StartsWith("none")
                                 )
                                 {
-                                    continue;
-                                }
+                                    firstQuote = directiveParameter.IndexOfAny(
+                                        ['\'', '"'],
+                                        sourceIndex
+                                    );
+                                    secondQuote = directiveParameter.IndexOfAny(
+                                        ['\'', '"'],
+                                        firstQuote + 1
+                                    );
 
-                                firstQuote = directiveParameter.IndexOfAny(
-                                    ['\'', '"'],
-                                    sourceIndex
-                                );
-                                secondQuote = directiveParameter.IndexOfAny(
-                                    ['\'', '"'],
-                                    firstQuote + 1
-                                );
+                                    if (firstQuote == -1 || secondQuote == -1)
+                                    {
+                                        continue;
+                                    }
 
-                                if (firstQuote == -1 || secondQuote == -1)
-                                {
-                                    continue;
-                                }
+                                    var source = directiveParameter
+                                        .Substring(firstQuote + 1, secondQuote - firstQuote - 1)
+                                        .Trim();
 
-                                var source = directiveParameter
-                                    .Substring(firstQuote + 1, secondQuote - firstQuote - 1)
-                                    .Trim();
+                                    source = PathHelpers.GetAbsolutePath(
+                                        PathHelpers.GetContainingDirectory(path)!,
+                                        source
+                                    )!;
 
-                                source = PathHelpers.GetAbsolutePath(
-                                    PathHelpers.GetContainingDirectory(path)!,
-                                    source
-                                )!;
-
-                                if (!string.IsNullOrWhiteSpace(source))
-                                {
-                                    content.Add(source);
+                                    if (!string.IsNullOrWhiteSpace(source))
+                                    {
+                                        content.Add(source);
+                                    }
                                 }
                             }
 
                             // Either on the main import or theme
                             var prefixIndex = directiveParameter.IndexOf(
                                 "prefix(",
-                                secondQuote,
+                                importEndQuote,
                                 StringComparison.Ordinal
                             );
                             if (
@@ -466,9 +469,17 @@ internal static class ConfigFileParser
                         // @source inline("{hover:,focus:,}bg-red-{50,{100..900..100},950}");
                         if (directiveParameter.StartsWith("inline("))
                         {
-                            if (version >= TailwindVersion.V4_1)
+                            if (not && version >= TailwindVersion.V4_1)
                             {
-                                blocklist.AddRange(BraceExpander.Expand(inQuotes));
+                                foreach (
+                                    var candidate in inQuotes.Split(
+                                        Array.Empty<char>(),
+                                        StringSplitOptions.RemoveEmptyEntries
+                                    )
+                                )
+                                {
+                                    blocklist.AddRange(BraceExpander.Expand(candidate));
+                                }
                             }
                         }
                         else
@@ -496,13 +507,7 @@ internal static class ConfigFileParser
                     directive = "";
                     directiveParameter = "";
                 }
-                else if (
-                    current == '{'
-                    && !(
-                        directiveParameter.Count(p => p == '\'') == 1
-                        || directiveParameter.Count(p => p == '"') == 1
-                    )
-                )
+                else if (current == '{' && !isQuoted)
                 {
                     // { is also a terminator for @plugin, so we'll handle that here
                     if (directive == "plugin")
@@ -545,7 +550,11 @@ internal static class ConfigFileParser
 
             if (level >= 1)
             {
-                if (directive == "theme" && level == 1 && current != '{' && current != '}')
+                if (
+                    directive == "theme"
+                    && level == 1
+                    && (isQuoted || (current != '{' && current != '}'))
+                )
                 {
                     themeTrimmed.Append(current);
                 }
@@ -603,7 +612,11 @@ internal static class ConfigFileParser
 
             if (import.StartsWith("@import"))
             {
-                imported = await GetCssConfigurationAsync(importPath, version);
+                if (importingPaths.Contains(Path.GetFullPath(importPath)))
+                {
+                    continue;
+                }
+                imported = await GetCssConfigurationAsync(importPath, version, importingPaths);
             }
             else if (import.StartsWith("@config"))
             {
@@ -626,8 +639,11 @@ internal static class ConfigFileParser
                 imported.PluginClasses.AddRange(prev.PluginClasses);
                 imported.PluginVariants.AddRange(prev.PluginVariants);
                 imported.Imports.AddRange(prev.Imports);
-                imported.Blocklist ??= [.. blocklist];
-                imported.Blocklist.AddRange(blocklist);
+                if (prev.Blocklist is not null)
+                {
+                    imported.Blocklist ??= [];
+                    imported.Blocklist.AddRange(prev.Blocklist);
+                }
                 DictionaryHelpers.MergeDictionaries(
                     imported.PluginDescriptions,
                     prev.PluginDescriptions
@@ -667,7 +683,7 @@ internal static class ConfigFileParser
                         v.Value.Split(Array.Empty<char>(), StringSplitOptions.RemoveEmptyEntries)
                     )
             ),
-            Imports = [.. imports.Select(i => i.Replace("@import", "").Replace("@config", ""))],
+            Imports = [.. imports.Select(i => i.Substring(7))],
             ContentPaths = content,
             Blocklist = blocklist,
             Prefix = string.IsNullOrWhiteSpace(prefix) ? null : prefix.Trim(),
@@ -1121,7 +1137,9 @@ internal static class ConfigFileParser
     {
         var globalPath = await NpmHelpers.GetGlobalNpmRootAsync();
 
-        var nodePathEnvironmentVariable = nodeProcess.EnvironmentVariables["NODE_PATH"];
+        var nodePathEnvironmentVariable = nodeProcess.EnvironmentVariables.ContainsKey("NODE_PATH")
+            ? nodeProcess.EnvironmentVariables["NODE_PATH"]
+            : null;
 
         if (!string.IsNullOrWhiteSpace(nodePathEnvironmentVariable))
         {
@@ -1140,7 +1158,7 @@ internal static class ConfigFileParser
 
         if (!string.IsNullOrWhiteSpace(nodePathEnvironmentVariable))
         {
-            nodePathEnvironmentVariable = nodePathEnvironmentVariable.TrimEnd(';');
+            nodePathEnvironmentVariable = nodePathEnvironmentVariable!.TrimEnd(';');
         }
 
         nodeProcess.EnvironmentVariables["NODE_PATH"] = nodePathEnvironmentVariable;

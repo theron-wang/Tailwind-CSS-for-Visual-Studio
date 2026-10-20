@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Diagnostics;
@@ -46,7 +47,9 @@ internal class TailwindBuildProcess : TailwindCliInterop
     private bool _startingBuilds;
     private readonly SemaphoreSlim _buildGate = new(1, 1);
 
-    private readonly Dictionary<string, string?> _configsToPackageJsons = [];
+    private readonly ConcurrentDictionary<string, string?> _configsToPackageJsons = new(
+        StringComparer.OrdinalIgnoreCase
+    );
 
     private readonly Dictionary<string, Process> _outputFileToProcesses = [];
     private readonly Dictionary<Process, bool> _processToIsMinify = [];
@@ -187,14 +190,9 @@ internal class TailwindBuildProcess : TailwindCliInterop
             && !string.IsNullOrWhiteSpace(_settings.BuildScript)
         )
         {
-            var keys = _configsToPackageJsons
-                .Keys.Where(f => f.Equals(filePath, StringComparison.InvariantCultureIgnoreCase))
-                .ToList();
-
-            foreach (var key in keys)
-            {
-                _configsToPackageJsons.Remove(key);
-            }
+            // Keys are configuration files, not package.json paths. Also discard
+            // cached misses so adding the configured script takes effect on save.
+            _configsToPackageJsons.Clear();
 
             if (AreProcessesActive())
             {

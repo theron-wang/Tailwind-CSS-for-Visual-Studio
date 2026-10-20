@@ -22,6 +22,11 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <None
+      Include="../../src/Resources/parser.js"
+      Link="Resources/parser.js"
+      CopyToOutputDirectory="PreserveNewest"
+    />
   </ItemGroup>
 
   <ItemGroup>
@@ -48,6 +53,10 @@
     <Compile
       Include="../../src/ClassOperations/ClassOperationAggregator.cs"
       Link="Source/ClassOperations/ClassOperationAggregator.cs"
+    />
+    <Compile
+      Include="../../src/ClassOperations/ClassOperationService.cs"
+      Link="Source/ClassOperations/ClassOperationService.cs"
     />
     <Compile
       Include="../../src/ClassOperations/ClassSorter.cs"
@@ -88,6 +97,10 @@
       Link="Source/Build/TailwindCliInterop.cs"
     />
     <Compile Include="../../src/Helpers/BraceExpander.cs" Link="Source/Helpers/BraceExpander.cs" />
+    <Compile
+      Include="../../src/Helpers/DirectoryVersionFinder.cs"
+      Link="Source/Helpers/DirectoryVersionFinder.cs"
+    />
     <Compile
       Include="../../src/Helpers/ClassRegexHelper.cs"
       Link="Source/Helpers/ClassRegexHelper.cs"
