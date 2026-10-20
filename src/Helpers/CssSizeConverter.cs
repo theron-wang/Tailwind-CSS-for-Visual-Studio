@@ -17,14 +17,25 @@ public static class CssSizeConverter
             return 0;
         }
 
-        var match = Regex.Match(cssSize.Trim(), @"^(?<value>[\d.]+)(?<unit>[a-zA-Z%]+)$");
+        var match = Regex.Match(
+            cssSize.Trim(),
+            @"^(?<value>[+-]?(?:\d+(?:\.\d*)?|\.\d+))(?<unit>[a-zA-Z%]+)$"
+        );
 
-        if (!match.Success)
+        if (
+            !match.Success
+            || !double.TryParse(
+                match.Groups["value"].Value,
+                NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign,
+                CultureInfo.InvariantCulture,
+                out var value
+            )
+            || double.IsInfinity(value)
+        )
         {
             return 0;
         }
 
-        double value = double.Parse(match.Groups["value"].Value, CultureInfo.InvariantCulture);
         string unit = match.Groups["unit"].Value.ToLowerInvariant();
 
         return unit switch

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Globalization;
@@ -16,8 +17,8 @@ namespace TailwindCSSIntellisense.Helpers;
 internal sealed class DescriptionGenerator : IDisposable
 {
     private readonly SettingsProvider _settingsProvider;
-    private readonly Dictionary<string, string?> _arbitraryDescriptionCache = [];
-    private readonly Dictionary<string, string?> _colorDescriptionMapper = [];
+    private readonly ConcurrentDictionary<string, string?> _arbitraryDescriptionCache = new();
+    private readonly ConcurrentDictionary<string, string?> _colorDescriptionMapper = new();
 
     private readonly Regex _stemSplitter = new(
         @"-(?=(?:[^\[\]()]*[\[\(][^\[\]()]*[\]\)])*[^\[\]()]*$)",
@@ -274,7 +275,12 @@ internal sealed class DescriptionGenerator : IDisposable
             }
         }
 
-        className = className.Split(':').Last();
+        className = className.SplitClassVariants().Last();
+
+        if (ImportantModifierHelper.IsImportantModifier(className))
+        {
+            className = className.Trim('!');
+        }
 
         if (
             !ignorePrefix
@@ -295,11 +301,6 @@ internal sealed class DescriptionGenerator : IDisposable
             {
                 return "";
             }
-        }
-
-        if (ImportantModifierHelper.IsImportantModifier(className))
-        {
-            className = className.Trim('!');
         }
 
         var description = GetDescriptionForClassOnly(
@@ -1343,16 +1344,29 @@ internal sealed class DescriptionGenerator : IDisposable
             {
                 var c = color.Substring(1, color.Length - 2);
 
-                if (string.IsNullOrWhiteSpace(c) || GetSpecialArbitraryTypeByInput(c) != "color")
+                var explicitlyColor = c.StartsWith("color:", StringComparison.Ordinal);
+                if (explicitlyColor)
+                {
+                    c = c.Substring(6).Trim();
+                }
+
+                if (
+                    string.IsNullOrWhiteSpace(c)
+                    || (!explicitlyColor && GetSpecialArbitraryTypeByInput(c) != "color")
+                )
                 {
                     return null;
                 }
 
-                colorAttributeValue = c;
+                colorAttributeValue = c.StartsWith("--") ? $"var({c})" : c;
             }
             else if (color[0] == '(' && color[color.Length - 1] == ')')
             {
                 var c = color.Substring(1, color.Length - 2);
+                if (c.StartsWith("color:", StringComparison.Ordinal))
+                {
+                    c = c.Substring(6).Trim();
+                }
 
                 if (string.IsNullOrWhiteSpace(c) || !c.StartsWith("--"))
                 {
@@ -1375,9 +1389,13 @@ internal sealed class DescriptionGenerator : IDisposable
             }
 
             if (
-                !projectCompletionValues.DescriptionMapper.TryGetValue(
+                !projectCompletionValues.CustomDescriptionMapper.TryGetValue(
                     tailwindClass.Replace("{0}", "{c}"),
                     out var desc
+                )
+                && !projectCompletionValues.DescriptionMapper.TryGetValue(
+                    tailwindClass.Replace("{0}", "{c}"),
+                    out desc
                 )
             )
             {
@@ -1423,7 +1441,11 @@ internal sealed class DescriptionGenerator : IDisposable
                 return null;
             }
 
-            if (arbitrary.Contains(':'))
+            var typeSeparator = arbitrary.IndexOf(':');
+            if (
+                typeSeparator > 0
+                && arbitrary.Substring(0, typeSeparator).All(c => char.IsLetter(c) || c == '-')
+            )
             {
                 special = arbitrary.Split(':')[0].Trim();
                 arbitrary = arbitrary.Substring(arbitrary.IndexOf(':') + 1).Trim();
@@ -1455,6 +1477,11 @@ internal sealed class DescriptionGenerator : IDisposable
             if (special is null && projectCompletionValues.Version >= TailwindVersion.V4)
             {
                 special = GetSpecialArbitraryTypeByInput(arbitrary);
+                // Unhinted bg lengths resolve to position; an explicit length: hint selects size.
+                if (stem == "bg-{a}" && special == "length")
+                {
+                    special = "position";
+                }
             }
         }
         else
@@ -1462,7 +1489,13 @@ internal sealed class DescriptionGenerator : IDisposable
             return null;
         }
 
-        if (_arbitraryDescriptionCache.TryGetValue($"{stem}-[{special}]", out var description))
+        string? description;
+        // Only the hard-coded V4 type templates are independent of project
+        // configuration. V3 inference must see the current project's mappings.
+        if (
+            projectCompletionValues.Version >= TailwindVersion.V4
+            && _arbitraryDescriptionCache.TryGetValue($"{stem}-[{special}]", out description)
+        )
         {
             if (string.IsNullOrWhiteSpace(description))
             {
@@ -1483,100 +1516,96 @@ internal sealed class DescriptionGenerator : IDisposable
         {
             if (stem == "text-{a}" && special == "length")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "font-size: {0};";
+                description = "font-size: {0};";
             }
             else if (stem == "font-{a}" && special == "family-name")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "font-family: {0};";
+                description = "font-family: {0};";
             }
-            else if (stem == "bg-{a}" && special == "image")
+            else if (stem == "bg-{a}" && (special == "image" || special == "url"))
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "background-image: {0};";
+                description = "background-image: {0};";
             }
-            // No, bg-[length:] does not exist, but position has the same constraints
-            // i.e. they both contain "length" units like px
-            else if (stem == "bg-{a}" && (special == "position" || special == "length"))
+            else if (stem == "bg-{a}" && (special == "position" || special == "percentage"))
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "background-position: {0};";
+                description = "background-position: {0};";
             }
-            else if (stem == "bg-{a}" && special == "length")
+            else if (
+                stem == "bg-{a}"
+                && (special == "length" || special == "size" || special == "bg-size")
+            )
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "background-size: {0};";
+                description = "background-size: {0};";
             }
             else if (stem == "border-{a}" && special == "length")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "border-width: {0};";
+                description = "border-width: {0};";
             }
             else if (stem == "border-x-{a}" && special == "length")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "border-inline-width: {0};";
+                description = "border-inline-width: {0};";
             }
             else if (stem == "border-y-{a}" && special == "length")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "border-block-width: {0};";
+                description = "border-block-width: {0};";
             }
             else if (stem == "border-s-{a}" && special == "length")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] =
-                    "border-inline-start-width: {0};";
+                description = "border-inline-start-width: {0};";
             }
             else if (stem == "border-e-{a}" && special == "length")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "border-inline-end-width: {0};";
+                description = "border-inline-end-width: {0};";
             }
             else if (stem == "border-t-{a}" && special == "length")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "border-top-width: {0};";
+                description = "border-top-width: {0};";
             }
             else if (stem == "border-r-{a}" && special == "length")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "border-right-width: {0};";
+                description = "border-right-width: {0};";
             }
             else if (stem == "border-b-{a}" && special == "length")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "border-bottom-width: {0};";
+                description = "border-bottom-width: {0};";
             }
             else if (stem == "border-l-{a}" && special == "length")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "border-left-width: {0};";
+                description = "border-left-width: {0};";
             }
             else if (stem == "divide-x-{a}" && special == "length")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] =
+                description =
                     "& > :not(:last-child) { border-inline-start-width: 0px; border-inline-end-width: {0}; }";
             }
             else if (stem == "divide-y-{a}" && special == "length")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] =
+                description =
                     "& > :not(:last-child) { border-top-width: 0px; border-bottom-width: {0}; }";
             }
             else if (stem == "outline-{a}" && special == "length")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "outline-width: {0};";
+                description = "outline-width: {0};";
             }
             else if (stem == "shadow-{a}" && special == "color")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "--tw-shadow-color: {0};";
+                description = "--tw-shadow-color: {0};";
             }
             else if (stem == "text-shadow-{a}" && special == "color")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "--tw-text-shadow-color: {0};";
+                description = "--tw-text-shadow-color: {0};";
             }
             else if (stem == "drop-shadow-{a}" && special == "color")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "--tw-drop-shadow-color: {0};";
+                description = "--tw-drop-shadow-color: {0};";
             }
             else
             {
                 return null;
             }
 
-            description = _arbitraryDescriptionCache[$"{stem}-[{special}]"];
-
-            if (description is null)
-            {
-                return null;
-            }
+            // Keep the local template: settings changes can clear the cache at any time.
+            _arbitraryDescriptionCache[$"{stem}-[{special}]"] = description;
 
             if (shouldFormat)
             {
@@ -1618,10 +1647,6 @@ internal sealed class DescriptionGenerator : IDisposable
             || existingDescriptions[0].Length != existingDescriptions[1].Length
         )
         {
-            if (projectCompletionValues.Version == TailwindVersion.V3)
-            {
-                _arbitraryDescriptionCache[$"{stem}-[]"] = null;
-            }
             return null;
         }
 
@@ -1642,10 +1667,6 @@ internal sealed class DescriptionGenerator : IDisposable
 
                 if (attribute1 != attribute2)
                 {
-                    if (projectCompletionValues.Version == TailwindVersion.V3)
-                    {
-                        _arbitraryDescriptionCache[$"{stem}-[]"] = null;
-                    }
                     return null;
                 }
 
@@ -1654,11 +1675,6 @@ internal sealed class DescriptionGenerator : IDisposable
         }
 
         description = returnFormat.ToString().Trim();
-        if (projectCompletionValues.Version == TailwindVersion.V3)
-        {
-            _arbitraryDescriptionCache[$"{stem}-[]"] = description;
-        }
-
         if (shouldFormat)
         {
             return FormatDescription(
@@ -1733,56 +1749,19 @@ internal sealed class DescriptionGenerator : IDisposable
     )
     {
         string? value;
-        Dictionary<string, string>? dict;
-
-        if (stem is not null)
+        if (
+            stem is not null
+            && projectCompletionValues.CustomColorMappers.TryGetValue(stem, out var dict)
+        )
         {
-            if (!projectCompletionValues.CustomColorMappers.TryGetValue(stem, out dict))
-            {
-                if (_colorDescriptionMapper.TryGetValue($"{hex}/{color}", out value))
-                {
-                    return value;
-                }
-
-                if (!projectCompletionValues.ColorMapper.TryGetValue(color, out value))
-                {
-                    return null;
-                }
-
-                if (_colorDescriptionMapper.TryGetValue($"{hex}/{stem}/{color}", out var desc))
-                {
-                    return desc;
-                }
-            }
-            else if (dict != null && dict.TryGetValue(color, out value))
-            {
-                if (
-                    projectCompletionValues.ColorMapper.TryGetValue(color, out var value2)
-                    && value == value2
-                )
-                {
-                    if (!projectCompletionValues.ColorMapper.TryGetValue(color, out value))
-                    {
-                        return null;
-                    }
-                }
-            }
-            // Has override, but current color is not included
-            else
+            if (!dict.TryGetValue(color, out value))
             {
                 return null;
             }
         }
-        else
+        else if (!projectCompletionValues.ColorMapper.TryGetValue(color, out value))
         {
-            if (_colorDescriptionMapper.TryGetValue($"{hex}/{color}", out value))
-            {
-                return value;
-            }
-            if (!projectCompletionValues.ColorMapper.TryGetValue(color, out value))
-            {
-                return null;
-            }
+            return null;
         }
         // Invalid color or value is empty when color is current, inherit, or transparent
         if (string.IsNullOrWhiteSpace(value))
@@ -1794,17 +1773,19 @@ internal sealed class DescriptionGenerator : IDisposable
             return value;
         }
 
-        var rgb = value
-            .Split(',')
-            .Take(3)
-            .Where(v => byte.TryParse(v, out _))
-            .Select(byte.Parse)
-            .ToArray();
-
-        if (rgb.Length == 0)
+        // Cache the resolved value, since color names/stem overrides can differ
+        // between projects or change when a configuration is reloaded.
+        var key = $"rgb/{hex}/{value}";
+        if (_colorDescriptionMapper.TryGetValue(key, out var cached))
+        {
+            return cached;
+        }
+        var channels = value.Split(',');
+        if (channels.Length != 3 || channels.Any(v => !byte.TryParse(v, out _)))
         {
             return null;
         }
+        var rgb = channels.Select(byte.Parse).ToArray();
 
         string result;
         if (hex)
@@ -1814,12 +1795,6 @@ internal sealed class DescriptionGenerator : IDisposable
         else
         {
             result = $"rgb({rgb[0]} {rgb[1]} {rgb[2]}";
-        }
-
-        var key = $"{hex}/{color}";
-        if (stem is not null && projectCompletionValues.CustomColorMappers.ContainsKey(stem))
-        {
-            key = $"{hex}/{stem}/{key}";
         }
 
         _colorDescriptionMapper[key] = result;

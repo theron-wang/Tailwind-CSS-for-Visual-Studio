@@ -272,6 +272,7 @@
     <Compile Include="Settings\TailwindSettingsProjectOnly.cs" />
     <Compile Include="TailwindCSSIntellisensePackage.cs" />
     <Compile Include="Completions\ProjectConfigurationManager.cs" />
+    <Compile Include="Completions\ProjectConfigurationManager.VisualStudio.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Resources\V3\variants.json">

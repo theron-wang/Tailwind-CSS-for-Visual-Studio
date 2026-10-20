@@ -9,6 +9,38 @@ namespace TailwindCSSIntellisense.Tests.UnitTests;
 [Collection("Non-Parallel Tests")]
 public class DiagnosticsTests : IDisposable
 {
+    [Fact]
+    public async Task ThemePathDiagnostics_UseEachProjectsLoadedConfiguration()
+    {
+        var first = new ProjectCompletionValues
+        {
+            Version = TailwindVersion.V3,
+            LoadedConfiguration = new()
+            {
+                OverridenValues = new()
+                {
+                    ["fontSize"] = new Dictionary<string, object> { ["brand"] = "2rem" },
+                },
+            },
+        };
+        var second = new ProjectCompletionValues
+        {
+            Version = TailwindVersion.V3,
+            LoadedConfiguration = new()
+            {
+                OverridenValues = new()
+                {
+                    ["fontSize"] = new Dictionary<string, object> { ["other"] = "3rem" },
+                },
+            },
+        };
+        var checker = new InvalidConfigPathDiagnostics();
+        const string css = ".x { font-size: theme(fontSize.brand); }";
+        Assert.Empty(await GetErrorsAsync(checker, css, first));
+        Assert.Single(await GetErrorsAsync(checker, css, second));
+        Assert.Empty(await GetErrorsAsync(checker, css, first));
+    }
+
     private readonly Func<
         IEnumerable<string>,
         ProjectCompletionValues,
@@ -180,11 +212,6 @@ public class DiagnosticsTests : IDisposable
     {
         var span = new SnapshotSpan(new FakeTextBuffer(text).CurrentSnapshot, 0, text.Length);
         Inject(checker, "_linterUtilities", new LinterUtilities());
-
-        if (checker is InvalidConfigPathDiagnostics)
-        {
-            Inject(checker, "_projectConfigurationManager", new ProjectConfigurationManager());
-        }
 
         return await CollectErrorsAsync(
             checker.GetErrorsAsync(

@@ -3,11 +3,8 @@ using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using Microsoft.VisualStudio.Threading;
 using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Node;
@@ -20,7 +17,7 @@ namespace TailwindCSSIntellisense.Completions;
 /// </summary>
 [Export]
 [PartCreationPolicy(CreationPolicy.Shared)]
-public sealed class ProjectConfigurationManager : IDisposable
+public sealed partial class ProjectConfigurationManager : IDisposable
 {
     [Import]
     internal CompletionConfiguration Configuration { get; set; } = null!;
@@ -31,23 +28,11 @@ public sealed class ProjectConfigurationManager : IDisposable
     [Import]
     internal ProjectConfigurationInitializer ProjectConfigurationInitializer { get; set; } = null!;
 
-    internal static ImageSource TailwindLogo { get; private set; } =
-        new BitmapImage(
-            new Uri(
-                Path.Combine(
-                    PathHelpers.GetContainingDirectory(Assembly.GetExecutingAssembly().Location),
-                    "Resources",
-                    "tailwindlogo.png"
-                ),
-                UriKind.Relative
-            )
-        );
-
     /// <summary>
     /// Completion settings for each project, keyed by configuration file paths.
     /// </summary>
     private readonly Dictionary<string, ProjectCompletionValues> _projectCompletionConfiguration =
-    [];
+        new(StringComparer.OrdinalIgnoreCase);
     private ProjectCompletionValues? _defaultProjectCompletionConfiguration;
 
     /// <summary>
@@ -56,7 +41,7 @@ public sealed class ProjectConfigurationManager : IDisposable
     private readonly Dictionary<
         string,
         ProjectCompletionValues
-    > _filePathToProjectConfigurationCache = [];
+    > _filePathToProjectConfigurationCache = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Guards all reads and writes of _projectCompletionConfiguration,
@@ -65,6 +50,11 @@ public sealed class ProjectConfigurationManager : IDisposable
     /// </summary>
     private readonly SemaphoreSlim _configLock = new SemaphoreSlim(1, 1);
     private readonly object _subscriptionLock = new object();
+    private readonly SemaphoreSlim _settingsUpdateGate = new(1, 1);
+    private long _settingsRevision;
+    private long _configurationGeneration;
+    private long _nextReloadToken;
+    private readonly Dictionary<string, long> _reloadTokens = new(StringComparer.OrdinalIgnoreCase);
 
     private bool _hasSubscribedToConfigurationChangedEvent;
 
@@ -86,6 +76,7 @@ public sealed class ProjectConfigurationManager : IDisposable
         try
         {
             _filePathToProjectConfigurationCache.Clear();
+            _configurationGeneration++;
         }
         finally
         {
@@ -106,7 +97,7 @@ public sealed class ProjectConfigurationManager : IDisposable
         await _configLock.WaitAsync();
         try
         {
-            return _projectCompletionConfiguration.TryGetValue(configFile.ToLower(), out var value)
+            return _projectCompletionConfiguration.TryGetValue(configFile, out var value)
                 ? value
                 : null;
         }
@@ -125,83 +116,54 @@ public sealed class ProjectConfigurationManager : IDisposable
     {
         InitializeEventSubscriptions();
         await ProjectConfigurationInitializer.InitializeAsync();
-
-        await _configLock.WaitAsync();
-        try
+        while (true)
         {
-            if (string.IsNullOrWhiteSpace(filePath))
+            Dictionary<string, ProjectCompletionValues> snapshot;
+            long generation;
+            await _configLock.WaitAsync();
+            try
             {
-                if (_defaultProjectCompletionConfiguration is not null)
-                {
+                if (
+                    string.IsNullOrWhiteSpace(filePath)
+                    && _defaultProjectCompletionConfiguration is not null
+                )
                     return _defaultProjectCompletionConfiguration;
-                }
-            }
-            else if (
-                _filePathToProjectConfigurationCache.TryGetValue(
-                    filePath!.ToLower(),
-                    out var cached
+                if (
+                    !string.IsNullOrWhiteSpace(filePath)
+                    && _filePathToProjectConfigurationCache.TryGetValue(filePath!, out var cached)
                 )
-            )
-            {
-                return cached;
+                    return cached;
+                snapshot = new Dictionary<string, ProjectCompletionValues>(
+                    _projectCompletionConfiguration
+                );
+                generation = _configurationGeneration;
             }
-        }
-        finally
-        {
-            _configLock.Release();
-        }
+            finally
+            {
+                _configLock.Release();
+            }
 
-        if (string.IsNullOrWhiteSpace(filePath))
-        {
-            // Default to v4 — no state access needed here
-            return await ProjectConfigurationInitializer.GetUnsetCompletionConfigurationAsync(
-                TailwindVersion.LATEST
-            );
-        }
-
-        // Compute the result outside the lock (may await); snapshot the dictionary first.
-        Dictionary<string, ProjectCompletionValues> snapshot;
-        await _configLock.WaitAsync();
-        try
-        {
-            snapshot = new Dictionary<string, ProjectCompletionValues>(
-                _projectCompletionConfiguration
-            );
-        }
-        finally
-        {
-            _configLock.Release();
-        }
-
-        ProjectCompletionValues config = await GetCompletionConfigurationByFilePathImplAsync(
-            filePath!,
-            snapshot
-        );
-
-        await _configLock.WaitAsync();
-        try
-        {
-            // Re-check cache in case a concurrent call already populated it.
-            if (
-                !_filePathToProjectConfigurationCache.TryGetValue(
-                    filePath!.ToLower(),
-                    out var existing
+            var config = string.IsNullOrWhiteSpace(filePath)
+                ? await ProjectConfigurationInitializer.GetUnsetCompletionConfigurationAsync(
+                    TailwindVersion.LATEST
                 )
-            )
+                : await GetCompletionConfigurationByFilePathImplAsync(filePath!, snapshot);
+            await _configLock.WaitAsync();
+            try
             {
-                _filePathToProjectConfigurationCache[filePath.ToLower()] = config;
+                // A reload may have published while the lookup awaited a fallback.
+                // Retry from the new snapshot rather than caching/returning old state.
+                if (generation != _configurationGeneration)
+                    continue;
+                if (!string.IsNullOrWhiteSpace(filePath))
+                    _filePathToProjectConfigurationCache[filePath!] = config;
+                return config;
             }
-            else
+            finally
             {
-                config = existing;
+                _configLock.Release();
             }
         }
-        finally
-        {
-            _configLock.Release();
-        }
-
-        return config;
     }
 
     private async Task<ProjectCompletionValues> GetCompletionConfigurationByFilePathImplAsync(
@@ -231,11 +193,7 @@ public sealed class ProjectConfigurationManager : IDisposable
 
             if (k.Version >= TailwindVersion.V4)
             {
-                if (
-                    k.NotApplicablePaths.Any(p =>
-                        filePath.StartsWith(p, StringComparison.InvariantCultureIgnoreCase)
-                    )
-                )
+                if (k.NotApplicablePaths.Any(p => IsFileInDirectory(filePath, p)))
                 {
                     continue;
                 }
@@ -296,20 +254,12 @@ public sealed class ProjectConfigurationManager : IDisposable
 
             if (k.Version >= TailwindVersion.V4)
             {
-                if (
-                    k.NotApplicablePaths.Any(p =>
-                        filePath.StartsWith(p, StringComparison.InvariantCultureIgnoreCase)
-                    )
-                )
+                if (k.NotApplicablePaths.Any(p => IsFileInDirectory(filePath, p)))
                 {
                     continue;
                 }
 
-                if (
-                    k.ApplicablePaths.Any(p =>
-                        filePath.StartsWith(p, StringComparison.InvariantCultureIgnoreCase)
-                    )
-                )
+                if (k.ApplicablePaths.Any(p => IsFileInDirectory(filePath, p)))
                 {
                     return k;
                 }
@@ -324,6 +274,17 @@ public sealed class ProjectConfigurationManager : IDisposable
         return await ProjectConfigurationInitializer.GetUnsetCompletionConfigurationAsync(
             TailwindVersion.LATEST
         );
+    }
+
+    private static bool IsFileInDirectory(string filePath, string directory)
+    {
+        var normalizedFile = filePath.Replace('\\', '/');
+        var normalizedDirectory = directory.Replace('\\', '/').TrimEnd('/');
+        return normalizedFile.Equals(normalizedDirectory, StringComparison.OrdinalIgnoreCase)
+            || normalizedFile.StartsWith(
+                normalizedDirectory + "/",
+                StringComparison.OrdinalIgnoreCase
+            );
     }
 
     public async Task<IEnumerable<ProjectCompletionValues>> GetAllProjectCompletionValuesAsync()
@@ -342,125 +303,173 @@ public sealed class ProjectConfigurationManager : IDisposable
 
     public async Task OnSettingsChangedAsync(TailwindSettings settings)
     {
+        var revision = Interlocked.Increment(ref _settingsRevision);
+        var files = settings
+            .ConfigurationFiles.Select(f => new ConfigurationFile { Path = f.Path })
+            .ToList();
+        var builds = settings.BuildFiles.ToArray();
         await TaskScheduler.Default;
-
-        // Perform all async I/O (version detection, config file updates) before
-        // acquiring the lock so we hold it only while mutating shared state.
-        foreach (var buildFile in settings.BuildFiles)
+        await _settingsUpdateGate.WaitAsync();
+        try
         {
-            if (
-                settings.ConfigurationFiles.All(cf =>
-                    !cf.Path.Equals(buildFile.Input, StringComparison.InvariantCultureIgnoreCase)
-                )
-            )
+            if (revision != Interlocked.Read(ref _settingsRevision))
+                return;
+            foreach (var buildFile in builds)
             {
+                if (
+                    files.All(cf =>
+                        !cf.Path.Equals(buildFile.Input, StringComparison.OrdinalIgnoreCase)
+                    )
+                    && await DirectoryVersionFinder.GetTailwindVersionAsync(
+                        buildFile.Input,
+                        settings
+                    ) >= TailwindVersion.V4
+                )
+                    files.Add(new() { Path = buildFile.Input });
+            }
+
+            var current = (await GetAllProjectCompletionValuesAsync()).ToDictionary(
+                p => p.FilePath,
+                StringComparer.OrdinalIgnoreCase
+            );
+            var staged = new Dictionary<string, ProjectCompletionValues>(
+                StringComparer.OrdinalIgnoreCase
+            );
+            foreach (var file in files)
+            {
+                if (revision != Interlocked.Read(ref _settingsRevision))
+                    return;
                 var version = await DirectoryVersionFinder.GetTailwindVersionAsync(
-                    buildFile.Input,
+                    file.Path,
                     settings
                 );
-
-                if (version >= TailwindVersion.V4)
-                {
-                    settings.ConfigurationFiles.Add(new() { Path = buildFile.Input.ToLower() });
-                }
-            }
-        }
-
-        // Pre-compute new configs outside the lock (these involve awaits).
-        var newConfigs = new Dictionary<string, ProjectCompletionValues>(
-            StringComparer.OrdinalIgnoreCase
-        );
-
-        foreach (var file in settings.ConfigurationFiles)
-        {
-            var key = file.Path.ToLower();
-
-            // Check existing config under the lock briefly.
-            ProjectCompletionValues? existingConfig;
-            await _configLock.WaitAsync();
-            try
-            {
-                _projectCompletionConfiguration.TryGetValue(key, out existingConfig);
-            }
-            finally
-            {
-                _configLock.Release();
-            }
-            var version = await DirectoryVersionFinder.GetTailwindVersionAsync(file.Path, settings);
-
-            ProjectCompletionValues projectConfig;
-            if (existingConfig is null || existingConfig.Version != version)
-            {
-                if (!settings.UseCli || string.IsNullOrWhiteSpace(settings.TailwindCliPath))
+                if (
+                    (!current.TryGetValue(file.Path, out var old) || old.Version != version)
+                    && (!settings.UseCli || string.IsNullOrWhiteSpace(settings.TailwindCliPath))
+                )
                 {
                     await CheckForUpdates.UpdateConfigFileFolderAsync(file.Path);
                     DirectoryVersionFinder.ClearCacheForDirectory(
                         PathHelpers.GetContainingDirectory(file.Path)
                     );
                 }
-
-                projectConfig = (
-                    await ProjectConfigurationInitializer.GetUnsetCompletionConfigurationAsync(
-                        version
-                    )
-                ).Copy();
+                var loaded = await Configuration.CreateCompletionSnapshotAsync(file, version);
+                // A failed reload leaves the last complete snapshot available.
+                staged[file.Path] =
+                    loaded
+                    ?? old
+                    ?? CreateDefaultSnapshot(
+                        (
+                            await ProjectConfigurationInitializer.GetUnsetCompletionConfigurationAsync(
+                                version
+                            )
+                        ).Copy(),
+                        file.Path
+                    );
             }
-            else
+
+            await _configLock.WaitAsync();
+            try
             {
-                projectConfig = existingConfig;
+                if (revision != Interlocked.Read(ref _settingsRevision))
+                    return;
+                _projectCompletionConfiguration.Clear();
+                foreach (var pair in staged)
+                    _projectCompletionConfiguration[pair.Key] = pair.Value;
+                _defaultProjectCompletionConfiguration =
+                    files
+                        .Select(f => staged[f.Path])
+                        .FirstOrDefault(p => p.ApplicablePaths.Count > 0)
+                    ?? staged.Values.FirstOrDefault();
+                _reloadTokens.Clear();
+                _filePathToProjectConfigurationCache.Clear();
+                _configurationGeneration++;
+                settings.ConfigurationFiles = files;
+                // The import map is updated under the same publication gate.
+                // Reloader releases its own gate before it requests a reload.
+                await Configuration.Reloader.ReplaceAllImportsAsync(staged.Values);
             }
-
-            projectConfig.FilePath = key;
-            newConfigs[key] = projectConfig;
+            finally
+            {
+                _configLock.Release();
+            }
+            await Configuration.NotifyConfigurationUpdatedAsync();
         }
+        finally
+        {
+            _settingsUpdateGate.Release();
+        }
+    }
 
-        // Now atomically swap in all new state under the lock.
+    private static ProjectCompletionValues CreateDefaultSnapshot(
+        ProjectCompletionValues values,
+        string path
+    )
+    {
+        values.FilePath = path;
+        return values;
+    }
+
+    internal sealed class ReloadRequest(
+        ProjectCompletionValues original,
+        long settingsRevision,
+        long token
+    )
+    {
+        internal ProjectCompletionValues Original { get; } = original;
+        internal long SettingsRevision { get; } = settingsRevision;
+        internal long Token { get; } = token;
+    }
+
+    internal async Task<ReloadRequest?> BeginReloadAsync(string path)
+    {
         await _configLock.WaitAsync();
         try
         {
-            _defaultProjectCompletionConfiguration = null;
-            _filePathToProjectConfigurationCache.Clear();
-
-            var toRemove = _projectCompletionConfiguration
-                .Keys.Except(newConfigs.Keys, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            foreach (var key in toRemove)
-            {
-                _projectCompletionConfiguration.Remove(key);
-            }
-
-            foreach (var kvp in newConfigs)
-            {
-                _projectCompletionConfiguration[kvp.Key] = kvp.Value;
-            }
-
-            if (settings.ConfigurationFiles.Count > 0)
-            {
-                foreach (var config in settings.ConfigurationFiles)
-                {
-                    var key = config.Path.ToLower();
-                    if (
-                        _projectCompletionConfiguration.TryGetValue(key, out var pcv)
-                        && pcv.ApplicablePaths.Count > 0
-                    )
-                    {
-                        _defaultProjectCompletionConfiguration = pcv;
-                        break;
-                    }
-                }
-
-                _defaultProjectCompletionConfiguration ??= _projectCompletionConfiguration[
-                    settings.ConfigurationFiles.First().Path.ToLower()
-                ];
-            }
+            if (!_projectCompletionConfiguration.TryGetValue(path, out var project))
+                return null;
+            var token = ++_nextReloadToken;
+            _reloadTokens[path] = token;
+            return new(project, Interlocked.Read(ref _settingsRevision), token);
         }
         finally
         {
             _configLock.Release();
         }
+    }
 
-        await Configuration.ReloadCustomAttributesAsync(settings);
+    internal async Task<bool> TryPublishReloadAsync(
+        ReloadRequest request,
+        ProjectCompletionValues replacement
+    )
+    {
+        await _configLock.WaitAsync();
+        try
+        {
+            var path = request.Original.FilePath;
+            if (
+                request.SettingsRevision != Interlocked.Read(ref _settingsRevision)
+                || !_reloadTokens.TryGetValue(path, out var token)
+                || token != request.Token
+                || !_projectCompletionConfiguration.TryGetValue(path, out var current)
+                || !ReferenceEquals(current, request.Original)
+            )
+                return false;
+            _projectCompletionConfiguration[path] = replacement;
+            if (ReferenceEquals(_defaultProjectCompletionConfiguration, current))
+                _defaultProjectCompletionConfiguration = replacement;
+            _filePathToProjectConfigurationCache.Clear();
+            _configurationGeneration++;
+            await Configuration.Reloader.ReplaceImportsAsync(
+                new() { Path = path },
+                replacement.LoadedConfiguration?.Imports ?? []
+            );
+            return true;
+        }
+        finally
+        {
+            _configLock.Release();
+        }
     }
 
     public void Dispose()

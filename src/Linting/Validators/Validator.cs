@@ -274,7 +274,7 @@ internal abstract class Validator : IDisposable
 
     public void Dispose()
     {
-        ((ITextBuffer2)_buffer).ChangedHighPriority -= OnBufferChange;
+        ((ITextBuffer2)_buffer).ChangedOnBackground -= OnBufferChange;
         Linter.Saved -= LinterOptionsChanged;
         _completionConfiguration.ConfigurationUpdated -= ConfigurationUpdatedAsync;
     }

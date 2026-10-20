@@ -85,7 +85,7 @@ public sealed class SettingsProvider : IDisposable
 
             if (activeProjectPath == null)
             {
-                return new TailwindSettings()
+                returnSettings = new TailwindSettings()
                 {
                     EnableTailwindCss = general.UseTailwindCss,
                     DefaultOutputCssName = general.TailwindOutputFileName.Trim(),
@@ -100,6 +100,16 @@ public sealed class SettingsProvider : IDisposable
                     SortClassesType = general.ClassSortType,
                     CanonicalizeClassesType = general.ClassCanonicalizationType,
                 };
+
+                // Opening solutions still need uncached defaults until discovery is ready.
+                // A settled empty workspace must discard the previous solution's configurations.
+                if (!await VS.Solutions.IsOpeningAsync())
+                {
+                    _cachedSettings = returnSettings;
+                    await ProjectConfigurationManager.OnSettingsChangedAsync(returnSettings);
+                }
+
+                return returnSettings;
             }
 
             TailwindSettingsProjectOnly projectSettings;
@@ -114,12 +124,12 @@ public sealed class SettingsProvider : IDisposable
                     using var fs = File.Open(
                         path,
                         FileMode.Open,
-                        FileAccess.ReadWrite,
+                        FileAccess.Read,
                         FileShare.ReadWrite
                     );
-                    projectSettings = (
-                        await JsonSerializer.DeserializeAsync<TailwindSettingsProjectOnly>(fs)
-                    )!;
+                    projectSettings =
+                        (await JsonSerializer.DeserializeAsync<TailwindSettingsProjectOnly>(fs))
+                        ?? throw new JsonException("Expected an extension settings object.");
                 }
                 catch (Exception ex)
                 {
@@ -288,6 +298,8 @@ public sealed class SettingsProvider : IDisposable
                 CustomRegexes = projectSettings.CustomRegexes,
             };
 
+            _cachedSettings = returnSettings;
+
 #pragma warning disable VSSDK007 // ThreadHelper.JoinableTaskFactory.RunAsync
             // Yes, this is horrible, but we need to call this as a fire and forget in case some caller of GetSettingsAsync must
             // be synchronous.
@@ -305,8 +317,6 @@ public sealed class SettingsProvider : IDisposable
                     nameof(TailwindCSSIntellisense) + "/SettingsProvider/SettingsChanged"
                 );
 #pragma warning restore VSSDK007 // ThreadHelper.JoinableTaskFactory.RunAsync
-
-            _cachedSettings = returnSettings;
         }
 
         // At this point, we've guaranteed that the settings have been generated at least once, so
@@ -509,7 +519,10 @@ public sealed class SettingsProvider : IDisposable
 
             var relativePath = PathHelpers.GetRelativePath(configPath, projectRoot)!;
 
-            if (!relativePath.StartsWith("..", StringComparison.Ordinal))
+            if (
+                !Path.IsPathRooted(relativePath)
+                && !relativePath.StartsWith("..", StringComparison.Ordinal)
+            )
             {
                 var numSlashes = relativePath.Count(c => c == Path.DirectorySeparatorChar);
 
@@ -657,6 +670,9 @@ public sealed class SettingsProvider : IDisposable
     )]
     private void InvalidateCacheAndSettingsChanged(Solution? solution)
     {
+        // Package initialization runs on the same open event, before the debounce finishes.
+        // It must discover the new solution rather than reload the previous one's settings.
+        _cachedSettings = null;
         ThreadHelper
             .JoinableTaskFactory.RunAsync(InvalidateCacheAndSettingsChangedImplAsync)
             .FileAndForget(

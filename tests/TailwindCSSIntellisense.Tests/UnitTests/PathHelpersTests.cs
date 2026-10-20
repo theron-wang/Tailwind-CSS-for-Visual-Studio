@@ -45,6 +45,8 @@ public class PathHelpersTests
     [InlineData("src/file[1].html", "src/{file[1],other}.html", true)]
     [InlineData("src/file1.html", "src/{file[1],other}.html", false)]
     [InlineData("src/page.html", "src/{*.html,*.razor}", true)]
+    [InlineData("/a/b/c/file.html", "/a/**/{file,other}.html", true)]
+    [InlineData("/a/b/c/file.css", "/a/**/{file,other}.html", false)]
     public void PathMatchesGlob_HandlesDirectoriesAndLiteralAlternatives(
         string path,
         string pattern,

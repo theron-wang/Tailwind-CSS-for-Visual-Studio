@@ -6,6 +6,53 @@ namespace TailwindCSSIntellisense.Helpers;
 
 internal static class StringHelpers
 {
+    // Colons inside arbitrary values/variants and CSS functions are part of
+    // the value, not Tailwind variant separators (for example url(https://...)).
+    public static List<string> SplitClassVariants(this string className)
+    {
+        var parts = new List<string>();
+        var depth = 0;
+        var start = 0;
+        char quote = '\0';
+        for (var i = 0; i < className.Length; i++)
+        {
+            var c = className[i];
+            if (c == '\\')
+            {
+                i++;
+                continue;
+            }
+            if (quote != '\0')
+            {
+                if (c == quote)
+                {
+                    quote = '\0';
+                }
+
+                continue;
+            }
+            if (c is '\'' or '"')
+            {
+                quote = c;
+            }
+            else if (c is '[' or '(')
+            {
+                depth++;
+            }
+            else if (c is ']' or ')')
+            {
+                depth = Math.Max(0, depth - 1);
+            }
+            else if (c == ':' && depth == 0)
+            {
+                parts.Add(className.Substring(start, i - start));
+                start = i + 1;
+            }
+        }
+        parts.Add(className.Substring(start));
+        return parts;
+    }
+
     public static string ReplaceLastOccurrence(this string source, string find, string replace)
     {
         var place = source.LastIndexOf(find, StringComparison.Ordinal);

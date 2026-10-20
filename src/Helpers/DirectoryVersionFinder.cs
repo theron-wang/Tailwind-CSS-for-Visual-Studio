@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.ComponentModel.Composition;
 using System.Diagnostics;
 using System.IO;
@@ -28,9 +28,17 @@ internal class DirectoryVersionFinder : IDisposable
         VS.Events.SolutionEvents.OnAfterOpenProject += InvalidateCache;
     }
 
-    private readonly Dictionary<string, TailwindVersion> _cache = [];
-    private readonly Dictionary<string, bool> _installedCache = [];
-    private readonly HashSet<string> _pendingInstallChecks = [];
+    private readonly ConcurrentDictionary<string, TailwindVersion> _cache = new(
+        StringComparer.OrdinalIgnoreCase
+    );
+    private readonly ConcurrentDictionary<string, bool> _installedCache = new(
+        StringComparer.OrdinalIgnoreCase
+    );
+    private readonly ConcurrentDictionary<string, long> _pendingInstallChecks = new(
+        StringComparer.OrdinalIgnoreCase
+    );
+    private readonly object _cacheGate = new();
+    private long _cacheGeneration;
 
     /// <summary>
     /// Gets whether Tailwind is installed in the given directory, if available. If not available, returns null and populates the cache in the background.
@@ -60,14 +68,18 @@ internal class DirectoryVersionFinder : IDisposable
 
         directory = directory!.ToLower();
 
-        if (_installedCache.TryGetValue(directory, out var value))
+        long generation;
+        lock (_cacheGate)
         {
-            return value;
-        }
-
-        if (!_pendingInstallChecks.Add(directory))
-        {
-            return null;
+            if (_installedCache.TryGetValue(directory, out var value))
+            {
+                return value;
+            }
+            generation = _cacheGeneration;
+            if (!_pendingInstallChecks.TryAdd(directory, generation))
+            {
+                return null;
+            }
         }
 
         ThreadHelper
@@ -75,11 +87,28 @@ internal class DirectoryVersionFinder : IDisposable
             {
                 try
                 {
-                    await PopulateIsTailwindInstalledAsync(directory!);
+                    var installed = await IsTailwindInstalledAsync(directory!)
+                        .ConfigureAwait(false);
+                    lock (_cacheGate)
+                    {
+                        if (generation == _cacheGeneration)
+                        {
+                            _installedCache[directory!] = installed;
+                        }
+                    }
                 }
                 finally
                 {
-                    _pendingInstallChecks.Remove(directory!);
+                    lock (_cacheGate)
+                    {
+                        if (
+                            _pendingInstallChecks.TryGetValue(directory!, out var pendingGeneration)
+                            && generation == pendingGeneration
+                        )
+                        {
+                            _pendingInstallChecks.TryRemove(directory!, out _);
+                        }
+                    }
                 }
             })
             .FileAndForget(nameof(TailwindCSSIntellisense) + "/PopulateVersionCache");
@@ -88,9 +117,9 @@ internal class DirectoryVersionFinder : IDisposable
     }
 
     /// <summary>
-    /// Populates whether Tailwind is installed in the given directory into the cache.
+    /// Checks whether Tailwind is installed without publishing mutable cache state.
     /// </summary>
-    private async Task PopulateIsTailwindInstalledAsync(string directory)
+    protected virtual async Task<bool> IsTailwindInstalledAsync(string directory)
     {
         var processInfo = new ProcessStartInfo()
         {
@@ -150,24 +179,16 @@ internal class DirectoryVersionFinder : IDisposable
         {
             if (output.Contains("@tailwindcss/cli"))
             {
-                _installedCache[directory] = true;
-                return;
-            }
-
-            if (output.Contains("tailwindcss@4") && output.Contains("@tailwindcss/cli"))
-            {
-                _installedCache[directory] = true;
-                return;
+                return true;
             }
 
             if (output.Contains("tailwindcss") && !output.Contains("tailwindcss@4"))
             {
-                _installedCache[directory] = true;
-                return;
+                return true;
             }
         }
 
-        _installedCache[directory] = false;
+        return false;
     }
 
     /// <summary>
@@ -226,6 +247,11 @@ internal class DirectoryVersionFinder : IDisposable
         TailwindSettings settings
     )
     {
+        long generation;
+        lock (_cacheGate)
+        {
+            generation = _cacheGeneration;
+        }
         // There's a weird bug (cause unknown) where we end up adding null directories to the cache, and we don't want that
         if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
         {
@@ -294,28 +320,35 @@ internal class DirectoryVersionFinder : IDisposable
         {
             if (output.Contains("@3") || output.Contains("v3"))
             {
-                _cache[directory] = TailwindVersion.V3;
-                return TailwindVersion.V3;
+                return CacheVersion(directory, TailwindVersion.V3, generation);
             }
             else if (output.Contains("@4.0") || output.Contains("v4.0"))
             {
-                _cache[directory] = TailwindVersion.V4;
-                return TailwindVersion.V4;
+                return CacheVersion(directory, TailwindVersion.V4, generation);
             }
             else if (output.Contains("@4.1") || output.Contains("v4.1"))
             {
-                _cache[directory] = TailwindVersion.V4_1;
-                return TailwindVersion.V4_1;
+                return CacheVersion(directory, TailwindVersion.V4_1, generation);
             }
             else if (output.Contains("@4.2") || output.Contains("v4.2"))
             {
-                _cache[directory] = TailwindVersion.V4_2;
-                return TailwindVersion.V4_2;
+                return CacheVersion(directory, TailwindVersion.V4_2, generation);
             }
         }
 
-        _cache[directory] = TailwindVersion.LATEST;
-        return TailwindVersion.LATEST;
+        return CacheVersion(directory, TailwindVersion.LATEST, generation);
+    }
+
+    private TailwindVersion CacheVersion(string directory, TailwindVersion version, long generation)
+    {
+        lock (_cacheGate)
+        {
+            if (generation == _cacheGeneration)
+            {
+                _cache[directory] = version;
+            }
+        }
+        return version;
     }
 
     public void ClearCacheForDirectory(string? directory, bool recursive = true)
@@ -325,34 +358,59 @@ internal class DirectoryVersionFinder : IDisposable
             return;
         }
 
-        directory = directory.ToLower();
+        directory = directory
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            .ToLower();
 
-        if (recursive)
+        lock (_cacheGate)
         {
-            foreach (var key in _cache.Keys.ToList())
+            // Invalidate in-flight checks too. An older completion must neither
+            // republish a stale result nor remove a new generation's pending check.
+            _cacheGeneration++;
+            _pendingInstallChecks.Clear();
+            if (recursive)
             {
-                if (key.StartsWith(directory))
+                foreach (var key in _cache.Keys.Concat(_installedCache.Keys).Distinct().ToList())
                 {
-                    _cache.Remove(key);
-                    _installedCache.Remove(key);
+                    if (
+                        key.Equals(directory, StringComparison.OrdinalIgnoreCase)
+                        || key.StartsWith(
+                            directory + Path.DirectorySeparatorChar,
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                        || key.StartsWith(
+                            directory + Path.AltDirectorySeparatorChar,
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                    )
+                    {
+                        _cache.TryRemove(key, out _);
+                        _installedCache.TryRemove(key, out _);
+                    }
                 }
             }
-        }
-        else
-        {
-            _cache.Remove(directory);
-            _installedCache.Remove(directory);
+            else
+            {
+                _cache.TryRemove(directory, out _);
+                _installedCache.TryRemove(directory, out _);
+            }
         }
     }
 
     private void InvalidateCache(string? _)
     {
-        _cache.Clear();
+        lock (_cacheGate)
+        {
+            _cacheGeneration++;
+            _pendingInstallChecks.Clear();
+            _cache.Clear();
+            _installedCache.Clear();
+        }
     }
 
     private void InvalidateCache(Project? _)
     {
-        _cache.Clear();
+        InvalidateCache((string?)null);
     }
 
     public void Dispose()

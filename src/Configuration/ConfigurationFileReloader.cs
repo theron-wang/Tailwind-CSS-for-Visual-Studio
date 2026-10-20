@@ -6,6 +6,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Community.VisualStudio.Toolkit;
 using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Threading;
+using TailwindCSSIntellisense.Completions;
 using TailwindCSSIntellisense.Settings;
 
 namespace TailwindCSSIntellisense.Configuration;
@@ -38,6 +40,7 @@ public sealed class ConfigurationFileReloader : IDisposable
     /// </summary>
     public async Task InitializeAsync()
     {
+        _settings = await SettingsProvider.GetSettingsAsync();
         if (!_subscribed)
         {
             VS.Events.DocumentEvents.Saved += OnFileSave;
@@ -46,23 +49,64 @@ public sealed class ConfigurationFileReloader : IDisposable
             _subscribed = true;
         }
 
-        _settings = await SettingsProvider.GetSettingsAsync();
         await CompletionConfiguration.ReloadCustomAttributesAsync(_settings);
     }
 
-    public async Task AddImportAsync(string import, ConfigurationFile config)
+    internal async Task ReplaceAllImportsAsync(IEnumerable<ProjectCompletionValues> projects)
+    {
+        await _importToConfigSemaphore.WaitAsync();
+        try
+        {
+            _importToConfigurationFiles.Clear();
+            foreach (var project in projects)
+            {
+                foreach (var import in project.LoadedConfiguration?.Imports ?? [])
+                {
+                    if (!_importToConfigurationFiles.TryGetValue(import, out var values))
+                    {
+                        _importToConfigurationFiles[import] = values = [];
+                    }
+
+                    values.Add(new() { Path = project.FilePath });
+                }
+            }
+        }
+        finally
+        {
+            _importToConfigSemaphore.Release();
+        }
+    }
+
+    internal async Task ReplaceImportsAsync(ConfigurationFile config, IEnumerable<string> imports)
     {
         await _importToConfigSemaphore.WaitAsync();
 
         try
         {
-            if (_importToConfigurationFiles.TryGetValue(import, out var values))
+            foreach (var values in _importToConfigurationFiles.Values)
             {
-                values.Add(config);
+                values.RemoveWhere(v =>
+                    v.Path.Equals(config.Path, StringComparison.OrdinalIgnoreCase)
+                );
             }
-            else
+            foreach (
+                var key in _importToConfigurationFiles
+                    .Where(p => p.Value.Count == 0)
+                    .Select(p => p.Key)
+                    .ToArray()
+            )
             {
-                _importToConfigurationFiles[import] = [config];
+                _importToConfigurationFiles.Remove(key);
+            }
+
+            foreach (var import in imports)
+            {
+                if (!_importToConfigurationFiles.TryGetValue(import, out var values))
+                {
+                    _importToConfigurationFiles[import] = values = [];
+                }
+
+                values.Add(config);
             }
         }
         finally
@@ -115,7 +159,8 @@ public sealed class ConfigurationFileReloader : IDisposable
 
         await Task.WhenAll(
             configFiles
-                .Distinct()
+                .GroupBy(c => c.Path, StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.First())
                 .Select(config =>
                     CompletionConfiguration.ReloadCustomAttributesAsync(config, _settings)
                 )
@@ -124,7 +169,13 @@ public sealed class ConfigurationFileReloader : IDisposable
 
     private async Task OnSettingsChangedAsync(TailwindSettings settings)
     {
-        var added = settings.ConfigurationFiles.Except(_settings.ConfigurationFiles).ToList();
+        var added = settings
+            .ConfigurationFiles.Where(f =>
+                !_settings.ConfigurationFiles.Any(old =>
+                    old.Path.Equals(f.Path, StringComparison.OrdinalIgnoreCase)
+                )
+            )
+            .ToList();
         _settings = settings;
 
         await _importToConfigSemaphore.WaitAsync();
@@ -133,7 +184,11 @@ public sealed class ConfigurationFileReloader : IDisposable
         {
             foreach (var values in _importToConfigurationFiles.Values)
             {
-                values.RemoveWhere(v => !settings.ConfigurationFiles.Contains(v));
+                values.RemoveWhere(v =>
+                    !settings.ConfigurationFiles.Any(f =>
+                        f.Path.Equals(v.Path, StringComparison.OrdinalIgnoreCase)
+                    )
+                );
             }
         }
         finally

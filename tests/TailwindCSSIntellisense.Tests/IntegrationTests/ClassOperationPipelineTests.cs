@@ -196,7 +196,10 @@ public class ClassOperationPipelineTests
         var settings = CreateSettings();
         settings.EnableTailwindCss = enabled;
         if (!configured)
+        {
             settings.ConfigurationFiles.Clear();
+        }
+
         const string content = "<div class='text-[#fff] px-2 py-2'></div>";
 
         Assert.Equal(content, await CreatePipeline().ProcessAsync("index.html", content, settings));

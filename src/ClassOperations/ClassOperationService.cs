@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.IO;
 using System.Linq;
@@ -9,7 +10,7 @@ using System.Threading.Tasks;
 using Community.VisualStudio.Toolkit;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text;
-using Microsoft.VisualStudio.Text.Differencing;
+using Microsoft.VisualStudio.Text.Operations;
 using Microsoft.VisualStudio.Threading;
 using TailwindCSSIntellisense.Configuration;
 using TailwindCSSIntellisense.Options;
@@ -37,6 +38,9 @@ internal sealed class ClassOperationService : IDisposable
     [Import]
     public FileFinder FileFinder { get; set; } = null!;
 
+    [Import]
+    public ITextUndoHistoryRegistry UndoHistoryRegistry { get; set; } = null!;
+
     public bool Processing => Volatile.Read(ref _pendingRuns) > 0;
 
     private TailwindSettings _settings = null!;
@@ -45,6 +49,7 @@ internal sealed class ClassOperationService : IDisposable
     private Task? _initTask;
     private int _pendingRuns;
     private int _configurationVersion;
+    private readonly HashSet<string> _savingDocuments = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, string> _processed = new(
         StringComparer.OrdinalIgnoreCase
     );
@@ -147,6 +152,35 @@ internal sealed class ClassOperationService : IDisposable
         Type? operationType
     )
     {
+        try
+        {
+            await ProcessFileImplAsync(path, trigger, force, operationType);
+        }
+        catch (Exception ex) when (IsUnavailableFile(ex) || ex is DecoderFallbackException)
+        {
+            // Missing, locked, read-only, or undecodable files must not stop the
+            // rest of a batch. The caller owns progress/status reporting.
+        }
+    }
+
+    private static bool IsUnavailableFile(Exception exception)
+    {
+        // The low 16 bits of a Windows HRESULT contain its Win32 error code:
+        // 32 = ERROR_SHARING_VIOLATION, 33 = ERROR_LOCK_VIOLATION.
+        return exception
+                is UnauthorizedAccessException
+                    or FileNotFoundException
+                    or DirectoryNotFoundException
+            || (exception is IOException && (exception.HResult & 0xFFFF) is 32 or 33);
+    }
+
+    private async Task ProcessFileImplAsync(
+        string path,
+        SortClassesOptions? trigger,
+        bool force,
+        Type? operationType
+    )
+    {
         if (
             !Operations
                 .GetEnabledOperations(_settings, trigger, operationType)
@@ -157,20 +191,43 @@ internal sealed class ClassOperationService : IDisposable
         }
 
         var version = Volatile.Read(ref _configurationVersion);
-        string content;
-        Encoding encoding;
-        using (var file = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-        using (
-            var reader = new StreamReader(
-                file,
-                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
-                detectEncodingFromByteOrderMarks: true
-            )
-        )
+        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+        var isOpen = await VS.Documents.IsOpenAsync(path);
+        var view = await GetOpenDocumentAsync(path);
+        var snapshot = view?.TextBuffer?.CurrentSnapshot;
+        var wasDirty = view?.Document?.IsDirty == true;
+        var documentEncoding = view?.Document?.Encoding;
+        if (isOpen && snapshot is null)
         {
-            content = await reader.ReadToEndAsync();
-            // Read first so BOM detection has completed.
-            encoding = reader.CurrentEncoding;
+            return;
+        }
+
+        // Read open files from the editor, including unsaved edits. A snapshot
+        // also lets us detect typing/undo while an asynchronous operation runs.
+        await TaskScheduler.Default;
+        string content;
+        (byte[] bytes, string text, Encoding encoding)? disk = null;
+        if (snapshot is not null)
+        {
+            content = snapshot.GetText();
+            if (!wasDirty)
+            {
+                disk = await ReadFileAsync(path, documentEncoding);
+                if (disk.Value.text != content)
+                {
+                    return;
+                }
+            }
+        }
+        else
+        {
+            // An open non-text document must never be overwritten via disk I/O.
+            if (view is not null)
+            {
+                return;
+            }
+            disk = await ReadFileAsync(path);
+            content = disk.Value.text;
         }
 
         var cacheKey = path + "|" + trigger + "|" + operationType;
@@ -188,28 +245,29 @@ internal sealed class ClassOperationService : IDisposable
         );
         if (result != content)
         {
-            using (
-                var file = File.Open(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite)
-            )
-            using (var writer = new StreamWriter(file, encoding))
+            if (version != Volatile.Read(ref _configurationVersion))
             {
-                await writer.WriteAsync(result);
+                return;
             }
-
-            if (await VS.Documents.IsOpenAsync(path))
-            {
-                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                var view = await VS.Documents.GetDocumentViewAsync(path);
-                view?.Document?.Reload(
-                    new EditOptions(
-                        new()
-                        {
-                            DifferenceType =
-                                StringDifferenceTypes.Line | StringDifferenceTypes.Word,
-                            IgnoreTrimWhiteSpace = true,
-                        }
-                    )
+            var applied = snapshot is not null
+                ? await ApplyToOpenDocumentAsync(
+                    path,
+                    snapshot,
+                    result,
+                    wasDirty,
+                    disk?.bytes,
+                    version
+                )
+                : await WriteClosedFileAsync(
+                    path,
+                    disk!.Value.bytes,
+                    result,
+                    disk.Value.encoding,
+                    version
                 );
+            if (!applied)
+            {
+                return;
             }
         }
 
@@ -217,6 +275,130 @@ internal sealed class ClassOperationService : IDisposable
         {
             _processed[cacheKey] = result;
         }
+    }
+
+    private static async Task<DocumentView?> GetOpenDocumentAsync(string path) =>
+        await VS.Documents.IsOpenAsync(path) ? await VS.Documents.GetDocumentViewAsync(path) : null;
+
+    private static async Task<(byte[] bytes, string text, Encoding encoding)> ReadFileAsync(
+        string path,
+        Encoding? documentEncoding = null
+    )
+    {
+        using var file = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using var copy = new MemoryStream();
+        await file.CopyToAsync(copy);
+        var bytes = copy.ToArray();
+        copy.Position = 0;
+        using var reader = new StreamReader(
+            copy,
+            documentEncoding ?? new UTF8Encoding(false, throwOnInvalidBytes: true),
+            detectEncodingFromByteOrderMarks: true
+        );
+        var text = await reader.ReadToEndAsync();
+        // Open documents supply Visual Studio's detected encoding (including
+        // legacy ANSI code pages). Closed files use strict UTF-8 or a detected
+        // Unicode BOM; never rewrite text that cannot round-trip losslessly.
+        var roundTrip = reader
+            .CurrentEncoding.GetPreamble()
+            .Concat(reader.CurrentEncoding.GetBytes(text));
+        if (!bytes.SequenceEqual(roundTrip))
+        {
+            throw new DecoderFallbackException(
+                "The file cannot be decoded without changing its bytes."
+            );
+        }
+        return (bytes, text, reader.CurrentEncoding);
+    }
+
+    private async Task<bool> ApplyToOpenDocumentAsync(
+        string path,
+        ITextSnapshot snapshot,
+        string result,
+        bool wasDirty,
+        byte[]? originalBytes,
+        int version
+    )
+    {
+        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+        var view = await GetOpenDocumentAsync(path);
+        if (
+            view?.Document is null
+            || !ReferenceEquals(view.TextBuffer?.CurrentSnapshot, snapshot)
+            || !view.Document.FilePath.Equals(path, StringComparison.OrdinalIgnoreCase)
+            || version != Volatile.Read(ref _configurationVersion)
+            || (originalBytes is not null && !File.ReadAllBytes(path).SequenceEqual(originalBytes))
+        )
+        {
+            return false;
+        }
+
+        using var transaction = UndoHistoryRegistry.TryGetHistory(view.TextBuffer, out var history)
+            ? history.CreateTransaction("Tailwind CSS class operations")
+            : null;
+        using var edit = view.TextBuffer.CreateEdit(EditOptions.DefaultMinimalChange, null, null);
+        if (!edit.Replace(0, snapshot.Length, result))
+        {
+            edit.Cancel();
+            return false;
+        }
+        edit.Apply();
+        if (edit.Canceled)
+        {
+            return false;
+        }
+        transaction?.Complete();
+
+        // Keep pre-existing unsaved changes unsaved. Clean files and on-save
+        // operations retain the existing behavior of persisting the result.
+        if (!wasDirty)
+        {
+            _savingDocuments.Add(path);
+            try
+            {
+                view.Document.Save();
+            }
+            finally
+            {
+                _savingDocuments.Remove(path);
+            }
+        }
+        return true;
+    }
+
+    private async Task<bool> WriteClosedFileAsync(
+        string path,
+        byte[] originalBytes,
+        string result,
+        Encoding encoding,
+        int version
+    )
+    {
+        await TaskScheduler.Default;
+        // Hold an exclusive handle across validation and writing. Opening an
+        // editor or another writer cannot slip between the comparison and write.
+        using var file = File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        using var current = new MemoryStream();
+        await file.CopyToAsync(current);
+        if (!current.ToArray().SequenceEqual(originalBytes))
+        {
+            return false;
+        }
+        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+        if (
+            await VS.Documents.IsOpenAsync(path)
+            || version != Volatile.Read(ref _configurationVersion)
+        )
+        {
+            return false;
+        }
+        await TaskScheduler.Default;
+        file.Position = 0;
+        using var writer = new StreamWriter(file, encoding, 1024, leaveOpen: true);
+        await writer.WriteAsync(result);
+        await writer.FlushAsync();
+        file.SetLength(file.Position);
+        return true;
     }
 
     private const string ErrorMessage =
@@ -235,6 +417,10 @@ internal sealed class ClassOperationService : IDisposable
     )]
     private void DocumentSaved(string path)
     {
+        if (_savingDocuments.Contains(path))
+        {
+            return;
+        }
         if (Operations.GetEnabledOperations(_settings, SortClassesOptions.OnSave).Any())
         {
             ThreadHelper

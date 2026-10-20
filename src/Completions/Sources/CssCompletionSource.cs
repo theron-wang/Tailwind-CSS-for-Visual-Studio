@@ -162,9 +162,9 @@ internal class CssCompletionSource : ClassCompletionGenerator, ICompletionSource
                             {
                                 completions.Add(
                                     new(
-                                        $"screen({screen})",
-                                        $"screen({screen})",
-                                        $"screen({screen})",
+                                        $"screen({screen.Key})",
+                                        $"screen({screen.Key})",
+                                        $"screen({screen.Key})",
                                         ProjectConfigurationManager.TailwindLogo,
                                         null
                                     )

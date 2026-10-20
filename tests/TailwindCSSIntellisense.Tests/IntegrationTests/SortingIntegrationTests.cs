@@ -23,29 +23,16 @@ public class SortingIntegrationTests
     }
 
     [Fact]
-    public async Task Sort_UpdatesOnlyClassSegmentAndPreservesMarkup()
-    {
-        var sorter = CreateSorter();
-        const string input = "<div class=\"text-red-500 p-4\">hello</div>";
-
-        var htmlSorter = CreateOperator<HtmlSorter>(sorter);
-
-        var sorted = await htmlSorter.RunOperationAsync("index.html", input);
-
-        Assert.Equal("<div class=\"p-4 text-red-500\">hello</div>", sorted);
-    }
-
-    [Fact]
     public async Task HtmlSorter_SortsBothQuoteStylesAndPreservesOtherAttributes()
     {
         var sorter = CreateOperator<HtmlSorter>(CreateSorter());
         const string content =
-            "<div class='text-red-500 p-4' data-x=\"y\" class=\"hover:font-bold p-4\"></div>";
+            "<div class='text-red-500 p-4' data-x=\"y\" class=\"hover:font-bold p-4\">hello</div>";
 
         var sorted = await sorter.RunOperationAsync("index.html", content);
 
         Assert.Equal(
-            "<div class='p-4 text-red-500' data-x=\"y\" class=\"p-4 hover:font-bold\"></div>",
+            "<div class='p-4 text-red-500' data-x=\"y\" class=\"p-4 hover:font-bold\">hello</div>",
             sorted
         );
     }
