@@ -1472,6 +1472,9 @@ internal sealed class DescriptionGenerator : IDisposable
             if (special is null && projectCompletionValues.Version >= TailwindVersion.V4)
             {
                 special = GetSpecialArbitraryTypeByInput(arbitrary);
+                // Unhinted bg lengths resolve to position; an explicit length: hint selects size.
+                if (stem == "bg-{a}" && special == "length")
+                    special = "position";
             }
         }
         else
@@ -1506,101 +1509,96 @@ internal sealed class DescriptionGenerator : IDisposable
         {
             if (stem == "text-{a}" && special == "length")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "font-size: {0};";
+                description = "font-size: {0};";
             }
             else if (stem == "font-{a}" && special == "family-name")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "font-family: {0};";
+                description = "font-family: {0};";
             }
             else if (stem == "bg-{a}" && (special == "image" || special == "url"))
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "background-image: {0};";
+                description = "background-image: {0};";
             }
             else if (stem == "bg-{a}" && (special == "position" || special == "percentage"))
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "background-position: {0};";
+                description = "background-position: {0};";
             }
             else if (
                 stem == "bg-{a}"
                 && (special == "length" || special == "size" || special == "bg-size")
             )
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "background-size: {0};";
+                description = "background-size: {0};";
             }
             else if (stem == "border-{a}" && special == "length")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "border-width: {0};";
+                description = "border-width: {0};";
             }
             else if (stem == "border-x-{a}" && special == "length")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "border-inline-width: {0};";
+                description = "border-inline-width: {0};";
             }
             else if (stem == "border-y-{a}" && special == "length")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "border-block-width: {0};";
+                description = "border-block-width: {0};";
             }
             else if (stem == "border-s-{a}" && special == "length")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] =
-                    "border-inline-start-width: {0};";
+                description = "border-inline-start-width: {0};";
             }
             else if (stem == "border-e-{a}" && special == "length")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "border-inline-end-width: {0};";
+                description = "border-inline-end-width: {0};";
             }
             else if (stem == "border-t-{a}" && special == "length")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "border-top-width: {0};";
+                description = "border-top-width: {0};";
             }
             else if (stem == "border-r-{a}" && special == "length")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "border-right-width: {0};";
+                description = "border-right-width: {0};";
             }
             else if (stem == "border-b-{a}" && special == "length")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "border-bottom-width: {0};";
+                description = "border-bottom-width: {0};";
             }
             else if (stem == "border-l-{a}" && special == "length")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "border-left-width: {0};";
+                description = "border-left-width: {0};";
             }
             else if (stem == "divide-x-{a}" && special == "length")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] =
+                description =
                     "& > :not(:last-child) { border-inline-start-width: 0px; border-inline-end-width: {0}; }";
             }
             else if (stem == "divide-y-{a}" && special == "length")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] =
+                description =
                     "& > :not(:last-child) { border-top-width: 0px; border-bottom-width: {0}; }";
             }
             else if (stem == "outline-{a}" && special == "length")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "outline-width: {0};";
+                description = "outline-width: {0};";
             }
             else if (stem == "shadow-{a}" && special == "color")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "--tw-shadow-color: {0};";
+                description = "--tw-shadow-color: {0};";
             }
             else if (stem == "text-shadow-{a}" && special == "color")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "--tw-text-shadow-color: {0};";
+                description = "--tw-text-shadow-color: {0};";
             }
             else if (stem == "drop-shadow-{a}" && special == "color")
             {
-                _arbitraryDescriptionCache[$"{stem}-[{special}]"] = "--tw-drop-shadow-color: {0};";
+                description = "--tw-drop-shadow-color: {0};";
             }
             else
             {
                 return null;
             }
 
-            description = _arbitraryDescriptionCache[$"{stem}-[{special}]"];
-
-            if (description is null)
-            {
-                return null;
-            }
+            // Keep the local template: settings changes can clear the cache at any time.
+            _arbitraryDescriptionCache[$"{stem}-[{special}]"] = description;
 
             if (shouldFormat)
             {

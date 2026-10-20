@@ -9,7 +9,10 @@ public class DescriptionGeneratorTests
     [Theory]
     [InlineData("hover:text-[length:2px]", "font-size: 2px;")]
     [InlineData("bg-[length:200px_100px]", "background-size: 200px 100px;")]
-    [InlineData("bg-[200px]", "background-size: 200px;")]
+    [InlineData("bg-[length:200px]", "background-size: 200px;")]
+    [InlineData("bg-[200px]", "background-position: 200px;")]
+    [InlineData("bg-[200px_100px]", "background-position: 200px 100px;")]
+    [InlineData("bg-[10%_20%]", "background-position: 10% 20%;")]
     [InlineData("bg-[position:10%_20%]", "background-position: 10% 20%;")]
     [InlineData(
         "bg-[url(https://example.com/image.png)]",
@@ -170,6 +173,55 @@ public class DescriptionGeneratorTests
         await provider.OnSettingsChanged!(new TailwindSettings());
 
         Assert.All(caches, cache => Assert.Empty(cache));
+    }
+
+    [Fact]
+    public async Task ArbitraryDescriptions_RemainAvailableDuringSettingsChanges()
+    {
+        var provider = new SettingsProvider();
+        using var generator = new DescriptionGenerator(provider);
+        using var start = new Barrier(2);
+        using var stop = new CancellationTokenSource();
+        var values = new ProjectCompletionValues { Version = TailwindVersion.V4 };
+        var settings = new TailwindSettings();
+
+        var reloads = Task
+            .Factory.StartNew(
+                async () =>
+                {
+                    start.SignalAndWait();
+                    while (!stop.IsCancellationRequested)
+                        await provider.OnSettingsChanged!(settings);
+                },
+                CancellationToken.None,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default
+            )
+            .Unwrap();
+        var descriptions = Task.Factory.StartNew(
+            () =>
+            {
+                start.SignalAndWait();
+                for (var i = 0; i < 10_000; i++)
+                    Assert.Equal(
+                        "font-size: 2px;",
+                        generator.GetDescription("text-[length:2px]", values, shouldFormat: false)
+                    );
+            },
+            CancellationToken.None,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default
+        );
+
+        try
+        {
+            await descriptions;
+        }
+        finally
+        {
+            stop.Cancel();
+            await reloads;
+        }
     }
 
     [Fact]
