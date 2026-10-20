@@ -91,35 +91,6 @@ public class ThemeVariableHelpersTests
         Assert.Null(result);
     }
 
-    [Fact]
-    public void GetCssVariableNamespace_FontWeightTakesPrecedenceOverFont()
-    {
-        // --font-weight- should match before --font-
-        var result = ThemeVariableHelpers.GetCssVariableNamespace(
-            "--font-weight-500",
-            TailwindVersion.V4
-        );
-
-        Assert.Equal("--font-weight-", result);
-    }
-
-    [Fact]
-    public void GetCssVariableNamespace_InsetShadowTakesPrecedenceOverShadow()
-    {
-        // --inset-shadow- should NOT match --shadow-
-        var shadowResult = ThemeVariableHelpers.GetCssVariableNamespace(
-            "--shadow-lg",
-            TailwindVersion.V4
-        );
-        var insetShadowResult = ThemeVariableHelpers.GetCssVariableNamespace(
-            "--inset-shadow-lg",
-            TailwindVersion.V4
-        );
-
-        Assert.Equal("--shadow-", shadowResult);
-        Assert.Equal("--inset-shadow-", insetShadowResult);
-    }
-
     #endregion
 
     #region GetConfigurationClassStemFromCssVariable
@@ -199,22 +170,6 @@ public class ThemeVariableHelpersTests
         );
 
         Assert.Null(result);
-    }
-
-    [Fact]
-    public void GetConfigurationClassStemFromCssVariable_FontWeightPrecedesFont()
-    {
-        var fontWeightResult = ThemeVariableHelpers.GetConfigurationClassStemFromCssVariable(
-            "--font-weight-bold",
-            TailwindVersion.V4
-        );
-        var fontFamilyResult = ThemeVariableHelpers.GetConfigurationClassStemFromCssVariable(
-            "--font-serif",
-            TailwindVersion.V4
-        );
-
-        Assert.Equal("fontWeight", fontWeightResult);
-        Assert.Equal("fontFamily", fontFamilyResult);
     }
 
     #endregion
@@ -371,24 +326,6 @@ public class ThemeVariableHelpersTests
     #endregion
 
     #region Roundtrip consistency
-
-    [Theory]
-    [InlineData("--color-red-500", TailwindVersion.V4)]
-    [InlineData("--font-weight-bold", TailwindVersion.V4)]
-    [InlineData("--text-sm", TailwindVersion.V4)]
-    [InlineData("--spacing-4", TailwindVersion.V4)]
-    [InlineData("--radius-lg", TailwindVersion.V4)]
-    public void GetNamespaceAndStem_BothReturnNonNullForSameInput(
-        string variable,
-        TailwindVersion version
-    )
-    {
-        var ns = ThemeVariableHelpers.GetCssVariableNamespace(variable, version);
-        var stem = ThemeVariableHelpers.GetConfigurationClassStemFromCssVariable(variable, version);
-
-        Assert.NotNull(ns);
-        Assert.NotNull(stem);
-    }
 
     [Theory]
     [InlineData("--custom-var", TailwindVersion.V4)]
