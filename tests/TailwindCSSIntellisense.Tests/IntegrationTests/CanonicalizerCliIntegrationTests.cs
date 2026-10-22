@@ -7,6 +7,7 @@ using TailwindCSSIntellisense.Settings;
 
 namespace TailwindCSSIntellisense.Tests.IntegrationTests;
 
+[Collection("External processes")]
 public class CanonicalizerCliIntegrationTests
 {
     [Fact]
@@ -153,37 +154,33 @@ public class CanonicalizerCliIntegrationTests
             CssPath = Path.Combine(_directory, "input.css");
             StartsLog = Path.Combine(_directory, "starts.log");
             _cliPath = Path.Combine(_directory, "fake-cli.cmd");
-            var scriptPath = Path.Combine(_directory, "fake-cli.ps1");
+            var scriptPath = Path.Combine(_directory, "fake-cli.js");
             File.WriteAllText(CssPath, "@import 'tailwindcss';");
-            File.WriteAllText(
-                _cliPath,
-                $"@echo off\r\npowershell.exe -NoLogo -NoProfile -NonInteractive -File \"{scriptPath}\"\r\n"
-            );
+            File.WriteAllText(_cliPath, $"@echo off\r\nnode \"{scriptPath}\"\r\n");
             File.WriteAllText(
                 scriptPath,
                 $$"""
-                [System.IO.File]::AppendAllText('{{StartsLog.Replace("'", "''")}}', "$PID`n")
-                [Console]::Out.WriteLine('Microsoft Windows [Version 10.0.26200]')
-                [Console]::Out.WriteLine('(c) 2026 Microsoft Corporation. All rights reserved.')
-                [Console]::Out.WriteLine('C:\>')
-                while ($null -ne ($requestText = [Console]::ReadLine())) {
-                    if ($requestText -eq 'exit') { exit 7 }
-                    if ($requestText -eq 'stderr') {
-                        [Console]::Error.WriteLine(('x' * 131072))
-                        [Console]::Error.Flush()
-                    }
-                    Start-Sleep -Milliseconds 15
-                    [Console]::Out.WriteLine('unrelated diagnostic')
-                    [Console]::Out.WriteLine('{not valid json')
-                    [Console]::Out.WriteLine('{"message":"unrelated JSON"}')
-                    [Console]::Out.WriteLine('{"input":"other-request","output":"wrong"}')
-                    [Console]::Out.WriteLine('{"input":12,"output":"wrong"}')
-                    [Console]::Out.WriteLine(('{"input":' + ($requestText | ConvertTo-Json -Compress) + ',"output":null}'))
-                    $canonicalText = if ($requestText -eq 'empty') { '' } else { $requestText.ToUpperInvariant() }
-                    $response = @{ input = $requestText; output = $canonicalText; changed = $true } | ConvertTo-Json -Compress
-                    [Console]::Out.WriteLine($response)
-                    [Console]::Out.Flush()
-                }
+                const fs = require('node:fs');
+                const readline = require('node:readline');
+                fs.appendFileSync({{System.Text.Json.JsonSerializer.Serialize(
+                    StartsLog
+                )}}, `${process.pid}\n`);
+                console.log('Microsoft Windows [Version 10.0.26200]');
+                console.log('(c) 2026 Microsoft Corporation. All rights reserved.');
+                console.log('C:\\>');
+                const input = readline.createInterface({ input: process.stdin });
+                input.on('line', requestText => {
+                    if (requestText === 'exit') process.exit(7);
+                    if (requestText === 'stderr') fs.writeSync(2, 'x'.repeat(131072) + '\n');
+                    console.log('unrelated diagnostic');
+                    console.log('{not valid json');
+                    console.log('{"message":"unrelated JSON"}');
+                    console.log('{"input":"other-request","output":"wrong"}');
+                    console.log('{"input":12,"output":"wrong"}');
+                    console.log(JSON.stringify({ input: requestText, output: null }));
+                    const output = requestText === 'empty' ? '' : requestText.toUpperCase();
+                    console.log(JSON.stringify({ input: requestText, output, changed: true }));
+                });
                 """
             );
         }
@@ -241,7 +238,15 @@ public class CanonicalizerCliIntegrationTests
                     try
                     {
                         using var child = Process.GetProcessById(int.Parse(pid));
-                        await child.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+                        try
+                        {
+                            await child.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+                        }
+                        catch (TimeoutException)
+                        {
+                            child.Kill(entireProcessTree: true);
+                            await child.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+                        }
                     }
                     catch (ArgumentException)
                     {

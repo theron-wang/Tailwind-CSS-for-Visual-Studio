@@ -3,6 +3,7 @@ using TailwindCSSIntellisense.Configuration;
 
 namespace TailwindCSSIntellisense.Tests.UnitTests;
 
+[Collection("External processes")]
 public class ConfigFileParserTests
 {
     [Theory]

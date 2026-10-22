@@ -6,6 +6,7 @@ using TailwindCSSIntellisense.Settings;
 
 namespace TailwindCSSIntellisense.Tests.IntegrationTests;
 
+[Collection("External processes")]
 public class TailwindCliInteropIntegrationTests
 {
     [Fact]
@@ -94,7 +95,17 @@ public class TailwindCliInteropIntegrationTests
 
     private static async Task WaitForOutputAsync(Process process)
     {
-        await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15));
+        try
+        {
+            // Allow for cold PowerShell startup on hosted Windows runners.
+            await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(60));
+        }
+        catch (TimeoutException)
+        {
+            process.Kill(entireProcessTree: true);
+            await process.WaitForExitAsync();
+            throw;
+        }
         // Also drain the asynchronous stdout/stderr readers.
         process.WaitForExit();
     }

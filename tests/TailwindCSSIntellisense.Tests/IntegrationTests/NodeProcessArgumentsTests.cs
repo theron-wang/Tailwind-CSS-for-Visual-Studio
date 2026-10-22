@@ -4,6 +4,7 @@ using TailwindCSSIntellisense.Helpers;
 
 namespace TailwindCSSIntellisense.Tests.IntegrationTests;
 
+[Collection("External processes")]
 public class NodeProcessArgumentsTests
 {
     [Theory]
