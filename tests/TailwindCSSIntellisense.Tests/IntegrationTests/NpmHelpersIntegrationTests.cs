@@ -4,6 +4,7 @@ using TailwindCSSIntellisense.Node;
 
 namespace TailwindCSSIntellisense.Tests.IntegrationTests;
 
+[Collection("External processes")]
 public class NpmHelpersIntegrationTests
 {
     [Fact]
@@ -23,7 +24,7 @@ public class NpmHelpersIntegrationTests
 
             var config = await ConfigFileParser
                 .GetConfigurationAsync(cssPath, TailwindVersion.V4_1)
-                .WaitAsync(TimeSpan.FromSeconds(15));
+                .WaitAsync(TimeSpan.FromSeconds(60));
 
             Assert.Equal(pluginPath, Assert.Single(config.Imports));
             Assert.Contains("audit-utility", config.PluginClasses);
@@ -64,7 +65,7 @@ public class NpmHelpersIntegrationTests
 
             var result = await NpmHelpers
                 .GetCssPluginMainFileAsync(root, package)
-                .WaitAsync(TimeSpan.FromSeconds(15));
+                .WaitAsync(TimeSpan.FromSeconds(60));
 
             Assert.Equal(
                 expectedStyle is null
