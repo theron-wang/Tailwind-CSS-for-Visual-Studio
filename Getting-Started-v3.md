@@ -9,12 +9,12 @@ If you prefer a video tutorial, [watch CodingWithGreg's YouTube video](https://w
 ## Existing Projects
 
 1. The extension automatically detects `tailwind.config.{js,cjs,mjs,ts,cts,mts}` files in your solution.
-   If needed, right-click the file and select **Set as Tailwind CSS configuration file**.
+   If needed, right-click the file and select **Add Tailwind CSS configuration file**.
    Features are enabled only after a configuration file is detected or set manually.
 
    If you use a TypeScript file, make sure `tsc` is installed globally (`npm install -g typescript`).
 
-   ![Customizability Build 1](art/Customizability-Build-1.png)
+   ![Customizability Build 1](https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/Customizability-Build-1.png)
 
 ## New Projects
 
@@ -37,18 +37,18 @@ If you prefer a video tutorial, [watch CodingWithGreg's YouTube video](https://w
 
 1. The default output is `{input}.output.css`, which can be changed in the global extension settings.
 
-   To change it, right-click the file and select **Link as Tailwind CSS output file**.
+   To change it, right-click the file and select **Set as Tailwind CSS output file**.
 
-   ![Input and output CSS files](art/Customizability-Build-2.png)
+   ![Input and output CSS files](https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/Customizability-Build-2.png)
 
 2. IntelliSense works in `.html`, `.css`, `.cshtml`, `.razor`, and similar files.
    Configuration contexts follow [Tailwind's file detection](https://v3.tailwindcss.com/docs/content-configuration).
 
-   ![IntelliSense](art/IntelliSense-Demo-1.gif)
+   <img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/readme/intellisense.gif" width="800" alt="Live Tailwind class suggestions, color previews, and CSS descriptions in a Razor file" />
 
 3. Tailwind builds automatically when the project builds, or manually via **Build > Build Tailwind CSS**.
 
-   ![Build process](art/Build-Demo-1.png)
+   <img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/readme/build-output.png" width="800" alt="Build output reporting a successful Tailwind CSS build" />
 
 ## Extension Configuration
 Settings for this extension can be updated in **Tools > Options > Tailwind CSS IntelliSense**.

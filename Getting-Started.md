@@ -9,22 +9,22 @@ For a quick walkthrough, watch the [Getting Started video guide](https://www.you
 ## Existing Projects
 
 1. The extension automatically detects CSS files that contain `@import "tailwindcss"`.  
-   If needed, right-click the file and select **Set as Tailwind CSS configuration file**.  
+   If needed, right-click the file and select **Add Tailwind CSS configuration file**.
    Features are enabled only after a configuration file is detected or set manually.
 
-   ![Customizability Build 1](art/Customizability-Build-1.png)
+   ![Customizability Build 1](https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/Customizability-Build-1.png)
 
 ## New Projects
 
-1. Right-click the project in Solution Explorer and select **Set up Tailwind CSS**:
+1. Right-click the project in Solution Explorer and select **Set up Tailwind CSS > Set up and install in project**:
    - Installs `tailwindcss` and `@tailwindcss/cli` if needed
    - Creates `tailwind.css` with `@import "tailwindcss"`
 
-   ![Set up TailwindCSS](art/NPM-Shortcuts-1.png)
+   <img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/readme/npm-integration.png" width="800" alt="The Tailwind CSS project setup submenu" />
 
 2. If you use the standalone Tailwind CSS CLI:
    - Set the path in Tools > Options > Tailwind CSS IntelliSense > Tailwind CLI path  
-   - Then use **Set up Tailwind CSS (use CLI)**  
+   - Then use **Set up Tailwind CSS > Set up using CLI standalone**
    - Toggle CLI usage with `UseCli` in `tailwind.extension.json`
 
 3. For theme setup, follow the [official guide](https://tailwindcss.com/docs/installation/tailwind-cli).
@@ -45,18 +45,18 @@ For a quick walkthrough, watch the [Getting Started video guide](https://www.you
 
 1. The default output is `{input}.output.css`, which can be changed in the global extension settings.
 
-   To change it, right-click the file and select **Link as Tailwind CSS output file**.
+   To change it, right-click the file and select **Set as Tailwind CSS output file**.
 
-   ![Input and output CSS files](art/Customizability-Build-2.png)
+   ![Input and output CSS files](https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/Customizability-Build-2.png)
 
 2. IntelliSense works in `.html`, `.css`, `.cshtml`, `.razor`, and similar files.
    Configuration contexts follow [Tailwind's file detection](https://tailwindcss.com/docs/detecting-classes-in-source-files).
 
-   ![IntelliSense](art/IntelliSense-Demo-1.gif)
+   <img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/readme/intellisense.gif" width="800" alt="Live Tailwind class suggestions, color previews, and CSS descriptions in a Razor file" />
 
 3. Tailwind builds automatically when the project builds, or manually via **Build > Build Tailwind CSS**.
 
-   ![Build process](art/Build-Demo-1.png)
+   <img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/readme/build-output.png" width="800" alt="Build output reporting a successful Tailwind CSS build" />
 
 ## Extension Configuration
 Settings for this extension can be updated in **Tools > Options > Tailwind CSS IntelliSense**.

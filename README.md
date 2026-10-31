@@ -28,7 +28,7 @@ If it's saved you time or made your workflow better, please consider **[sponsori
   - [Extension Options](#extension-options)
 - [Troubleshooting](#troubleshooting)
 - [Support & Feedback](#support--feedback)
-- [Development](DEVELOPERS.md)
+- [Development](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/blob/main/DEVELOPERS.md)
 - [Disclaimer](#disclaimer)
 
 ## Prerequisites
@@ -45,17 +45,19 @@ The extension activates automatically when:
 - Your solution contains a `tailwind.config.{js,cjs,mjs,ts,cts,mts}` file (Tailwind v3), or
 - You're using Tailwind v4 and importing it in a `.css` file with `@import "tailwindcss"`
 
-If the config file isn't detected automatically, right-click it in Solution Explorer and select **Set as configuration file**.
+If the config file isn't detected automatically, right-click it in Solution Explorer and select **Add Tailwind CSS configuration file**.
 
 ## Features
 
 ### IntelliSense
 
-Get Tailwind class suggestions in Razor, HTML, and CSS files:
+Get Tailwind class suggestions in Razor, HTML, and CSS files, including custom theme values. Color previews and CSS descriptions help you choose the right utility:
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/IntelliSense-Demo-1.gif" width="700" alt="IntelliSense suggesting Tailwind classes in a Razor file" />
+  <img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/readme/intellisense.gif" width="800" alt="Live IntelliSense while typing rounded-lg and bg-sky- in a Razor file, with color suggestions and a CSS preview before accepting bg-sky-500" />
 </p>
+
+[View the still IntelliSense screenshot](https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/readme/intellisense.png).
 
 ### Linting
 
@@ -66,7 +68,7 @@ Automatically flags:
 > **Note**: Visual Studio may still flag some Tailwind features like `@apply` as errors — extensions can't override these built-in warnings.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/Linter.png" width="700" alt="Linter flagging conflicting Tailwind classes" />
+  <img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/readme/linting.png" width="800" alt="The linter underlining px-4 and px-6 and explaining that both classes set the same CSS properties" />
 </p>
 
 ### Class Sorting
@@ -76,14 +78,10 @@ Sort Tailwind classes:
 - Manually from the **Tools** menu
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/class-sort-demo.gif" width="700" alt="Classes being automatically sorted on save" />
+  <img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/readme/class-sorting.gif" width="800" alt="Saving a Razor file sorts py-2 rounded-lg px-4 bg-sky-500 into rounded-lg bg-sky-500 px-4 py-2" />
 </p>
 
-<table align="center">
-<tr>
-<td align="center"><img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/Class-Sort-2.png" width="380" alt="Manual class sort from the Tools menu" /></td>
-</tr>
-</table>
+With Tailwind CSS v4.2 or later, the **Tools** menu also offers **Canonicalize Tailwind classes** commands to replace utilities with their recommended equivalents. You can configure canonicalization to run on save or build in the extension options.
 
 ### Build Integration
 
@@ -92,45 +90,43 @@ The extension can build your Tailwind CSS output automatically on project build,
 - Make sure your input and output CSS files are defined
 - Output and errors appear in the Build output window
 
-<table align="center">
-<tr>
-<td align="center"><img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/Build-Demo-1.png" width="380" alt="Build integration output" /></td>
-<td align="center"><img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/Build-Demo-2.png" width="380" alt="Build menu with Tailwind build option" /></td>
-</tr>
-</table>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/readme/build-integration.png" width="800" alt="Tailwind build, minify, and unminify commands in the Build menu" />
+</p>
 
-To configure build and configuration files, right-click `.js`, `.ts`, or `.css` files:
+<p align="center">
+  <img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/readme/build-output.png" width="800" alt="The Build output window reporting a successful Tailwind CSS build" />
+</p>
 
-<table align="center">
-<tr>
-<td align="center"><img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/Customizability-Build-1.png" width="380" alt="Setting the configuration file via right-click" /></td>
-<td align="center"><img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/Customizability-Build-2.png" width="380" alt="Configuring build settings via right-click" /></td>
-</tr>
-</table>
+To configure files, right-click them in Solution Explorer. Use **Add Tailwind CSS configuration file** for your configuration, **Add Tailwind CSS input file** for your input CSS, and **Set as Tailwind CSS output file** for the output.
 
 Project-specific settings are saved in a `tailwind.extension.json` file in your project root.
 
 ### NPM Integration
 
-Start quickly by right-clicking your project and selecting a startup task:
+To set up a project, right-click it in Solution Explorer and choose **Set up Tailwind CSS > Set up and install in project**. You can also use an existing global NPM installation:
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/NPM-Shortcuts-1.png" width="700" alt="NPM startup task shortcuts in the right-click menu" />
+  <img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/readme/npm-integration.png" width="800" alt="The Set up Tailwind CSS submenu offering a project installation or an existing global NPM installation" />
 </p>
 
 **Using the Tailwind CLI?**
 1. Set its path under **Tools > Options > Tailwind CSS IntelliSense > Tailwind CLI path**
-2. Click **Set up Tailwind CSS (use CLI)**
+2. Right-click your project and choose **Set up Tailwind CSS > Set up using CLI standalone**
 
 **Want to use a custom build script?**
 1. Define it in your `package.json`
-2. Set the script name in the extension options (`npm run your-script-name`)
+2. Set **Build script** in the extension options to the script's name (for example, `build:css`)
 
 ### Extension Options
 
 Global extension settings live under:
 
 > **Tools > Options > Tailwind CSS IntelliSense**
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/readme/extension-options.png" width="800" alt="General extension options showing build behavior, class canonicalization, sorting on save, and completion priority" />
+</p>
 
 See [Getting Started – Extension Configuration](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/blob/main/Getting-Started.md#extension-configuration) for details.
 
@@ -139,10 +135,6 @@ See [Getting Started – Extension Configuration](https://github.com/theron-wang
 ### Build Issues
 
 If your CSS isn't updating, check the **Build output** window for Tailwind errors.
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/Troubleshooting-Build.png" width="700" alt="Build output window showing a Tailwind error" />
-</p>
 
 ### Extension Issues
 

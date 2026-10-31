@@ -16,22 +16,18 @@
     <File Path="Upgrade-Guide.md" />
   </Folder>
   <Folder Name="/Solution Items/art/">
-    <File Path="art/Build-Demo-1.png" />
-    <File Path="art/Build-Demo-2.png" />
-    <File Path="art/Class-Sort-2.png" />
-    <File Path="art/class-sort-demo.gif" />
     <File Path="art/Customizability-Build-1.png" />
     <File Path="art/Customizability-Build-2.png" />
-    <File Path="art/IntelliSense-Demo-1.gif" />
-    <File Path="art/IntelliSense-Demo-2-Configuration.png" />
-    <File Path="art/IntelliSense-Demo-3.png" />
-    <File Path="art/Linter.png" />
-    <File Path="art/NPM-package-json.png" />
-    <File Path="art/NPM-Shortcuts-1.png" />
-    <File Path="art/Troubleshooting-Build.png" />
   </Folder>
-  <Folder Name="/Solution Items/art/getting-started/">
-    <File Path="art/getting-started/ide-install.png" />
+  <Folder Name="/Solution Items/art/readme/">
+    <File Path="art/readme/build-integration.png" />
+    <File Path="art/readme/build-output.png" />
+    <File Path="art/readme/class-sorting.gif" />
+    <File Path="art/readme/extension-options.png" />
+    <File Path="art/readme/intellisense.gif" />
+    <File Path="art/readme/intellisense.png" />
+    <File Path="art/readme/linting.png" />
+    <File Path="art/readme/npm-integration.png" />
   </Folder>
   <Project Path="src/TailwindCSSIntellisense.csproj" Id="43b6c233-e6f5-43fc-bd66-f1cab9a46730">
     <Platform Solution="*|arm64" Project="arm64" />
