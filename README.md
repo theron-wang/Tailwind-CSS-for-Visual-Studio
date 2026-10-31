@@ -57,8 +57,6 @@ Get Tailwind class suggestions in Razor, HTML, and CSS files, including custom t
   <img src="https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/readme/intellisense.gif" width="800" alt="Live IntelliSense while typing rounded-lg and bg-sky- in a Razor file, with color suggestions and a CSS preview before accepting bg-sky-500" />
 </p>
 
-[View the still IntelliSense screenshot](https://raw.githubusercontent.com/theron-wang/Tailwind-CSS-for-Visual-Studio/main/art/readme/intellisense.png).
-
 ### Linting
 
 Automatically flags:
