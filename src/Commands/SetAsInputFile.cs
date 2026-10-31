@@ -68,7 +68,10 @@ internal sealed class SetAsInputFile : BaseCommand<SetAsInputFile>
 
         var input = SolutionExplorerSelection.CurrentSelectedItemFullPath;
 
-        settings.BuildFiles.Add(new BuildPair() { Input = input });
+        settings = settings with
+        {
+            BuildFiles = settings.BuildFiles.Add(new BuildPair() { Input = input }),
+        };
 
         await SettingsProvider.OverrideSettingsAsync(settings);
     }

@@ -8,6 +8,67 @@ namespace TailwindCSSIntellisense.Tests.IntegrationTests;
 public class ConfigurationReloadTests
 {
     [Fact]
+    public async Task CssBuildInputs_AreResolvedBeforeCompletionLoading()
+    {
+        using var fixture = new Fixture();
+        var path = Path.Combine(fixture.Root, "app.css");
+        fixture.WriteConfig(path, "red");
+        var settings = fixture.Settings();
+        settings = settings with
+        {
+            BuildFiles = [new() { Input = path }, new() { Input = path.ToUpperInvariant() }],
+        };
+        var pause = fixture.PauseNextTemplate();
+
+        settings = settings with
+        {
+            ConfigurationFiles = await fixture.Manager.ResolveConfigurationFilesAsync(settings),
+        };
+        var capturedFiles = settings.ConfigurationFiles.ToArray();
+        Assert.Equal(path, Assert.Single(capturedFiles).Path);
+        Assert.False(pause.Entered.Task.IsCompleted);
+
+        var reload = fixture.Manager.OnSettingsChangedAsync(settings);
+        await pause.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        try
+        {
+            Assert.Empty(await fixture.Manager.GetAllProjectCompletionValuesAsync());
+            Assert.Equal(path, Assert.Single(capturedFiles).Path);
+        }
+        finally
+        {
+            pause.Resume.TrySetResult();
+        }
+        await reload;
+        Assert.Equal(
+            "red",
+            (
+                await fixture.Manager.GetCompletionConfigurationByConfigFilePathAsync(path)
+            )!.ColorMapper["brand"]
+        );
+    }
+
+    [Fact]
+    public async Task SettingsReload_DoesNotMutateConsumersConfigurationFiles()
+    {
+        using var fixture = new Fixture();
+        var path = Path.Combine(fixture.Root, "app.css");
+        fixture.WriteConfig(path, "red");
+        var settings = fixture.Settings();
+        settings = settings with { BuildFiles = [new() { Input = path }] };
+        var originalFiles = settings.ConfigurationFiles;
+
+        await fixture.Manager.OnSettingsChangedAsync(settings);
+
+        Assert.Same(originalFiles, settings.ConfigurationFiles);
+        Assert.Empty(settings.ConfigurationFiles);
+        Assert.Equal(
+            path,
+            Assert.Single(await fixture.Manager.GetAllProjectCompletionValuesAsync()).FilePath
+        );
+    }
+
+    [Fact]
     public async Task ExcludedDirectory_DoesNotExcludeSiblingWithSamePrefix()
     {
         using var fixture = new Fixture();

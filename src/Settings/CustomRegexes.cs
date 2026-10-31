@@ -1,16 +1,16 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections.Immutable;
 
 namespace TailwindCSSIntellisense.Settings;
 
-public class CustomRegexes
+public sealed record CustomRegexes
 {
-    public CustomRegex? Razor { get; set; } = new();
-    public CustomRegex? HTML { get; set; } = new();
-    public CustomRegex? JavaScript { get; set; } = new();
+    public CustomRegex? Razor { get; init; } = new();
+    public CustomRegex? HTML { get; init; } = new();
+    public CustomRegex? JavaScript { get; init; } = new();
 
-    public class CustomRegex
+    public sealed record CustomRegex
     {
-        public bool Override { get; set; }
-        public List<string> Values { get; set; } = [];
+        public bool Override { get; init; }
+        public ImmutableList<string> Values { get; init; } = [];
     }
 }

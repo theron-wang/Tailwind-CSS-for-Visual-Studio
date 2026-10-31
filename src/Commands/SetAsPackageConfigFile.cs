@@ -40,7 +40,10 @@ internal sealed class SetAsPackageConfigFile : BaseCommand<SetAsPackageConfigFil
     {
         var settings = await SettingsProvider.GetSettingsAsync();
 
-        settings.PackageConfigurationFile = SolutionExplorerSelection.CurrentSelectedItemFullPath;
+        settings = settings with
+        {
+            PackageConfigurationFile = SolutionExplorerSelection.CurrentSelectedItemFullPath,
+        };
         await SettingsProvider.OverrideSettingsAsync(settings);
     }
 }

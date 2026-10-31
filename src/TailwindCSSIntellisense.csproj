@@ -230,6 +230,7 @@
     <Compile Include="QuickInfo\HtmlQuickInfoSourceProvider.cs" />
     <Compile Include="QuickInfo\QuickInfoSource.cs" />
     <Compile Include="Initialization\ClassTypeBase.cs" />
+    <Compile Include="Helpers\IsExternalInit.cs" />
     <Compile Include="Settings\BuildBehavior.cs" />
     <Compile Include="Settings\BuildPair.cs" />
     <Compile Include="Settings\ConfigurationFile.cs" />

@@ -37,7 +37,7 @@ internal sealed class RemoveAsPackageConfigFile : BaseCommand<RemoveAsPackageCon
     {
         var settings = await SettingsProvider.GetSettingsAsync();
 
-        settings.PackageConfigurationFile = null;
+        settings = settings with { PackageConfigurationFile = null };
         await SettingsProvider.OverrideSettingsAsync(settings);
     }
 }

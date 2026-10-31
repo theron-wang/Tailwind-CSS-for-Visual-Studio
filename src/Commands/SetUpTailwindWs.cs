@@ -96,7 +96,10 @@ internal sealed class SetUpTailwindWs : BaseCommand<SetUpTailwindWs>
                 return;
             }
 
-            settings.ConfigurationFiles.Add(new() { Path = configFile! });
+            settings = settings with
+            {
+                ConfigurationFiles = settings.ConfigurationFiles.Add(new() { Path = configFile! }),
+            };
             await SettingsProvider.OverrideSettingsAsync(settings);
 
             string[] fileNames =

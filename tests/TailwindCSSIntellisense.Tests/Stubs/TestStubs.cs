@@ -545,41 +545,6 @@ namespace TailwindCSSIntellisense.ClassOperations.Sorters
     }
 }
 
-namespace TailwindCSSIntellisense.Settings
-{
-    public sealed class TailwindSettings
-    {
-        public bool EnableTailwindCss { get; set; }
-        public List<ConfigurationFile> ConfigurationFiles { get; set; } = [];
-        public List<BuildPair> BuildFiles { get; set; } = [];
-        public string? PackageConfigurationFile { get; set; }
-        public BuildProcessOptions BuildType { get; set; }
-        public string? BuildScript { get; set; }
-        public bool OverrideBuild { get; set; }
-        public bool AutomaticallyMinify { get; set; }
-        public string DefaultOutputCssName { get; set; } = "{0}.output.css";
-        public string[] OnSaveTriggerFileExtensions { get; set; } = [];
-        public SortClassesOptions SortClassesType { get; set; }
-        public SortClassesOptions CanonicalizeClassesType { get; set; } = SortClassesOptions.None;
-        public bool UseCli { get; set; }
-        public string? TailwindCliPath { get; set; }
-        public CustomRegexes CustomRegexes { get; set; } = new();
-    }
-
-    public sealed class CustomRegexes
-    {
-        public CustomRegex Razor { get; set; } = new();
-        public CustomRegex HTML { get; set; } = new();
-        public CustomRegex JavaScript { get; set; } = new();
-
-        public class CustomRegex
-        {
-            public bool Override { get; set; } = false;
-            public List<string> Values { get; set; } = [];
-        }
-    }
-}
-
 namespace TailwindCSSIntellisense.Configuration
 {
     public partial class CompletionConfiguration { }

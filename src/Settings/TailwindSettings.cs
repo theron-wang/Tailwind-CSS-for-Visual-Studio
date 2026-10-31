@@ -1,31 +1,35 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections.Immutable;
 using TailwindCSSIntellisense.Options;
 
 namespace TailwindCSSIntellisense.Settings;
 
-public class TailwindSettings
+/// <summary>
+/// A complete settings snapshot. Create a replacement with a with expression;
+/// published snapshots and their nested values are immutable.
+/// </summary>
+public sealed record TailwindSettings
 {
     /// <summary>
     /// Note that this property is different from <see cref="TailwindSettingsProjectOnly.ConfigurationFiles"/>;
     /// this list contains CSS configuration files located in <see cref="BuildFiles"/>.
     /// </summary>
-    public List<ConfigurationFile> ConfigurationFiles { get; set; } = [];
-    public string DefaultOutputCssName { get; set; } = "";
-    public string[] OnSaveTriggerFileExtensions { get; set; } = [];
-    public List<BuildPair> BuildFiles { get; set; } = [];
-    public string? PackageConfigurationFile { get; set; }
-    public bool UseCli { get; set; }
-    public string? TailwindCliPath { get; set; }
+    public ImmutableList<ConfigurationFile> ConfigurationFiles { get; init; } = [];
+    public string DefaultOutputCssName { get; init; } = "";
+    public ImmutableList<string> OnSaveTriggerFileExtensions { get; init; } = [];
+    public ImmutableList<BuildPair> BuildFiles { get; init; } = [];
+    public string? PackageConfigurationFile { get; init; }
+    public bool UseCli { get; init; }
+    public string? TailwindCliPath { get; init; }
 
     /// <summary>
     /// Whether Tailwind is set to enable/disable in global settings
     /// </summary>
-    public bool EnableTailwindCss { get; set; }
-    public BuildProcessOptions BuildType { get; set; }
-    public SortClassesOptions SortClassesType { get; set; }
-    public SortClassesOptions CanonicalizeClassesType { get; set; } = SortClassesOptions.None;
-    public string? BuildScript { get; set; }
-    public bool OverrideBuild { get; set; }
-    public bool AutomaticallyMinify { get; set; }
-    public CustomRegexes CustomRegexes { get; set; } = new();
+    public bool EnableTailwindCss { get; init; }
+    public BuildProcessOptions BuildType { get; init; }
+    public SortClassesOptions SortClassesType { get; init; }
+    public SortClassesOptions CanonicalizeClassesType { get; init; } = SortClassesOptions.None;
+    public string? BuildScript { get; init; }
+    public bool OverrideBuild { get; init; }
+    public bool AutomaticallyMinify { get; init; }
+    public CustomRegexes CustomRegexes { get; init; } = new();
 }

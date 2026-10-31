@@ -77,11 +77,17 @@ internal sealed class SetAsConfigFile : BaseCommand<SetAsConfigFile>
 
         if (Path.GetExtension(path) == ".css")
         {
-            settings.BuildFiles.Add(new() { Input = path });
+            settings = settings with
+            {
+                BuildFiles = settings.BuildFiles.Add(new() { Input = path }),
+            };
         }
         else
         {
-            settings.ConfigurationFiles.Add(new() { Path = path });
+            settings = settings with
+            {
+                ConfigurationFiles = settings.ConfigurationFiles.Add(new() { Path = path }),
+            };
         }
 
         await SettingsProvider.OverrideSettingsAsync(settings);

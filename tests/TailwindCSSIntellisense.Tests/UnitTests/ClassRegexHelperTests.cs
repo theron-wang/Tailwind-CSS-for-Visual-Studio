@@ -22,9 +22,18 @@ public class ClassRegexHelperTests : IDisposable
                 Override = true,
                 Values = ["tw=\"(?<content>[^\"]*)\""],
             };
-            settings.CustomRegexes.HTML = regex;
-            settings.CustomRegexes.JavaScript = regex;
-            settings.CustomRegexes.Razor = regex;
+            settings = settings with
+            {
+                CustomRegexes = settings.CustomRegexes with { HTML = regex },
+            };
+            settings = settings with
+            {
+                CustomRegexes = settings.CustomRegexes with { JavaScript = regex },
+            };
+            settings = settings with
+            {
+                CustomRegexes = settings.CustomRegexes with { Razor = regex },
+            };
             ClassRegexHelper.GetTailwindSettings = () => Task.FromResult(settings);
         }
         var attribute =

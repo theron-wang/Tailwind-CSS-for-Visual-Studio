@@ -66,9 +66,15 @@ internal sealed class SetUpAndUseTailwindCli : BaseCommand<SetUpAndUseTailwindCl
                 return;
             }
 
-            settings.ConfigurationFiles.Add(new() { Path = configFile! });
-            settings.BuildFiles.Add(new() { Input = configFile! });
-            settings.UseCli = true;
+            settings = settings with
+            {
+                ConfigurationFiles = settings.ConfigurationFiles.Add(new() { Path = configFile! }),
+            };
+            settings = settings with
+            {
+                BuildFiles = settings.BuildFiles.Add(new() { Input = configFile! }),
+            };
+            settings = settings with { UseCli = true };
             await SettingsProvider.OverrideSettingsAsync(settings, directory);
 
             var file = await PhysicalFile.FromFileAsync(
