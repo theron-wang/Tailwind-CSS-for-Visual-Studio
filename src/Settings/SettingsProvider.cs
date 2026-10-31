@@ -24,6 +24,7 @@ public sealed class SettingsProvider : IDisposable
 {
     public SettingsProvider()
     {
+        ClassRegexHelper.GetCachedTailwindSettings = () => _cachedSettings;
         ThreadHelper.JoinableTaskFactory.Run(async () =>
         {
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
@@ -48,7 +49,7 @@ public sealed class SettingsProvider : IDisposable
     public ProjectConfigurationManager ProjectConfigurationManager { get; set; } = null!;
 
     public const string ExtensionConfigFileName = "tailwind.extension.json";
-    private TailwindSettings? _cachedSettings;
+    private volatile TailwindSettings? _cachedSettings;
 
     private readonly TimeSpan _invalidationInterval = TimeSpan.FromSeconds(5);
 
@@ -73,9 +74,10 @@ public sealed class SettingsProvider : IDisposable
     public async Task<TailwindSettings> GetSettingsAsync()
     {
         TailwindSettings returnSettings;
-        if (_cachedSettings is not null)
+        var cachedSettings = _cachedSettings;
+        if (cachedSettings is not null)
         {
-            returnSettings = _cachedSettings;
+            returnSettings = cachedSettings;
         }
         else
         {
@@ -313,11 +315,6 @@ public sealed class SettingsProvider : IDisposable
 
             QueueSettingsChanged(returnSettings, changed);
         }
-
-        // At this point, we've guaranteed that the settings have been generated at least once, so
-        // we can proceed with setting ClassRegexHelper#GetTailwindSettings (since that is called only
-        // in a synchronous context)
-        ClassRegexHelper.GetTailwindSettings ??= GetSettingsAsync;
 
         return returnSettings;
     }

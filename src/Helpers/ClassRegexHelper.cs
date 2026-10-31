@@ -3,9 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
-using System.Threading.Tasks;
 using Community.VisualStudio.Toolkit;
-using Microsoft.VisualStudio.Shell;
 using TailwindCSSIntellisense.Settings;
 
 namespace TailwindCSSIntellisense.Helpers;
@@ -70,21 +68,16 @@ internal class ClassRegexHelper
     }
 
     private static RegexConfiguration _regexConfiguration = new(null);
-    public static Func<Task<TailwindSettings>>? GetTailwindSettings;
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage(
-        "Usage",
-        "VSTHRD102:Implement internal logic asynchronously",
-        Justification = "GetTailwindSettings is only non-null when some sort of settings is already cached"
-    )]
+    // Synchronous editor lookups must never initiate settings discovery or wait
+    // for solution initialization. A missing cached snapshot uses default regexes.
+    public static Func<TailwindSettings?>? GetCachedTailwindSettings;
+
     private static RegexConfiguration GetRegexConfiguration()
     {
-        var getSettings = GetTailwindSettings;
-        var settings = getSettings is null
-            ? null
-            : ThreadHelper.JoinableTaskFactory.Run(getSettings);
+        var settings = GetCachedTailwindSettings?.Invoke();
         var current = Volatile.Read(ref _regexConfiguration);
-        if (settings == current.Settings)
+        if (ReferenceEquals(settings, current.Settings))
         {
             return current;
         }

@@ -12,6 +12,87 @@ public class ClassRegexHelperTests : IDisposable
     [InlineData("html", true)]
     [InlineData("javascript", true)]
     [InlineData("razor", true)]
+    public async Task SwitchingSolutions_UsesCachedSnapshotsWithoutSynchronousAsyncWork(
+        string language,
+        bool streamed
+    )
+    {
+        var regex = new CustomRegexes.CustomRegex
+        {
+            Override = true,
+            Values = ["tw=\"(?<content>[^\"]+)\""],
+        };
+        var tailwind = new TailwindSettings
+        {
+            EnableTailwindCss = true,
+            ConfigurationFiles = [new() { Path = "tailwind.css" }],
+            CustomRegexes = new()
+            {
+                HTML = regex,
+                JavaScript = regex,
+                Razor = regex,
+            },
+        };
+        TailwindSettings? cachedSettings = tailwind;
+        ClassRegexHelper.GetCachedTailwindSettings = () => Volatile.Read(ref cachedSettings);
+        var factory = Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory;
+        var synchronousRuns = factory.SynchronousRunCount;
+        var attribute = language == "javascript" ? "className" : "class";
+        var text = $"<div tw=\"custom\" {attribute}=\"default\"></div>";
+
+        string[] ReadClasses()
+        {
+            var matches = (language, streamed) switch
+            {
+                ("razor", false) => ClassRegexHelper.GetClassesRazor(text),
+                ("razor", true) => ClassRegexHelper.GetClassesRazorEnumerator(text),
+                ("javascript", false) => ClassRegexHelper.GetClassesJavaScript(text),
+                ("javascript", true) => ClassRegexHelper.GetClassesJavaScriptEnumerator(text),
+                (_, true) => ClassRegexHelper.GetClassesNormalEnumerator(text),
+                _ => ClassRegexHelper.GetClassesNormal(text),
+            };
+            return matches.Select(m => ClassRegexHelper.GetClassTextGroup(m).Value).ToArray();
+        }
+
+        Assert.Equal(["custom"], ReadClasses());
+        Volatile.Write(ref cachedSettings, null); // Opening the non-Tailwind solution.
+        Assert.Equal(["default"], ReadClasses());
+        Volatile.Write(ref cachedSettings, new TailwindSettings());
+        Assert.Equal(["default"], ReadClasses());
+
+        // Reopening Tailwind: discovery is still pending, so editor lookups must
+        // finish with defaults without joining or waiting for the settings load.
+        Volatile.Write(ref cachedSettings, null);
+        var discovered = new TaskCompletionSource<TailwindSettings>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        async Task LoadSettingsAsync() => Volatile.Write(ref cachedSettings, await discovered.Task);
+        var reload = LoadSettingsAsync();
+        try
+        {
+            Assert.Equal(
+                ["default"],
+                await Task.Run(ReadClasses).WaitAsync(TimeSpan.FromSeconds(5))
+            );
+            Assert.False(reload.IsCompleted);
+        }
+        finally
+        {
+            discovered.TrySetResult(tailwind);
+            await reload;
+        }
+
+        Assert.Equal(["custom"], ReadClasses());
+        Assert.Equal(synchronousRuns, factory.SynchronousRunCount);
+    }
+
+    [Theory]
+    [InlineData("html", false)]
+    [InlineData("javascript", false)]
+    [InlineData("razor", false)]
+    [InlineData("html", true)]
+    [InlineData("javascript", true)]
+    [InlineData("razor", true)]
     public void QuotedClassSegments_StayWithinContentCapture(string language, bool custom)
     {
         var settings = new TailwindSettings();
@@ -34,7 +115,7 @@ public class ClassRegexHelperTests : IDisposable
             {
                 CustomRegexes = settings.CustomRegexes with { Razor = regex },
             };
-            ClassRegexHelper.GetTailwindSettings = () => Task.FromResult(settings);
+            ClassRegexHelper.GetCachedTailwindSettings = () => settings;
         }
         var attribute =
             custom ? "tw"
@@ -73,7 +154,7 @@ public class ClassRegexHelperTests : IDisposable
                 Razor = regex,
             },
         };
-        ClassRegexHelper.GetTailwindSettings = () => Task.FromResult(settings);
+        ClassRegexHelper.GetCachedTailwindSettings = () => settings;
         foreach (
             var matches in new[]
             {
@@ -87,17 +168,17 @@ public class ClassRegexHelperTests : IDisposable
         }
     }
 
-    private readonly Func<Task<TailwindSettings>>? _originalSettingsDelegate;
+    private readonly Func<TailwindSettings?>? _originalSettingsDelegate;
 
     public ClassRegexHelperTests()
     {
-        _originalSettingsDelegate = ClassRegexHelper.GetTailwindSettings;
-        ClassRegexHelper.GetTailwindSettings = null;
+        _originalSettingsDelegate = ClassRegexHelper.GetCachedTailwindSettings;
+        ClassRegexHelper.GetCachedTailwindSettings = null;
     }
 
     public void Dispose()
     {
-        ClassRegexHelper.GetTailwindSettings = _originalSettingsDelegate;
+        ClassRegexHelper.GetCachedTailwindSettings = _originalSettingsDelegate;
     }
 
     [Fact]
@@ -302,20 +383,18 @@ public class ClassRegexHelperTests : IDisposable
     [Fact]
     public void CustomRegexOverride_UsesConfiguredRegex()
     {
-        ClassRegexHelper.GetTailwindSettings = () =>
-            Task.FromResult(
-                new TailwindSettings
+        ClassRegexHelper.GetCachedTailwindSettings = () =>
+            new TailwindSettings
+            {
+                CustomRegexes = new CustomRegexes
                 {
-                    CustomRegexes = new CustomRegexes
+                    HTML = new CustomRegexes.CustomRegex
                     {
-                        HTML = new CustomRegexes.CustomRegex
-                        {
-                            Override = true,
-                            Values = ["tw\\s*=\\s*\"(?<content>[^\"]+)\""],
-                        },
+                        Override = true,
+                        Values = ["tw\\s*=\\s*\"(?<content>[^\"]+)\""],
                     },
-                }
-            );
+                },
+            };
 
         const string html = "<div tw=\"p-4 text-sm\" class=\"ignored\"></div>";
 
@@ -328,7 +407,7 @@ public class ClassRegexHelperTests : IDisposable
         }
         finally
         {
-            ClassRegexHelper.GetTailwindSettings = () => Task.FromResult(new TailwindSettings());
+            ClassRegexHelper.GetCachedTailwindSettings = () => new TailwindSettings();
             ClassRegexHelper.GetClassesNormal(html).ToList(); // Trigger reset of custom regex
         }
     }
@@ -347,7 +426,7 @@ public class ClassRegexHelperTests : IDisposable
                 },
             },
         };
-        ClassRegexHelper.GetTailwindSettings = () => Task.FromResult(settings);
+        ClassRegexHelper.GetCachedTailwindSettings = () => settings;
         const string html = "<div tw=\"p-4\" other=\"text-sm\" class=\"ignored\"></div>";
 
         // This enumerable captures the custom configuration before settings change.

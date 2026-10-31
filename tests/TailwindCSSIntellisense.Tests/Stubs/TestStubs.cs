@@ -97,13 +97,19 @@ namespace Microsoft.VisualStudio.Threading
     public sealed class JoinableTaskFactory
     {
         public Task? LastTask { get; private set; }
+        public int SynchronousRunCount { get; private set; }
 
         public Task RunAsync(Func<Task> asyncMethod) => LastTask = asyncMethod();
 
-        public void Run(Func<Task> asyncMethod) => asyncMethod().GetAwaiter().GetResult();
+        public void Run(Func<Task> asyncMethod)
+        {
+            SynchronousRunCount++;
+            asyncMethod().GetAwaiter().GetResult();
+        }
 
         public T Run<T>(Func<Task<T>> asyncMethod)
         {
+            SynchronousRunCount++;
             return asyncMethod().GetAwaiter().GetResult();
         }
 
