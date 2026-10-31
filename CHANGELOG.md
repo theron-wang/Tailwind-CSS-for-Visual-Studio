@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.15.1 (October 31st, 2026)
+
+- Fix unreliable configuration loading on startup ([#168](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/issues/168))
+- Fix a rare UI hang that could occur when switching between solutions
+
 ## 1.15.0 (October 20th, 2026)
 
 - Add a class canonicalization linting rule ([#161](https://github.com/theron-wang/Tailwind-CSS-for-Visual-Studio/issues/161))

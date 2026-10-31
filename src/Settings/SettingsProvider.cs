@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.ComponentModel.Composition;
 using System.IO;
 using System.Linq;
@@ -23,6 +24,7 @@ public sealed class SettingsProvider : IDisposable
 {
     public SettingsProvider()
     {
+        ClassRegexHelper.GetCachedTailwindSettings = () => _cachedSettings;
         ThreadHelper.JoinableTaskFactory.Run(async () =>
         {
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
@@ -47,7 +49,7 @@ public sealed class SettingsProvider : IDisposable
     public ProjectConfigurationManager ProjectConfigurationManager { get; set; } = null!;
 
     public const string ExtensionConfigFileName = "tailwind.extension.json";
-    private TailwindSettings? _cachedSettings;
+    private volatile TailwindSettings? _cachedSettings;
 
     private readonly TimeSpan _invalidationInterval = TimeSpan.FromSeconds(5);
 
@@ -72,9 +74,10 @@ public sealed class SettingsProvider : IDisposable
     public async Task<TailwindSettings> GetSettingsAsync()
     {
         TailwindSettings returnSettings;
-        if (_cachedSettings is not null)
+        var cachedSettings = _cachedSettings;
+        if (cachedSettings is not null)
         {
-            returnSettings = _cachedSettings;
+            returnSettings = cachedSettings;
         }
         else
         {
@@ -89,9 +92,10 @@ public sealed class SettingsProvider : IDisposable
                 {
                     EnableTailwindCss = general.UseTailwindCss,
                     DefaultOutputCssName = general.TailwindOutputFileName.Trim(),
-                    OnSaveTriggerFileExtensions = general.TailwindOnSaveTriggerFileExtensions.Split(
-                        ';'
-                    ),
+                    OnSaveTriggerFileExtensions =
+                    [
+                        .. general.TailwindOnSaveTriggerFileExtensions.Split(';'),
+                    ],
                     BuildType = general.BuildProcessType,
                     BuildScript = general.BuildScript,
                     OverrideBuild = general.OverrideBuild,
@@ -106,7 +110,7 @@ public sealed class SettingsProvider : IDisposable
                 if (!await VS.Solutions.IsOpeningAsync())
                 {
                     _cachedSettings = returnSettings;
-                    await ProjectConfigurationManager.OnSettingsChangedAsync(returnSettings);
+                    QueueSettingsChanged(returnSettings);
                 }
 
                 return returnSettings;
@@ -180,10 +184,8 @@ public sealed class SettingsProvider : IDisposable
                 [
                     new BuildPair()
                     {
-#pragma warning disable CS8601 // Possible null reference assignment.
                         Input = projectSettings.InputCssFile,
-                        Output = projectSettings.OutputCssFile
-#pragma warning restore CS8601 // Possible null reference assignment.
+                        Output = projectSettings.OutputCssFile ?? "",
                     },
                 ];
                 projectSettings.InputCssFile = null;
@@ -210,15 +212,16 @@ public sealed class SettingsProvider : IDisposable
                 {
                     var buildPair = projectSettings.BuildFiles[i];
 
-#pragma warning disable CS8601 // Possible null reference assignment.
-                    buildPair.Input = PathHelpers.GetAbsolutePath(
-                        activeProjectPath,
-                        buildPair.Input?.Trim()
-                    );
-#pragma warning restore CS8601 // Possible null reference assignment.
-                    buildPair.Output =
-                        PathHelpers.GetAbsolutePath(activeProjectPath, buildPair.Output?.Trim())
-                        ?? "";
+                    buildPair = buildPair with
+                    {
+                        Input =
+                            PathHelpers.GetAbsolutePath(activeProjectPath, buildPair.Input?.Trim())
+                            ?? "",
+                        Output =
+                            PathHelpers.GetAbsolutePath(activeProjectPath, buildPair.Output?.Trim())
+                            ?? "",
+                    };
+                    projectSettings.BuildFiles[i] = buildPair;
                     if (
                         buildPair.Input == null
                         || !File.Exists(buildPair.Input)
@@ -239,12 +242,13 @@ public sealed class SettingsProvider : IDisposable
                 {
                     var config = projectSettings.ConfigurationFiles[i];
 
-#pragma warning disable CS8601 // Possible null reference assignment.
-                    config.Path = PathHelpers.GetAbsolutePath(
-                        activeProjectPath,
-                        config.Path?.Trim()
-                    );
-#pragma warning restore CS8601 // Possible null reference assignment.
+                    config = config with
+                    {
+                        Path =
+                            PathHelpers.GetAbsolutePath(activeProjectPath, config.Path?.Trim())
+                            ?? "",
+                    };
+                    projectSettings.ConfigurationFiles[i] = config;
 
                     if (string.IsNullOrWhiteSpace(config.Path) || !File.Exists(config.Path))
                     {
@@ -278,14 +282,14 @@ public sealed class SettingsProvider : IDisposable
             {
                 EnableTailwindCss = general.UseTailwindCss,
                 DefaultOutputCssName = general.TailwindOutputFileName.Trim(),
-                OnSaveTriggerFileExtensions = general.TailwindOnSaveTriggerFileExtensions.Split(
-                    ';'
-                ),
+                OnSaveTriggerFileExtensions = general
+                    .TailwindOnSaveTriggerFileExtensions.Split(';')
+                    .ToImmutableList(),
                 BuildType = general.BuildProcessType,
                 BuildScript = general.BuildScript,
                 OverrideBuild = general.OverrideBuild,
-                ConfigurationFiles = projectSettings.ConfigurationFiles ?? [],
-                BuildFiles = projectSettings.BuildFiles ?? [],
+                ConfigurationFiles = projectSettings.ConfigurationFiles?.ToImmutableList() ?? [],
+                BuildFiles = projectSettings.BuildFiles?.ToImmutableList() ?? [],
                 PackageConfigurationFile = PathHelpers.GetAbsolutePath(
                     activeProjectPath,
                     projectSettings.PackageConfigurationFile?.Trim()
@@ -298,33 +302,76 @@ public sealed class SettingsProvider : IDisposable
                 CustomRegexes = projectSettings.CustomRegexes,
             };
 
+            // Consumers may copy these settings immediately. Resolve CSS inputs before
+            // publishing them, independently of background completion snapshot loading.
+            returnSettings = returnSettings with
+            {
+                ConfigurationFiles =
+                    await ProjectConfigurationManager.ResolveConfigurationFilesAsync(
+                        returnSettings
+                    ),
+            };
             _cachedSettings = returnSettings;
 
-#pragma warning disable VSSDK007 // ThreadHelper.JoinableTaskFactory.RunAsync
-            // Yes, this is horrible, but we need to call this as a fire and forget in case some caller of GetSettingsAsync must
-            // be synchronous.
-            ThreadHelper
-                .JoinableTaskFactory.RunAsync(async () =>
-                {
-                    await ProjectConfigurationManager.OnSettingsChangedAsync(returnSettings);
-
-                    if (changed)
-                    {
-                        await OverrideSettingsAsync(returnSettings);
-                    }
-                })
-                .FileAndForget(
-                    nameof(TailwindCSSIntellisense) + "/SettingsProvider/SettingsChanged"
-                );
-#pragma warning restore VSSDK007 // ThreadHelper.JoinableTaskFactory.RunAsync
+            QueueSettingsChanged(returnSettings, changed);
         }
 
-        // At this point, we've guaranteed that the settings have been generated at least once, so
-        // we can proceed with setting ClassRegexHelper#GetTailwindSettings (since that is called only
-        // in a synchronous context)
-        ClassRegexHelper.GetTailwindSettings ??= GetSettingsAsync;
-
         return returnSettings;
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Reliability",
+        "VSSDK007:ThreadHelper.JoinableTaskFactory.RunAsync",
+        Justification = "Settings consumers can hold locks while requesting settings"
+    )]
+    private void QueueSettingsChanged(TailwindSettings settings, bool saveChanges = false)
+    {
+        // Complete settings publication in the background: subscribers can request
+        // settings themselves or hold a build/initialization gate in GetSettingsAsync.
+        ThreadHelper
+            .JoinableTaskFactory.RunAsync(async () =>
+            {
+                if (!ReferenceEquals(_cachedSettings, settings))
+                {
+                    return;
+                }
+
+                if (saveChanges)
+                {
+                    await OverrideSettingsAsync(settings);
+                }
+                else
+                {
+                    await ApplySettingsAsync(settings);
+                }
+            })
+            .FileAndForget(nameof(TailwindCSSIntellisense) + "/SettingsProvider/SettingsChanged");
+    }
+
+    private async Task ApplySettingsAsync(TailwindSettings settings)
+    {
+        await ProjectConfigurationManager.OnSettingsChangedAsync(settings);
+        await NotifySettingsChangedAsync(settings);
+    }
+
+    private async Task NotifySettingsChangedAsync(TailwindSettings settings)
+    {
+        // An older background load must not replace consumers' newer settings.
+        if (!ReferenceEquals(_cachedSettings, settings))
+        {
+            return;
+        }
+
+        var listeners = OnSettingsChanged;
+        if (listeners is not null)
+        {
+            await Task.WhenAll(
+                listeners
+                    .GetInvocationList()
+                    .Cast<Func<TailwindSettings, Task>>()
+                    .Select(listener => listener(settings))
+            );
+        }
     }
 
     /// <summary>
@@ -338,30 +385,15 @@ public sealed class SettingsProvider : IDisposable
         string? preferredSaveDirectory = null
     )
     {
-        if (settings.ConfigurationFiles is not null)
+        settings = settings with
         {
-            for (int i = 0; i < settings.ConfigurationFiles.Count; i++)
-            {
-                var config = settings.ConfigurationFiles[i];
-
-                if (string.IsNullOrWhiteSpace(config.Path) || !File.Exists(config.Path))
-                {
-                    settings.ConfigurationFiles.Remove(config);
-                    i--;
-                }
-            }
-        }
-
-        for (int i = 0; i < settings.BuildFiles.Count; i++)
-        {
-            var buildPair = settings.BuildFiles[i];
-
-            if (string.IsNullOrWhiteSpace(buildPair.Input) || !File.Exists(buildPair.Input))
-            {
-                settings.BuildFiles.Remove(buildPair);
-                i--;
-            }
-        }
+            ConfigurationFiles = settings.ConfigurationFiles.RemoveAll(config =>
+                string.IsNullOrWhiteSpace(config.Path) || !File.Exists(config.Path)
+            ),
+            BuildFiles = settings.BuildFiles.RemoveAll(pair =>
+                string.IsNullOrWhiteSpace(pair.Input) || !File.Exists(pair.Input)
+            ),
+        };
 
         var defaultConfigFile = settings.ConfigurationFiles.FirstOrDefault()?.Path;
 
@@ -469,20 +501,15 @@ public sealed class SettingsProvider : IDisposable
             }
         }
 
+        settings = settings with
+        {
+            ConfigurationFiles = await ProjectConfigurationManager.ResolveConfigurationFilesAsync(
+                settings
+            ),
+        };
         _cachedSettings = settings;
 
-        await ProjectConfigurationManager.OnSettingsChangedAsync(settings);
-
-        if (OnSettingsChanged != null)
-        {
-            // Cannot call OnSettingsChanged.Invoke() because that only calls the last subscriber
-            var tasks = OnSettingsChanged
-                .GetInvocationList()
-                .Cast<Func<TailwindSettings, Task>>()
-                .Select(d => d(settings));
-
-            await Task.WhenAll(tasks);
-        }
+        await ApplySettingsAsync(settings);
     }
 
     public void Dispose()
@@ -631,31 +658,24 @@ public sealed class SettingsProvider : IDisposable
             || settings.ClassCanonicalizationType != origSettings.CanonicalizeClassesType
         )
         {
-            origSettings.EnableTailwindCss = settings.UseTailwindCss;
-            origSettings.DefaultOutputCssName = settings.TailwindOutputFileName;
-            origSettings.OnSaveTriggerFileExtensions =
-                settings.TailwindOnSaveTriggerFileExtensions.Split(';');
-            origSettings.BuildType = settings.BuildProcessType;
-            origSettings.BuildScript = settings.BuildScript;
-            origSettings.OverrideBuild = settings.OverrideBuild;
-            origSettings.AutomaticallyMinify = settings.AutomaticallyMinify;
-            origSettings.TailwindCliPath = settings.TailwindCliPath;
-            origSettings.SortClassesType = settings.ClassSortType;
-            origSettings.CanonicalizeClassesType = settings.ClassCanonicalizationType;
-
-            if (OnSettingsChanged is not null)
+            var updatedSettings = origSettings with
             {
-                // Cannot call OnSettingsChanged.Invoke() because that only calls the last subscriber
-                var tasks = OnSettingsChanged
-                    .GetInvocationList()
-                    .Cast<Func<TailwindSettings, Task>>()
-                    .Select(d => d(origSettings));
-
-                await Task.WhenAll(tasks);
-            }
+                EnableTailwindCss = settings.UseTailwindCss,
+                DefaultOutputCssName = settings.TailwindOutputFileName,
+                OnSaveTriggerFileExtensions = settings
+                    .TailwindOnSaveTriggerFileExtensions.Split(';')
+                    .ToImmutableList(),
+                BuildType = settings.BuildProcessType,
+                BuildScript = settings.BuildScript,
+                OverrideBuild = settings.OverrideBuild,
+                AutomaticallyMinify = settings.AutomaticallyMinify,
+                TailwindCliPath = settings.TailwindCliPath,
+                SortClassesType = settings.ClassSortType,
+                CanonicalizeClassesType = settings.ClassCanonicalizationType,
+            };
+            _cachedSettings = updatedSettings;
+            await ApplySettingsAsync(updatedSettings);
         }
-
-        _cachedSettings = origSettings;
     }
 
     private void InvalidateCacheAndSettingsChanged(string file)
@@ -701,19 +721,9 @@ public sealed class SettingsProvider : IDisposable
         {
             _cachedSettings = null;
 
-            var snapshot = OnSettingsChanged;
-            if (snapshot == null)
-            {
-                return;
-            }
-
-            var settings = await GetSettingsAsync();
-            var tasks = snapshot
-                .GetInvocationList()
-                .Cast<Func<TailwindSettings, Task>>()
-                .Select(d => d(settings));
-
-            await Task.WhenAll(tasks);
+            // GetSettingsAsync publishes every newly loaded settings object through
+            // the same path, whether discovery was triggered here or by a consumer.
+            await GetSettingsAsync();
         }
         finally
         {

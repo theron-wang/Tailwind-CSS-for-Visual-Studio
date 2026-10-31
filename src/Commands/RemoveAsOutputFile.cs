@@ -43,13 +43,17 @@ internal sealed class RemoveAsOutputFile : BaseCommand<RemoveAsOutputFile>
         var settings = await SettingsProvider.GetSettingsAsync();
         var filePath = SolutionExplorerSelection.CurrentSelectedItemFullPath;
 
-        foreach (var file in settings.BuildFiles)
+        settings = settings with
         {
-            if (file.Output.Equals(filePath, StringComparison.InvariantCultureIgnoreCase))
-            {
-                file.Output = "";
-            }
-        }
+            BuildFiles = settings.BuildFiles.ConvertAll(file =>
+                file.Output.Equals(filePath, StringComparison.InvariantCultureIgnoreCase)
+                    ? file with
+                    {
+                        Output = "",
+                    }
+                    : file
+            ),
+        };
 
         await SettingsProvider.OverrideSettingsAsync(settings);
     }

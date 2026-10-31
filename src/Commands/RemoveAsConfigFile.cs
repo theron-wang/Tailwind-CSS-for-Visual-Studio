@@ -44,15 +44,21 @@ internal sealed class RemoveAsConfigFile : BaseCommand<RemoveAsConfigFile>
 
         var filePath = SolutionExplorerSelection.CurrentSelectedItemFullPath;
 
-        settings.ConfigurationFiles.RemoveAll(c =>
-            c.Path.Equals(filePath, StringComparison.InvariantCultureIgnoreCase)
-        );
+        settings = settings with
+        {
+            ConfigurationFiles = settings.ConfigurationFiles.RemoveAll(c =>
+                c.Path.Equals(filePath, StringComparison.InvariantCultureIgnoreCase)
+            ),
+        };
 
         if (Path.GetExtension(filePath) == ".css")
         {
-            settings.BuildFiles.RemoveAll(f =>
-                f.Input.Equals(filePath, StringComparison.InvariantCultureIgnoreCase)
-            );
+            settings = settings with
+            {
+                BuildFiles = settings.BuildFiles.RemoveAll(f =>
+                    f.Input.Equals(filePath, StringComparison.InvariantCultureIgnoreCase)
+                ),
+            };
         }
 
         await SettingsProvider.OverrideSettingsAsync(settings);

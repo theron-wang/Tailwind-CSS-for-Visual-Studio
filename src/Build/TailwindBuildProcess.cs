@@ -96,7 +96,6 @@ internal class TailwindBuildProcess : TailwindCliInterop
         }
 
         await InitializeSettingsAsync();
-        _settings = CaptureBuildSettings(_settings);
         await SetFilePathsAsync(_settings);
 
         // Prevent more than one subscription when projects are changed
@@ -179,34 +178,8 @@ internal class TailwindBuildProcess : TailwindCliInterop
     /// <returns>A task that completes when settings and any required build restarts have been applied.</returns>
     protected override Task SettingsChangedAsync(TailwindSettings settings)
     {
-        var snapshot = CaptureBuildSettings(settings);
-        return WithBuildGateAsync(() => ApplySettingsAsync(snapshot));
+        return WithBuildGateAsync(() => ApplySettingsAsync(settings));
     }
-
-    // SettingsProvider updates its settings object in place. Keep build state
-    // independent so a pending settings notification cannot change a running start.
-    private static TailwindSettings CaptureBuildSettings(TailwindSettings settings) =>
-        new()
-        {
-            ConfigurationFiles = [.. settings.ConfigurationFiles],
-            BuildFiles = settings
-                .BuildFiles.Select(b => new BuildPair
-                {
-                    Input = b.Input,
-                    Output = b.Output,
-                    Behavior = b.Behavior,
-                })
-                .ToList(),
-            BuildType = settings.BuildType,
-            BuildScript = settings.BuildScript,
-            OverrideBuild = settings.OverrideBuild,
-            AutomaticallyMinify = settings.AutomaticallyMinify,
-            DefaultOutputCssName = settings.DefaultOutputCssName,
-            OnSaveTriggerFileExtensions = [.. settings.OnSaveTriggerFileExtensions],
-            UseCli = settings.UseCli,
-            TailwindCliPath = settings.TailwindCliPath,
-            PackageConfigurationFile = settings.PackageConfigurationFile,
-        };
 
     private async Task ApplySettingsAsync(TailwindSettings settings)
     {
@@ -730,9 +703,9 @@ internal class TailwindBuildProcess : TailwindCliInterop
     {
         _configsToPackageJsons.Clear();
 
-        var buildFiles = settings.BuildFiles;
+        var buildFiles = settings.BuildFiles.ToList();
 
-        if (buildFiles is null || buildFiles.Count == 0)
+        if (buildFiles.Count == 0)
         {
             // Check the smallest css files first since tailwind css files (should) be small
             var cssFiles = (await Scanner.FileFinder.GetCssFilesAsync())
@@ -751,34 +724,24 @@ internal class TailwindBuildProcess : TailwindCliInterop
                 }
             }
         }
-        else
-        {
-            buildFiles = buildFiles
-                .Select(b => new BuildPair()
-                {
-                    Input = b.Input,
-                    Output = b.Output,
-                    Behavior = b.Behavior,
-                })
-                .ToList();
-        }
-
         var buildFilesFiltered = buildFiles
             .Where(f => !string.IsNullOrEmpty(f.Input) && File.Exists(f.Input))
             .Select(f =>
             {
-                f.Output = string.IsNullOrEmpty(f.Output)
-                    ? Path.Combine(
-                        PathHelpers.GetContainingDirectory(f.Input),
-                        string.Format(
-                            settings.DefaultOutputCssName.EndsWith(".css")
-                                ? settings.DefaultOutputCssName
-                                : settings.DefaultOutputCssName + ".css",
-                            Path.GetFileNameWithoutExtension(f.Input)
+                return f with
+                {
+                    Output = string.IsNullOrEmpty(f.Output)
+                        ? Path.Combine(
+                            PathHelpers.GetContainingDirectory(f.Input),
+                            string.Format(
+                                settings.DefaultOutputCssName.EndsWith(".css")
+                                    ? settings.DefaultOutputCssName
+                                    : settings.DefaultOutputCssName + ".css",
+                                Path.GetFileNameWithoutExtension(f.Input)
+                            )
                         )
-                    )
-                    : f.Output;
-                return f;
+                        : f.Output,
+                };
             });
 
         _inputFileToBuildInfo = [];

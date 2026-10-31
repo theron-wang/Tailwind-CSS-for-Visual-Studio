@@ -21,7 +21,10 @@ public class ClassOperationServiceTests
     {
         using var fixture = new Fixture();
         var view = fixture.Open("unsorted");
-        fixture.Settings.SortClassesType = trigger ?? SortClassesOptions.Manual;
+        fixture.Settings = fixture.Settings with
+        {
+            SortClassesType = trigger ?? SortClassesOptions.Manual,
+        };
 
         await fixture.Service.ProcessAsync(fixture.Path, trigger);
 
@@ -140,7 +143,7 @@ public class ClassOperationServiceTests
     public async Task ClosedFile_ConcurrentWriteOrOpenIsPreservedAndCanBeRetried(bool open)
     {
         using var fixture = new Fixture();
-        fixture.Settings.SortClassesType = SortClassesOptions.OnBuild;
+        fixture.Settings = fixture.Settings with { SortClassesType = SortClassesOptions.OnBuild };
         fixture.Operation.Pause();
         var run = fixture.Service.ProcessAllAsync(SortClassesOptions.OnBuild);
         await fixture.Operation.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -331,7 +334,12 @@ public class ClassOperationServiceTests
             );
         public ControlledOperation Operation { get; } = new();
         public FakeUndoHistoryRegistry Undo { get; } = new();
-        public TailwindSettings Settings { get; } =
+        public TailwindSettings Settings
+        {
+            get => Service.SettingsProvider.Settings;
+            set => Service.SettingsProvider.Settings = value;
+        }
+        private static TailwindSettings InitialSettings =>
             new()
             {
                 EnableTailwindCss = true,
@@ -347,7 +355,7 @@ public class ClassOperationServiceTests
             finder.JavascriptFiles.Add(Path);
             Service = new()
             {
-                SettingsProvider = new SettingsProvider { Settings = Settings },
+                SettingsProvider = new SettingsProvider { Settings = InitialSettings },
                 Operations = new([Operation]),
                 CompletionConfiguration = new(),
                 FileFinder = finder,

@@ -22,7 +22,7 @@ public class ClassOperationPipelineTests
         await canonicalizer.CanonicalizeAsync(["px-2"], "index.html");
         var pipeline = CreatePipeline(canonicalizer);
         var settings = CreateSettings();
-        settings.SortClassesType = SortClassesOptions.None;
+        settings = settings with { SortClassesType = SortClassesOptions.None };
         const string content = "<div class='px-2'></div><div class='text-[#fff] py-2 px-2'></div>";
 
         var result = await pipeline.ProcessAsync("index.html", content, settings);
@@ -40,8 +40,8 @@ public class ClassOperationPipelineTests
     )
     {
         var settings = CreateSettings();
-        settings.SortClassesType = SortClassesOptions.OnSave;
-        settings.CanonicalizeClassesType = SortClassesOptions.OnBuild;
+        settings = settings with { SortClassesType = SortClassesOptions.OnSave };
+        settings = settings with { CanonicalizeClassesType = SortClassesOptions.OnBuild };
 
         var result = await CreatePipeline()
             .ProcessAsync(
@@ -70,10 +70,13 @@ public class ClassOperationPipelineTests
         foreach (var operationType in new[] { typeof(ClassSorter), typeof(ClassCanonicalizer) })
         {
             var settings = CreateSettings();
-            settings.SortClassesType =
-                operationType == typeof(ClassSorter) ? mode : SortClassesOptions.None;
-            settings.CanonicalizeClassesType =
-                operationType == typeof(ClassCanonicalizer) ? mode : SortClassesOptions.None;
+            settings = settings with
+            {
+                SortClassesType =
+                    operationType == typeof(ClassSorter) ? mode : SortClassesOptions.None,
+                CanonicalizeClassesType =
+                    operationType == typeof(ClassCanonicalizer) ? mode : SortClassesOptions.None,
+            };
             Assert.Equal(
                 enabled,
                 pipeline.GetEnabledOperations(settings, operationType: operationType).Any()
@@ -156,8 +159,8 @@ public class ClassOperationPipelineTests
     )
     {
         var settings = CreateSettings();
-        settings.SortClassesType = sorting;
-        settings.CanonicalizeClassesType = canonicalization;
+        settings = settings with { SortClassesType = sorting };
+        settings = settings with { CanonicalizeClassesType = canonicalization };
 
         var result = await CreatePipeline()
             .ProcessAsync("index.html", "<div class='text-[#fff] px-2 py-2'></div>", settings);
@@ -174,8 +177,8 @@ public class ClassOperationPipelineTests
     )
     {
         var settings = CreateSettings();
-        settings.SortClassesType = SortClassesOptions.OnSave;
-        settings.CanonicalizeClassesType = SortClassesOptions.OnBuild;
+        settings = settings with { SortClassesType = SortClassesOptions.OnSave };
+        settings = settings with { CanonicalizeClassesType = SortClassesOptions.OnBuild };
 
         var result = await CreatePipeline()
             .ProcessAsync(
@@ -194,10 +197,10 @@ public class ClassOperationPipelineTests
     public async Task Pipeline_RequiresExtensionAndConfiguration(bool enabled, bool configured)
     {
         var settings = CreateSettings();
-        settings.EnableTailwindCss = enabled;
+        settings = settings with { EnableTailwindCss = enabled };
         if (!configured)
         {
-            settings.ConfigurationFiles.Clear();
+            settings = settings with { ConfigurationFiles = settings.ConfigurationFiles.Clear() };
         }
 
         const string content = "<div class='text-[#fff] px-2 py-2'></div>";

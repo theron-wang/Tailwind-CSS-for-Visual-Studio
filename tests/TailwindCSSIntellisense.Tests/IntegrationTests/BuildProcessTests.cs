@@ -22,8 +22,14 @@ public class BuildProcessTests
         );
         var second = Path.Combine(fixture.Root, "second.css");
         File.WriteAllText(second, "@import 'tailwindcss';");
-        fixture.Provider.Settings.BuildFiles.Add(new() { Input = second });
-        fixture.Provider.Settings.BuildType = BuildProcessOptions.Manual;
+        fixture.Provider.Settings = fixture.Provider.Settings with
+        {
+            BuildFiles = fixture.Provider.Settings.BuildFiles.Add(new() { Input = second }),
+        };
+        fixture.Provider.Settings = fixture.Provider.Settings with
+        {
+            BuildType = BuildProcessOptions.Manual,
+        };
         await fixture.Service.InitializeAsync();
         await fixture.Service.BuildAllAsync(BuildBehavior.Default);
         Assert.Equal(2, Processes(fixture.Service).Count);
@@ -84,7 +90,10 @@ public class BuildProcessTests
             Path.Combine(fixture.Root, "tailwind.cmd"),
             new[] { "@echo off" }.Concat(messages).Append("exit /b 0")
         );
-        fixture.Provider.Settings.BuildType = BuildProcessOptions.Manual;
+        fixture.Provider.Settings = fixture.Provider.Settings with
+        {
+            BuildType = BuildProcessOptions.Manual,
+        };
         await fixture.Service.InitializeAsync();
         Community.VisualStudio.Toolkit.VS.WriteOutput = text =>
         {
@@ -126,13 +135,19 @@ public class BuildProcessTests
         Task change;
         if (action == "settings")
         {
-            fixture.Provider.Settings.BuildType = BuildProcessOptions.None;
+            fixture.Provider.Settings = fixture.Provider.Settings with
+            {
+                BuildType = BuildProcessOptions.None,
+            };
             change = fixture.Service.ApplySettings(fixture.Provider.Settings);
         }
         else if (action == "project")
         {
             fixture.Provider.Settings = fixture.MakeSettings();
-            fixture.Provider.Settings.BuildFiles.Clear();
+            fixture.Provider.Settings = fixture.Provider.Settings with
+            {
+                BuildFiles = fixture.Provider.Settings.BuildFiles.Clear(),
+            };
             change = fixture.Service.InitializeAsync(newProjectOpened: true);
         }
         else
@@ -193,7 +208,10 @@ public class BuildProcessTests
         File.WriteAllText(Path.Combine(fixture.Root, "package.json"), "{\"scripts\":{}}");
         var input = Path.Combine(fixture.Root, "second.css");
         File.WriteAllText(input, "@import 'tailwindcss';");
-        fixture.Provider.Settings.BuildFiles.Add(new() { Input = input });
+        fixture.Provider.Settings = fixture.Provider.Settings with
+        {
+            BuildFiles = fixture.Provider.Settings.BuildFiles.Add(new() { Input = input }),
+        };
         await fixture.Service.InitializeAsync();
         await fixture.Service.BuildAllAsync(BuildBehavior.Default);
         Assert.Equal(2, Processes(fixture.Service).Count);
@@ -208,7 +226,7 @@ public class BuildProcessTests
         await fixture.Service.BuildAllAsync(BuildBehavior.Default);
         Assert.True(fixture.Service.AreProcessesActive());
         var settings = fixture.MakeSettings();
-        settings.BuildFiles.Clear();
+        settings = settings with { BuildFiles = settings.BuildFiles.Clear() };
         await fixture.Service.ApplySettings(settings);
         Assert.False(fixture.Service.AreProcessesActive());
         Assert.Empty(Processes(fixture.Service));
@@ -293,6 +311,7 @@ public class BuildProcessTests
             new()
             {
                 BuildType = type,
+                DefaultOutputCssName = "{0}.output.css",
                 ConfigurationFiles = [new() { Path = Values.FilePath }],
                 BuildFiles = [new() { Input = Values.FilePath }],
                 UseCli = true,

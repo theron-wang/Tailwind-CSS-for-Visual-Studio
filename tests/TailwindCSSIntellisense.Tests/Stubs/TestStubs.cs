@@ -97,13 +97,19 @@ namespace Microsoft.VisualStudio.Threading
     public sealed class JoinableTaskFactory
     {
         public Task? LastTask { get; private set; }
+        public int SynchronousRunCount { get; private set; }
 
         public Task RunAsync(Func<Task> asyncMethod) => LastTask = asyncMethod();
 
-        public void Run(Func<Task> asyncMethod) => asyncMethod().GetAwaiter().GetResult();
+        public void Run(Func<Task> asyncMethod)
+        {
+            SynchronousRunCount++;
+            asyncMethod().GetAwaiter().GetResult();
+        }
 
         public T Run<T>(Func<Task<T>> asyncMethod)
         {
+            SynchronousRunCount++;
             return asyncMethod().GetAwaiter().GetResult();
         }
 
@@ -541,41 +547,6 @@ namespace TailwindCSSIntellisense.ClassOperations.Sorters
         )
         {
             return value.StartsWith(prefix, comparison) ? value[prefix.Length..] : value;
-        }
-    }
-}
-
-namespace TailwindCSSIntellisense.Settings
-{
-    public sealed class TailwindSettings
-    {
-        public bool EnableTailwindCss { get; set; }
-        public List<ConfigurationFile> ConfigurationFiles { get; set; } = [];
-        public List<BuildPair> BuildFiles { get; set; } = [];
-        public string? PackageConfigurationFile { get; set; }
-        public BuildProcessOptions BuildType { get; set; }
-        public string? BuildScript { get; set; }
-        public bool OverrideBuild { get; set; }
-        public bool AutomaticallyMinify { get; set; }
-        public string DefaultOutputCssName { get; set; } = "{0}.output.css";
-        public string[] OnSaveTriggerFileExtensions { get; set; } = [];
-        public SortClassesOptions SortClassesType { get; set; }
-        public SortClassesOptions CanonicalizeClassesType { get; set; } = SortClassesOptions.None;
-        public bool UseCli { get; set; }
-        public string? TailwindCliPath { get; set; }
-        public CustomRegexes CustomRegexes { get; set; } = new();
-    }
-
-    public sealed class CustomRegexes
-    {
-        public CustomRegex Razor { get; set; } = new();
-        public CustomRegex HTML { get; set; } = new();
-        public CustomRegex JavaScript { get; set; } = new();
-
-        public class CustomRegex
-        {
-            public bool Override { get; set; } = false;
-            public List<string> Values { get; set; } = [];
         }
     }
 }

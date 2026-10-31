@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.ComponentModel.Composition;
 using System.IO;
 using System.Linq;
@@ -301,33 +302,37 @@ public sealed partial class ProjectConfigurationManager : IDisposable
         }
     }
 
-    public async Task OnSettingsChangedAsync(TailwindSettings settings)
+    internal async Task<ImmutableList<ConfigurationFile>> ResolveConfigurationFilesAsync(
+        TailwindSettings settings
+    )
     {
-        var revision = Interlocked.Increment(ref _settingsRevision);
         var files = settings
             .ConfigurationFiles.Select(f => new ConfigurationFile { Path = f.Path })
             .ToList();
-        var builds = settings.BuildFiles.ToArray();
+        foreach (var buildFile in settings.BuildFiles.ToArray())
+        {
+            if (
+                files.All(cf =>
+                    !cf.Path.Equals(buildFile.Input, StringComparison.OrdinalIgnoreCase)
+                )
+                && await DirectoryVersionFinder.GetTailwindVersionAsync(buildFile.Input, settings)
+                    >= TailwindVersion.V4
+            )
+                files.Add(new() { Path = buildFile.Input });
+        }
+        return files.ToImmutableList();
+    }
+
+    public async Task OnSettingsChangedAsync(TailwindSettings settings)
+    {
+        var revision = Interlocked.Increment(ref _settingsRevision);
+        var files = await ResolveConfigurationFilesAsync(settings);
         await TaskScheduler.Default;
         await _settingsUpdateGate.WaitAsync();
         try
         {
             if (revision != Interlocked.Read(ref _settingsRevision))
                 return;
-            foreach (var buildFile in builds)
-            {
-                if (
-                    files.All(cf =>
-                        !cf.Path.Equals(buildFile.Input, StringComparison.OrdinalIgnoreCase)
-                    )
-                    && await DirectoryVersionFinder.GetTailwindVersionAsync(
-                        buildFile.Input,
-                        settings
-                    ) >= TailwindVersion.V4
-                )
-                    files.Add(new() { Path = buildFile.Input });
-            }
-
             var current = (await GetAllProjectCompletionValuesAsync()).ToDictionary(
                 p => p.FilePath,
                 StringComparer.OrdinalIgnoreCase
@@ -384,7 +389,6 @@ public sealed partial class ProjectConfigurationManager : IDisposable
                 _reloadTokens.Clear();
                 _filePathToProjectConfigurationCache.Clear();
                 _configurationGeneration++;
-                settings.ConfigurationFiles = files;
                 // The import map is updated under the same publication gate.
                 // Reloader releases its own gate before it requests a reload.
                 await Configuration.Reloader.ReplaceAllImportsAsync(staged.Values);

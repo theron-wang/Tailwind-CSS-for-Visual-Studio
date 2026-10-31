@@ -5,17 +5,17 @@ namespace TailwindCSSIntellisense.Tests.IntegrationTests;
 [Collection("Non-Parallel Tests")]
 public class IntelliSenseAndDetectionIntegrationTests : IDisposable
 {
-    private readonly Func<Task<Settings.TailwindSettings>>? _originalSettingsDelegate;
+    private readonly Func<Settings.TailwindSettings?>? _originalSettingsDelegate;
 
     public IntelliSenseAndDetectionIntegrationTests()
     {
-        _originalSettingsDelegate = ClassRegexHelper.GetTailwindSettings;
-        ClassRegexHelper.GetTailwindSettings = null;
+        _originalSettingsDelegate = ClassRegexHelper.GetCachedTailwindSettings;
+        ClassRegexHelper.GetCachedTailwindSettings = null;
     }
 
     public void Dispose()
     {
-        ClassRegexHelper.GetTailwindSettings = _originalSettingsDelegate;
+        ClassRegexHelper.GetCachedTailwindSettings = _originalSettingsDelegate;
         GC.SuppressFinalize(this);
     }
 

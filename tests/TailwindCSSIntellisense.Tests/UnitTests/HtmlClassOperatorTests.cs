@@ -7,12 +7,12 @@ namespace TailwindCSSIntellisense.Tests.UnitTests;
 [Collection("Non-Parallel Tests")]
 public class HtmlClassOperatorTests : IDisposable
 {
-    private readonly Func<Task<TailwindSettings>>? _originalSettingsDelegate;
+    private readonly Func<TailwindSettings?>? _originalSettingsDelegate;
 
     public HtmlClassOperatorTests()
     {
-        _originalSettingsDelegate = ClassRegexHelper.GetTailwindSettings;
-        ClassRegexHelper.GetTailwindSettings = null;
+        _originalSettingsDelegate = ClassRegexHelper.GetCachedTailwindSettings;
+        ClassRegexHelper.GetCachedTailwindSettings = null;
     }
 
     [Theory]
@@ -37,7 +37,7 @@ public class HtmlClassOperatorTests : IDisposable
 
     public void Dispose()
     {
-        ClassRegexHelper.GetTailwindSettings = _originalSettingsDelegate;
+        ClassRegexHelper.GetCachedTailwindSettings = _originalSettingsDelegate;
     }
 
     private sealed class TestHtmlClassOperator : HtmlClassOperator<TestSortOperation> { }

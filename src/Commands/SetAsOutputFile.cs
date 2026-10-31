@@ -121,17 +121,17 @@ internal sealed class SetAsOutputFile : BaseCommand<SetAsOutputFile>
             var buildFile = settings.BuildFiles.FirstOrDefault(b =>
                 b.Input.Equals(path, StringComparison.InvariantCultureIgnoreCase)
             );
-            var isNew = buildFile is null;
-
-            buildFile ??= new();
-
-            buildFile.Input = path;
-            buildFile.Output = SolutionExplorerSelection.CurrentSelectedItemFullPath;
-
-            if (isNew)
+            var updated = (buildFile ?? new()) with
             {
-                settings.BuildFiles.Add(buildFile);
-            }
+                Input = path,
+                Output = SolutionExplorerSelection.CurrentSelectedItemFullPath,
+            };
+            settings = settings with
+            {
+                BuildFiles = buildFile is null
+                    ? settings.BuildFiles.Add(updated)
+                    : settings.BuildFiles.Replace(buildFile, updated),
+            };
 
             ThreadHelper.JoinableTaskFactory.Run(
                 async delegate

@@ -120,6 +120,14 @@
       Link="Source/Options/SortClassesOptions.cs"
     />
     <Compile Include="../../src/Usings.cs" Link="Source/Usings.cs" />
+    <Compile
+      Include="../../src/Settings/TailwindSettings.cs"
+      Link="Source/Settings/TailwindSettings.cs"
+    />
+    <Compile
+      Include="../../src/Settings/CustomRegexes.cs"
+      Link="Source/Settings/CustomRegexes.cs"
+    />
     <Compile Include="../../src/Settings/BuildPair.cs" Link="Source/Settings/BuildPair.cs" />
     <Compile
       Include="../../src/Settings/BuildBehavior.cs"

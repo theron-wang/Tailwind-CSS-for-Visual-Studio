@@ -60,9 +60,12 @@ internal sealed class RemoveAsInputFile : BaseCommand<RemoveAsInputFile>
         var settings = await SettingsProvider.GetSettingsAsync();
         var filePath = SolutionExplorerSelection.CurrentSelectedItemFullPath;
 
-        settings.BuildFiles.RemoveAll(f =>
-            f.Input.Equals(filePath, StringComparison.InvariantCultureIgnoreCase)
-        );
+        settings = settings with
+        {
+            BuildFiles = settings.BuildFiles.RemoveAll(f =>
+                f.Input.Equals(filePath, StringComparison.InvariantCultureIgnoreCase)
+            ),
+        };
 
         await SettingsProvider.OverrideSettingsAsync(settings);
     }

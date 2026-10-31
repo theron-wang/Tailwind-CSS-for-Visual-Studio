@@ -1,6 +1,6 @@
 ﻿namespace TailwindCSSIntellisense.Settings;
 
-public class ConfigurationFile
+public sealed record ConfigurationFile
 {
-    public string Path { get; set; } = null!;
+    public string Path { get; init; } = null!;
 }
